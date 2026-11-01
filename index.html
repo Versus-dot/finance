@@ -128,7 +128,7 @@ input[type="date"]{color-scheme:dark}
 </nav>
 <div class="modal-backdrop" id="modalBackdrop"><div class="modal" id="modalContent"></div></div>
 <div class="toast" id="toast"></div>
-<script>
+<script>window.onerror=function(m,s,l,c,e){document.body.innerHTML='<div style="padding:20px;background:#fff;color:#c00;font-family:monospace;font-size:13px;line-height:1.6"><b style="font-size:16px">❌ ОШИБКА JS</b><br><br><b>Сообщение:</b><br>'+m+'<br><br><b>Строка:</b> '+l+'<br><br><b>Стек:</b><br>'+(e&&e.stack?e.stack.replace(/\\n/g,'<br>'):'—')+'</div>';};
 const KEY='financeApp_v2',OLD_KEY='financeApp_v1';
 const ACC_TYPES={debit:'Дебетовая карта',credit:'Кредитная карта',brokerage:'Брокерский',iis:'ИИС',pds:'ПДС',deposit:'Вклад',savings:'Накопительный',crypto:'Криптобиржа',cash:'Наличные',finu_wallet:'Кошелёк Финуслуги'};
 const TERMS={indefinite:'Бессрочный','14d':'14 дней','3m':'3 мес','6m':'6 мес','12m':'1 год','24m':'2 года'};
