@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мои финансы</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#fff; --text:#1c2333; --muted:#7a8399;
+    --accent:#3b6ef5; --green:#1e9e6a; --red:#e04a4a; --border:#e6e9f2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+       background:var(--bg);color:var(--text);padding:16px;max-width:1100px;margin:auto}
+  h1{font-size:22px;margin:0}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  button{cursor:pointer;border:none;border-radius:8px;padding:9px 14px;font-size:14px;
+         background:var(--accent);color:#fff;font-weight:600;transition:.15s}
+  button:hover{filter:brightness(1.08)}
+  button.ghost{background:#fff;color:var(--text);border:1px solid var(--border)}
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:var(--card);border-radius:14px;padding:16px;border:1px solid var(--border);
+        box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .card span{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+  .card strong{font-size:20px}
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{background:#fff;color:var(--text);border:1px solid var(--border)}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .panel{display:none}
+  .panel.active{display:block}
+  form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;
+       background:var(--card);padding:16px;border-radius:14px;border:1px solid var(--border);margin-bottom:16px}
+  input,select{padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;width:100%}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .list{background:var(--card);border-radius:14px;border:1px solid var(--border);overflow:hidden}
+  .row{display:grid;grid-template-columns:90px 1fr 140px 40px;gap:10px;align-items:center;
+       padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px}
+  .row:last-child{border-bottom:none}
+  .row .date{color:var(--muted);font-size:12px}
+  .row .cat{font-weight:600}
+  .row .note{color:var(--muted);font-size:12px}
+  .amount{text-align:right;font-weight:700;white-space:nowrap}
+  .amount.income{color:var(--green)}
+  .amount.expense{color:var(--red)}
+  .del{background:transparent;color:var(--muted);padding:4px 8px;font-size:16px}
+  .del:hover{color:var(--red)}
+  .empty{padding:30px;text-align:center;color:var(--muted)}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:700px){.charts{grid-template-columns:1fr}.row{grid-template-columns:1fr auto}}
+  .chartbox{background:var(--card);border-radius:14px;border:1px solid var(--border);padding:16px}
+  .chartbox h3{margin:0 0 12px;font-size:15px;font-weight:600}
+  .invest-row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 40px;gap:10px;align-items:center;
+              padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px}
+  @media(max-width:700px){.invest-row{grid-template-columns:1fr auto}}
+  .profit{font-weight:700}
+  .profit.pos{color:var(--green)}
+  .profit.neg{color:var(--red)}
+  .badge{font-size:11px;background:#eef2ff;color:var(--accent);padding:2px 8px;border-radius:20px;font-weight:600}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💰 Мои финансы</h1>
+  <div>
+    <button class="ghost" id="exportBtn">Экспорт</button>
+    <button class="ghost" id="importBtn">Импорт</button>
+    <input type="file" id="importFile" hidden accept=".json">
+  </div>
+</header>
+
+<section class="summary">
+  <div class="card"><span>Свободный баланс</span><strong id="sBalance">0 ₽</strong></div>
+  <div class="card"><span>Портфель (текущая)</span><strong id="sPortfolio">0 ₽</strong></div>
+  <div class="card"><span>Общий капитал</span><strong id="sNetworth">0 ₽</strong></div>
+  <div class="card"><span>Прибыль портфеля</span><strong id="sProfit">0 ₽</strong></div>
+</section>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="overview">Обзор</button>
+  <button class="tab" data-tab="transactions">Транзакции</button>
+  <button class="tab" data-tab="investments">Инвестиции</button>
+</nav>
+
+<div class="panel active" id="tab-overview">
+  <div class="charts">
+    <div class="chartbox"><h3>Расходы по категориям</h3><canvas id="pieChart" height="220"></canvas></div>
+    <div class="chartbox"><h3>Доходы и расходы по месяцам</h3><canvas id="barChart" height="220"></canvas></div>
+  </div>
+</div>
+
+<div class="panel" id="tab-transactions">
+  <form id="txForm">
+    <select id="txType">
+      <option value="income">Доход</option>
+      <option value="expense">Расход</option>
+    </select>
+    <input id="txAmount" type="number" min="0" step="0.01" placeholder="Сумма" required>
+    <select id="txCategory"></select>
+    <input id="txDate" type="date" required>
+    <input id="txNote" type="text" placeholder="Комментарий">
+    <button type="submit">Добавить</button>
+  </form>
+  <div class="list" id="txList"></div>
+</div>
+
+<div class="panel" id="tab-investments">
+  <form id="invForm">
+    <input id="invName" type="text" placeholder="Актив (напр. S&P 500)" required>
+    <select id="invType"></select>
+    <input id="invInvested" type="number" min="0" step="0.01" placeholder="Вложено" required>
+    <input id="invCurrent" type="number" min="0" step="0.01" placeholder="Текущая стоимость" required>
+    <input id="invDate" type="date" required>
+    <button type="submit">Добавить</button>
+  </form>
+  <div class="list" id="invList"></div>
+</div>
+
+<script>
+const KEY = 'financeApp_v1';
+const CATS = {
+  income: ['Зарплата','Фриланс','Пассивный доход','Подарки','Прочее'],
+  expense: ['Еда','Жильё','Транспорт','Здоровье','Развлечения','Одежда','Связь','Подписки','Прочее'],
+  invest: ['Акции','Облигации','ETF','Криптовалюта','Депозит','Недвижимость','Другое']
+};
+
+let state = { transactions: [], investments: [] };
+let pieChart, barChart;
+
+const fmt = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:0}).format(n||0);
+const today = () => new Date().toISOString().slice(0,10);
+
+function load(){
+  try { const r = localStorage.getItem(KEY); if (r) state = JSON.parse(r); }
+  catch(e){ console.warn('load error', e); }
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+function fillSelect(sel, arr){
+  sel.innerHTML = arr.map(c=>`<option>${c}</option>`).join('');
+}
+
+/* ---------- TAB SWITCH ---------- */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+  };
+});
+
+/* ---------- SUMMARY ---------- */
+function computeTotals(){
+  const income  = state.transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = state.transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const invested = state.investments.reduce((s,i)=>s+i.invested,0);
+  const current  = state.investments.reduce((s,i)=>s+i.current,0);
+  const balance = income - expense - invested;
+  return { income, expense, invested, current, balance, profit: current - invested, networth: balance + current };
+}
+
+function renderSummary(){
+  const t = computeTotals();
+  document.getElementById('sBalance').textContent   = fmt(t.balance);
+  document.getElementById('sPortfolio').textContent = fmt(t.current);
+  document.getElementById('sNetworth').textContent  = fmt(t.networth);
+  const profitEl = document.getElementById('sProfit');
+  profitEl.textContent = fmt(t.profit);
+  profitEl.style.color = t.profit >= 0 ? 'var(--green)' : 'var(--red)';
+}
+
+/* ---------- TRANSACTIONS ---------- */
+const txTypeSel = document.getElementById('txType');
+const txCatSel  = document.getElementById('txCategory');
+
+txTypeSel.onchange = () => fillSelect(txCatSel, CATS[txTypeSel.value]);
+fillSelect(txCatSel, CATS.income);
+document.getElementById('txDate').value = today();
+
+document.getElementById('txForm').onsubmit = e => {
+  e.preventDefault();
+  const tx = {
+    id: Date.now().toString(36),
+    type: txTypeSel.value,
+    amount: parseFloat(document.getElementById('txAmount').value),
+    category: txCatSel.value,
+    date: document.getElementById('txDate').value,
+    note: document.getElementById('txNote').value.trim()
+  };
+  if (!(tx.amount > 0)) return;
+  state.transactions.push(tx);
+  save(); renderAll();
+  e.target.reset();
+  document.getElementById('txDate').value = today();
+  fillSelect(txCatSel, CATS[txTypeSel.value]);
+};
+
+function renderTransactions(){
+  const el = document.getElementById('txList');
+  const list = [...state.transactions].sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  if (!list.length){ el.innerHTML = '<div class="empty">Пока нет операций. Добавьте первую 👆</div>'; return; }
+  el.innerHTML = list.map(t=>`
+    <div class="row">
+      <div class="date">${new Date(t.date).toLocaleDateString('ru-RU')}</div>
+      <div>
+        <div class="cat">${t.category}</div>
+        ${t.note ? `<div class="note">${escapeHtml(t.note)}</div>` : ''}
+      </div>
+      <div class="amount ${t.type}">${t.type==='income'?'+':'−'} ${fmt(t.amount)}</div>
+      <button class="del" data-del-tx="${t.id}" title="Удалить">✕</button>
+    </div>
+  `).join('');
+}
+document.getElementById('txList').onclick = e => {
+  const id = e.target.dataset.delTx;
+  if (id){ state.transactions = state.transactions.filter(t=>t.id!==id); save(); renderAll(); }
+};
+
+/* ---------- INVESTMENTS ---------- */
+const invTypeSel = document.getElementById('invType');
+fillSelect(invTypeSel, CATS.invest);
+document.getElementById('invDate').value = today();
+
+document.getElementById('invForm').onsubmit = e => {
+  e.preventDefault();
+  const inv = {
+    id: Date.now().toString(36),
+    name: document.getElementById('invName').value.trim(),
+    type: invTypeSel.value,
+    invested: parseFloat(document.getElementById('invInvested').value),
+    current:  parseFloat(document.getElementById('invCurrent').value),
+    date: document.getElementById('invDate').value
+  };
+  if (!inv.name || !(inv.invested >= 0) || !(inv.current >= 0)) return;
+  state.investments.push(inv);
+  save(); renderAll();
+  e.target.reset();
+  document.getElementById('invDate').value = today();
+  fillSelect(invTypeSel, CATS.invest);
+};
+
+function renderInvestments(){
+  const el = document.getElementById('invList');
+  if (!state.investments.length){
+    el.innerHTML = '<div class="empty">Портфель пуст. Добавьте актив выше.</div>'; return;
+  }
+  el.innerHTML = state.investments.map(i=>{
+    const profit = i.current - i.invested;
+    const pct = i.invested ? (profit / i.invested * 100) : 0;
+    return `
+    <div class="invest-row">
+      <div><strong>${escapeHtml(i.name)}</strong><br><span class="badge">${i.type}</span></div>
+      <div>Вложено<br><strong>${fmt(i.invested)}</strong></div>
+      <div>Сейчас<br><strong>${fmt(i.current)}</strong></div>
+      <div class="profit ${profit>=0?'pos':'neg'}">${profit>=0?'+':''}${fmt(profit)}<br>
+        <small>${pct>=0?'+':''}${pct.toFixed(1)}%</small></div>
+      <button class="del" data-del-inv="${i.id}">✕</button>
+    </div>`;
+  }).join('');
+}
+document.getElementById('invList').onclick = e => {
+  const id = e.target.dataset.delInv;
+  if (id){ state.investments = state.investments.filter(i=>i.id!==id); save(); renderAll(); }
+};
+
+/* ---------- CHARTS ---------- */
+function renderCharts(){
+  // Pie: расходы по категориям
+  const byCat = {};
+  state.transactions.filter(t=>t.type==='expense').forEach(t=>{
+    byCat[t.category] = (byCat[t.category]||0) + t.amount;
+  });
+  const pieLabels = Object.keys(byCat);
+  const pieData = pieLabels.map(k=>byCat[k]);
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pieChart'), {
+    type:'doughnut',
+    data:{ labels: pieLabels.length?pieLabels:['Нет данных'],
+      datasets:[{ data: pieData.length?pieData:[1],
+        backgroundColor:['#3b6ef5','#1e9e6a','#e04a4a','#f2a93b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#64748b'],
+        borderWidth:0 }]},
+    options:{ plugins:{ legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}} } }
+  });
+
+  // Bar: доходы/расходы по месяцам (последние 6)
+  const months = {};
+  state.transactions.forEach(t=>{
+    const m = t.date.slice(0,7);
+    if (!months[m]) months[m] = { income:0, expense:0 };
+    months[m][t.type] += t.amount;
+  });
+  const keys = Object.keys(months).sort().slice(-6);
+  const labels = keys.map(k=>{
+    const [y,mo] = k.split('-');
+    return new Date(y, mo-1).toLocaleDateString('ru-RU',{month:'short',year:'2-digit'});
+  });
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), {
+    type:'bar',
+    data:{ labels,
+      datasets:[
+        {label:'Доходы', data:keys.map(k=>months[k].income), backgroundColor:'#1e9e6a', borderRadius:6},
+        {label:'Расходы', data:keys.map(k=>months[k].expense), backgroundColor:'#e04a4a', borderRadius:6}
+      ]},
+    options:{ plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}} }
+  });
+}
+
+/* ---------- EXPORT / IMPORT ---------- */
+document.getElementById('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `finance-backup-${today()}.json`;
+  a.click();
+};
+document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
+document.getElementById('importFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!data.transactions || !data.investments) throw new Error('bad format');
+      if (confirm('Заменить текущие данные импортированными?')){
+        state = data; save(); renderAll();
+      }
+    } catch(err){ alert('Ошибка импорта: ' + err.message); }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+};
+
+/* ---------- HELPERS ---------- */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function renderAll(){
+  renderSummary();
+  renderTransactions();
+  renderInvestments();
+  renderCharts();
+}
+
+load();
+renderAll();
+</script>
+</body>
+</html>
