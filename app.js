@@ -129,7 +129,17 @@ function openSettings(){
     <button class="btn-primary btn-block" onclick="saveSettings()">Сохранить</button>
     <button class="btn-secondary btn-block" style="margin-top:8px" onclick="fetchUSDT()">Обновить курс USDT</button>`);
 }
-function saveSettings(){S.settings.appTitle=$('setTitle').value;S.settings.pinCode=$('setPin').value;S.settings.snapshotFreq=$('setSnap').value;S.settings.badgeStyle=$('setBadge').value;save();renderAll();closeModal();toast('Стиль сохранен: '+S.settings.badgeStyle);}
+function saveSettings(){
+    S.settings.appTitle=$('setTitle').value;
+    S.settings.pinCode=$('setPin').value;
+    S.settings.snapshotFreq=$('setSnap').value;
+    S.settings.badgeStyle=$('setBadge').value;
+    S.settings.yandexToken=$('setYandexToken').value.trim(); // <--- СОХРАНЯЕМ ТОКЕН
+    save();
+    renderAll();
+    closeModal();
+    toast('Настройки сохранены');
+}
 function applySettings(){$('appTitle').textContent=S.settings.appTitle;document.documentElement.setAttribute('data-theme',S.settings.theme);document.body.style.fontSize=S.settings.fontSize;}
 function resetAll(){if(!confirm('Удалить ВСЕ данные?'))return;localStorage.removeItem(KEY);location.reload();}
 function exportJSON(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`finance-backup-${today()}.json`;a.click();}
