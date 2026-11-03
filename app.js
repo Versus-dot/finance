@@ -114,13 +114,15 @@ function openSettings(){
     <hr style="border-color:var(--border); margin: 16px 0;">
     <div style="font-weight:700; margin-bottom:10px;">☁️ Облачный бэкап (Яндекс.Диск)</div>
     
+    <div class="form-group">
+        <label>Токен доступа Яндекса</label>
+        <input id="setYandexToken" type="password" value="${esc(S.settings.yandexToken || '')}" placeholder="Вставьте ваш токен сюда">
+        <div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится только на этом устройстве.</div>
+    </div>
+
     <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
-        <button class="btn-secondary btn-block" onclick="backupToYandexDisk()">
-            ☁️ Сохранить на Яндекс.Диск
-        </button>
-        <button class="btn-secondary btn-block" onclick="restoreFromYandexDisk()">
-            ⬇️ Восстановить с Яндекс.Диска
-        </button>
+        <button class="btn-secondary btn-block" onclick="backupToYandexDisk()">☁️ Сохранить на Яндекс.Диск</button>
+        <button class="btn-secondary btn-block" onclick="restoreFromYandexDisk()">⬇️ Восстановить с Яндекс.Диска</button>
     </div>
     <hr style="border-color:var(--border); margin: 16px 0;">
     
