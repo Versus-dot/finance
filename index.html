@@ -105,8 +105,14 @@ input[type="date"]{color-scheme:dark}
 .drag-handle:active{cursor:grabbing;}
 
 /* Стили для пластиковых карт */
-.plastic-card{position:relative;border-radius:16px;padding:16px;margin:10px 14px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;height:180px;box-shadow:0 6px 16px rgba(0,0,0,0.3);overflow:hidden;cursor:pointer;transition:transform 0.2s;}
-.plastic-card:active{transform:scale(0.97);}
+.plastic-card{
+  position:relative; border-radius:16px; padding:18px; color:#fff; display:flex; flex-direction:column; justify-content:space-between;
+  height:190px; box-shadow:0 6px 16px rgba(0,0,0,0.3); overflow:hidden; cursor:pointer; transition:transform 0.2s;
+  max-width: 380px; /* Ограничение ширины для ПК */
+  width: calc(100% - 20px);
+  margin: 10px auto; /* Центрирование */
+}
+.plastic-card:active{transform:scale(0.98);}
 .plastic-card::before{content:'';position:absolute;top:-50px;right:-50px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,0.1);}
 .plastic-card::after{content:'';position:absolute;bottom:-50px;left:-50px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.05);}
 .pc-row{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;}
@@ -121,6 +127,14 @@ input[type="date"]{color-scheme:dark}
 .pc-credit-fill{height:100%;background:#fff;}
 
 .account-list-wrapper{padding: 10px 0;}
+
+/* Адаптация под ПК */
+@media (min-width: 800px) {
+  .app-header { max-width: 800px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  main { max-width: 800px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-height: calc(100vh - 60px); }
+  .bottom-nav { max-width: 800px; margin: 0 auto; left: 50%; transform: translateX(-50%); border-left: 1px solid var(--border); border-right: 1px solid var(--border); border-radius: 16px 16px 0 0; }
+  .fab { right: calc(50% - 400px + 16px); }
+}
 </style>
 </head>
 <body>
@@ -481,7 +495,6 @@ function renderProductRow(a, bank) {
   if (a.type === 'debit' || a.type === 'credit') {
     const isCredit = a.type === 'credit';
     const bColor = bank ? (bank.color || '#4d7fff') : '#4d7fff';
-    // Делаем красивый градиент из цвета банка
     const gradient = `linear-gradient(135deg, ${bColor} 0%, #1a1f2b 120%)`;
     
     const v = accValue(a);
@@ -549,14 +562,14 @@ function toggleBank(id){
   const i=S.ui.collapsedBanks.indexOf(id);
   if(i>=0)S.ui.collapsedBanks.splice(i,1);
   else S.ui.collapsedBanks.push(id);
-  save();renderAll(); // Важно: renderAll, чтобы обновить везде
+  save();renderAll();
 }
 
 function toggleBankAccs(id){
   const i=S.ui.collapsedBanks.indexOf(id);
   if(i>=0)S.ui.collapsedBanks.splice(i,1);
   else S.ui.collapsedBanks.push(id);
-  save();renderAccounts(); // Обновляем только текущую вкладку
+  save();renderAccounts();
 }
 
 function openWidget(type){
@@ -643,8 +656,6 @@ function renderAccounts(){
         </div>
         <div class="bank-accounts-list" data-bank-id="${sb.id}" style="${sbCollapsed?'display:none':''}">
         ${sbAccs.map(a=>{
-           // Используем функцию renderProductRow для рендера как карт, так и списков
-           // Но нужно обернуть в контейнер, чтобы сортировка работала
            return `<div data-acc-id="${a.id}">${renderProductRow(a, sb)}</div>`;
         }).join('')}
         </div>
@@ -704,7 +715,6 @@ function initSortable() {
       handle: '.drag-handle', 
       filter: 'button, input, select, .sub-bank-section',
       onEnd: function(evt) {
-        // Получаем все элементы счетов (пропускаем заголовки под-банков)
         const items = container.querySelectorAll(':scope > [data-acc-id]');
         items.forEach((item, index) => {
           const id = item.dataset.accId;
