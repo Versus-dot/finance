@@ -283,3 +283,20 @@ async function restoreFromYandexDisk() {
         toast('❌ Ошибка: ' + error.message);
     }
 }
+// Функция проверки: не пора ли сделать автоматический бэкап?
+function checkAutoBackup() {
+    const token = S.settings.yandexToken;
+    if (!token) return; // Если токена нет, ничего не делаем
+    
+    const lastBackup = S.settings.lastCloudBackup || 0;
+    const oneDay = 24 * 60 * 60 * 1000; // 24 часа в миллисекундах
+    
+    // Если прошло больше 24 часов с последнего бэкапа
+    if (Date.now() - lastBackup > oneDay) {
+        console.log('Прошло больше 24 часов. Запускаем автосохранение...');
+        backupToYandexDisk(true); // true = тихий режим (без всплывающих окон)
+    }
+}
+
+// Запускаем проверку через 3 секунды после открытия приложения
+setTimeout(checkAutoBackup, 3000);
