@@ -1,8 +1,18 @@
-const CACHE = 'finance-v23-' + Date.now();
-const ASSETS=['./','./index.html','./manifest.json'];
+const CACHE = 'finance-v24-' + Date.now(); // Обновил версию кэша
+const ASSETS=[
+  './',
+  './index.html',
+  './style.css',  // ДОБАВЛЕНО
+  './app.js',     // ДОБАВЛЕНО
+  './manifest.json'
+];
 
 self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c=>c.addAll(ASSETS))
+      .then(()=>self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate',e=>{
@@ -16,7 +26,10 @@ self.addEventListener('activate',e=>{
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET')return;
   const url=new URL(e.request.url);
-  if(url.origin!==location.origin)return; // external (CDN, CoinGecko) — не кешируем
+  
+  // Не кэшируем внешние запросы (Google API, Chart.js, CoinGecko)
+  if(url.origin!==location.origin)return; 
+
   e.respondWith(
     caches.match(e.request).then(r=>{
       if(r)return r;
