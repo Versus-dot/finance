@@ -144,7 +144,29 @@ function applySettings(){$('appTitle').textContent=S.settings.appTitle;document.
 function resetAll(){if(!confirm('Удалить ВСЕ данные?'))return;localStorage.removeItem(KEY);location.reload();}
 function exportJSON(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`finance-backup-${today()}.json`;a.click();}
 function importJSON(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.transactions||!d.accounts)throw new Error('bad');if(confirm('Заменить данные?')){S=Object.assign(defaultState(),d);save();applySettings();renderAll();closeModal();toast('Восстановлено');}}catch(err){alert('Ошибка: '+err.message);}};r.readAsText(f);};inp.click();}
-async function fetchUSDT(){try{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=rub');const d=await r.json();if(d.tether?.rub){S.settings.usdtRate.lastFetched=d.tether.rub;S.settings.usdtRate.updatedAt=new Date().toISOString();save();toast('Курс: '+fmtNum(d.tether.rub)+'₽');renderAll();}}catch(e){toast('Ошибка курса');}}
+async function fetchUSDT(){
+    try {
+        // Используем наш Yandex Cloud прокси, чтобы обойти блокировки CoinGecko
+        const targetUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=rub';
+        const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
+        const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(targetUrl)}`;
+
+        const r = await fetch(proxyUrl);
+        if (!r.ok) throw new Error('Ошибка сети');
+        
+        const d = await r.json();
+        if(d.tether && d.tether.rub){
+            S.settings.usdtRate.lastFetched = d.tether.rub;
+            S.settings.usdtRate.updatedAt = new Date().toISOString();
+            save();
+            toast('Курс: ' + fmtNum(d.tether.rub) + '₽');
+            renderAll();
+        }
+    } catch(e) {
+        console.log('Курс USDT временно недоступен. Используется сохраненный.');
+        // Мы не показываем красную ошибку пользователю, если курс не загрузился
+    }
+}
 function applyTheme(){document.documentElement.setAttribute('data-theme',S.settings.theme);$('themeBtn').textContent=S.settings.theme==='dark'?'🌙':'☀️';}
 $('themeBtn').onclick=()=>{S.settings.theme=S.settings.theme==='dark'?'light':'dark';save();applyTheme();};
 document.querySelectorAll('.nav-tab').forEach(t=>{t.onclick=()=>{activeTab=t.dataset.tab;document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('page-'+t.dataset.tab).classList.add('active');if(t.dataset.tab==='stats')renderStats();window.scrollTo(0,0);};});
