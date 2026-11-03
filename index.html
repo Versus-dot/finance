@@ -344,7 +344,7 @@ function renderHomeAccounts(){
   const el=$('dashAccounts');
   if(!el) return;
   
-  let html = '';
+  let html = '<div id="homeBanksSortable">';
   const topBanks = S.banks.filter(b => !b.parentId).sort((a,b) => (a.order||0) - (b.order||0));
   
   topBanks.forEach(b => {
@@ -364,21 +364,28 @@ function renderHomeAccounts(){
     
     html += `<div class="bank-section" data-bank-id="${b.id}">
       <div class="bank-header" onclick="toggleBank('${b.id}')">
-        <span>${collapsed?'▶':'▼'} ${esc(b.name)}</span>
+        <span style="display:flex; align-items:center;">
+          <span class="drag-handle" style="margin-right:8px; color:var(--muted);" onclick="event.stopPropagation()">⋮⋮</span>
+          ${collapsed?'▶':'▼'} ${esc(b.name)}
+        </span>
         <span class="bank-total">${fmt(total)}</span>
       </div>
-      <div class="bank-products" style="${collapsed?'display:none':''}">`;
+      <div class="bank-products" style="${collapsed?'display:none':''}">
+        <div class="sub-banks-container">`;
       
     subBanks.forEach(sb => {
-      const subAccs = S.accounts.filter(a => a.bankId===sb.id && !a.archived);
+      const subAccs = S.accounts.filter(a => a.bankId===sb.id && !a.archived).sort((a,b)=>(a.order||0)-(b.order||0));
       const subTotal = subAccs.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
       const sbCollapsed = S.ui.collapsedBanks.includes(sb.id);
       
       if(subAccs.length === 0) return;
 
-      html += `<div style="padding-left:10px; border-left:2px solid ${sb.color||'#888'}; margin: 4px 10px;">
+      html += `<div class="sub-bank-section" data-bank-id="${sb.id}" style="padding-left:10px; border-left:2px solid ${sb.color||'#888'}; margin: 4px 10px;">
         <div style="padding:8px 0; display:flex; justify-content:space-between; cursor:pointer; font-size:13px; font-weight:600;" onclick="event.stopPropagation(); toggleBank('${sb.id}')">
-          <span>${sbCollapsed?'▶':'▼'} ${esc(sb.name)}</span>
+          <span style="display:flex; align-items:center;">
+            <span class="drag-handle" style="margin-right:4px; color:var(--muted);" onclick="event.stopPropagation()">⋮⋮</span>
+            ${sbCollapsed?'▶':'▼'} ${esc(sb.name)}
+          </span>
           <span class="muted">${fmt(subTotal)}</span>
         </div>
         <div style="${sbCollapsed?'display:none':''}">
@@ -387,12 +394,55 @@ function renderHomeAccounts(){
       </div>`;
     });
 
+    html += `</div>`; // close sub-banks-container
+
     accs.forEach(a => { html += renderProductRow(a, b); });
 
     html += `</div></div>`;
   });
   
+  html += `</div>`;
   el.innerHTML = html;
+
+  initHomeSortable();
+}
+
+function initHomeSortable() {
+  if (typeof Sortable === 'undefined') return;
+
+  const homeBanks = document.getElementById('homeBanksSortable');
+  if (homeBanks) {
+    new Sortable(homeBanks, {
+      animation: 150,
+      handle: '.drag-handle',
+      filter: '.product-item', 
+      onEnd: function() {
+        const items = homeBanks.querySelectorAll(':scope > .bank-section');
+        items.forEach((item, index) => {
+          const id = item.dataset.bankId;
+          const b = getBank(id);
+          if (b) b.order = index;
+        });
+        save(); renderAll();
+      }
+    });
+  }
+
+  document.querySelectorAll('.sub-banks-container').forEach(container => {
+    new Sortable(container, {
+      animation: 150,
+      handle: '.drag-handle',
+      onEnd: function() {
+        const items = container.querySelectorAll(':scope > .sub-bank-section');
+        items.forEach((item, index) => {
+          const id = item.dataset.bankId;
+          const b = getBank(id);
+          if (b) b.order = index;
+        });
+        save(); renderAll();
+      }
+    });
+  });
 }
 
 function renderProductRow(a, bank) {
@@ -506,7 +556,6 @@ function renderAccounts(){
       </div>
       <div class="bank-accounts-list" data-bank-id="${b.id}">`;
       
-    // Под-банки
     subBanks.forEach(sb=>{
       const sbAccs=S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).sort((a,b)=>(a.order||0)-(b.order||0));
       
@@ -535,7 +584,6 @@ function renderAccounts(){
       </div>`;
     });
 
-    // Прямые счета
     accs.forEach(a=>{
       const arch=a.archived?'<span class="badge">АРХИВ</span>':'';
       html+=`<div class="product-item" data-acc-id="${a.id}">
@@ -584,7 +632,7 @@ function initSortable() {
           if (b) b.order = index;
         });
         save();
-        renderAccounts();
+        renderAll();
       }
     });
   }
@@ -603,7 +651,7 @@ function initSortable() {
           if (a) a.order = index;
         });
         save();
-        renderAccounts();
+        renderAll();
       }
     });
   });
