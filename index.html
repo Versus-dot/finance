@@ -47,9 +47,13 @@ input,select,textarea{width:100%;padding:10px 12px;background:var(--card2);color
 input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
 input[type="date"]{color-scheme:dark}
 :root[data-theme="light"] input[type="date"]{color-scheme:light}
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:flex-end;justify-content:center}
+
+/* ИСПРАВЛЕННЫЕ МОДАЛЬНЫЕ ОКНА (ЦЕНТР) */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
 .modal-backdrop.active{display:flex}
-.modal{background:var(--card);width:100%;max-width:500px;max-height:90vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+#modalBackdrop2{z-index:250;}
+.modal{background:var(--card);width:100%;max-width:500px;max-height:85vh;overflow-y:auto;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .modal-header h2{margin:0;font-size:17px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -124,6 +128,7 @@ input[type="date"]{color-scheme:dark}
   <button class="nav-tab" data-tab="stats"><span class="nav-icon">📊</span>Статистика</button>
 </nav>
 <div class="modal-backdrop" id="modalBackdrop"><div class="modal" id="modalContent"></div></div>
+<div class="modal-backdrop" id="modalBackdrop2"><div class="modal" id="modalContent2"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -148,7 +153,6 @@ function defaultState(){return {
 };}
 
 let S=defaultState();
-let tempPinInput='';
 const $=id=>document.getElementById(id);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const today=()=>new Date().toISOString().slice(0,10);
@@ -173,7 +177,6 @@ function load(){
       const p=JSON.parse(r);
       S = {...defaultState(), ...p};
       if(!S.banks.length) S.banks = defaultState().banks;
-      if(S.settings.pinCode) lockApp();
     }
   }catch(e){console.error(e);}
 }
@@ -211,16 +214,13 @@ function recalculateBalances() {
             const f = getAcc(t.accountId); const to = getAcc(t.toAccountId);
             if (f) f.balance -= t.amount;
             if (to) to.balance += t.amount;
-        }
-    });
-    // Update debts
-    S.debts.forEach(d => {
-        if (d.direction === 'lent') {
-            const a = getAcc(d.accountId);
-            if (a) a.balance -= d.remaining; // Money left account
-        } else {
-            const a = getAcc(d.accountId);
-            if (a) a.balance += d.remaining; // Money entered account
+        } else if (t.type === 'debt') {
+            const a = getAcc(t.accountId);
+            if (t.debtType === 'lent' || t.debtType === 'repaid') {
+                if (a) a.balance -= t.amount;
+            } else if (t.debtType === 'borrowed' || t.debtType === 'returned') {
+                if (a) a.balance += t.amount;
+            }
         }
     });
 }
@@ -332,25 +332,21 @@ function renderHomeAccounts(){
   const el=$('dashAccounts');
   if(!el) return;
   
-  // Group by bank, only top-level banks
   let html = '';
   const topBanks = S.banks.filter(b => !b.parentId).sort((a,b) => (a.order||0) - (b.order||0));
   
   topBanks.forEach(b => {
-    // Accounts directly in this bank
     const accs = S.accounts.filter(a => a.bankId===b.id && !a.archived).sort((a,b)=>(a.order||0)-(b.order||0));
-    // Sub-banks (e.g. inside Finuslugi)
     const subBanks = S.banks.filter(sb => sb.parentId===b.id);
     
     let total = accs.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
     
-    // Count sub-bank accounts in total
     subBanks.forEach(sb => {
       const subAccs = S.accounts.filter(a => a.bankId===sb.id && !a.archived);
       total += subAccs.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
     });
 
-    if(accs.length === 0 && subBanks.length === 0 && !b.isPlatform) return; // Skip empty regular banks unless platform
+    if(accs.length === 0 && subBanks.length === 0 && !b.isPlatform) return; // Skip empty banks on DASHBOARD only
 
     const collapsed = S.ui.collapsedBanks.includes(b.id);
     
@@ -361,13 +357,12 @@ function renderHomeAccounts(){
       </div>
       <div class="bank-products" style="${collapsed?'display:none':''}">`;
       
-    // Render sub-banks first (if platform)
     subBanks.forEach(sb => {
       const subAccs = S.accounts.filter(a => a.bankId===sb.id && !a.archived);
       const subTotal = subAccs.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
       const sbCollapsed = S.ui.collapsedBanks.includes(sb.id);
       
-      if(subAccs.length === 0) return;
+      if(subAccs.length === 0) return; // Skip empty subbanks on dashboard
 
       html += `<div style="padding-left:10px; border-left:2px solid ${sb.color||'#888'}; margin: 4px 10px;">
         <div style="padding:8px 0; display:flex; justify-content:space-between; cursor:pointer; font-size:13px; font-weight:600;" onclick="event.stopPropagation(); toggleBank('${sb.id}')">
@@ -380,7 +375,6 @@ function renderHomeAccounts(){
       </div>`;
     });
 
-    // Render direct accounts
     accs.forEach(a => { html += renderProductRow(a, b); });
 
     html += `</div></div>`;
@@ -445,7 +439,6 @@ function openWidget(type){
   else if(type==='cash'){ title='Наличные'; list=S.accounts.filter(a=>a.type==='cash'&&!a.archived); }
   else if(type==='cushion'){ title='Подушка безопасности'; list=S.accounts.filter(a=>a.inCushion&&!a.archived); }
   else if(type==='debts_detail'){
-    // Special handling for debts detail
     let html = `<div class="modal-header"><h2>Детали долгов</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
     if(!S.debts.length) html += '<div class="empty">Нет долгов</div>';
     else {
@@ -488,8 +481,6 @@ function renderAccounts(){
       total += S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
     });
 
-    if(!accs.length && !subBanks.length && !b.isPlatform) return;
-
     html+=`<div class="bank-section">
       <div class="bank-header" style="cursor:default">
         <span style="display:flex; align-items:center;">
@@ -500,10 +491,9 @@ function renderAccounts(){
       </div>
       <div>`;
       
-    // Sub banks
+    // Sub banks - ALWAYS SHOW
     subBanks.forEach(sb=>{
       const sbAccs=S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived));
-      if(!sbAccs.length && !showArch) return;
       
       html += `<div style="padding-left:14px; border-left:2px solid ${sb.color}; margin-left:14px; margin-top:8px;">
         <div style="font-weight:600; font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between;">
@@ -691,7 +681,6 @@ function openTxModal(id){
     const cats=S.categories.filter(c=>c.type===t);
     $('txCategory').innerHTML=cats.map(c=>`<option value="${c.id}" ${form.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
     
-    // update custom selects text
     const selA = accs.find(a=>a.id===$('txAccount').value) || accs[0];
     if(selA) { $('txAccount').value = selA.id; updateAccDisplay(selA.id, 'txAccountName', 'txAccountBadge'); }
     
@@ -720,12 +709,26 @@ function openTxModal(id){
       data.accountId=$('txAccount').value;
       data.debtType=$('txDebtType').value;
       data.counterpartyId=$('txCounterparty').value;
+      
+      // Update debts array
+      if(!isEdit) {
+        if (data.debtType === 'lent') {
+           S.debts.push({id:uid(), direction:'lent', counterpartyId: data.counterpartyId, amount:amt, remaining:amt, date:data.date, accountId:data.accountId, note:data.note});
+        } else if (data.debtType === 'borrowed') {
+           S.debts.push({id:uid(), direction:'borrowed', counterpartyId: data.counterpartyId, amount:amt, remaining:amt, date:data.date, accountId:data.accountId, note:data.note});
+        } else if (data.debtType === 'returned') {
+           const d = S.debts.find(x=>x.counterpartyId===data.counterpartyId && x.direction==='lent' && x.remaining>0);
+           if(d) d.remaining = Math.max(0, d.remaining - amt);
+        } else if (data.debtType === 'repaid') {
+           const d = S.debts.find(x=>x.counterpartyId===data.counterpartyId && x.direction==='borrowed' && x.remaining>0);
+           if(d) d.remaining = Math.max(0, d.remaining - amt);
+        }
+      }
     }else{
       data.categoryId=$('txCategory').value; data.accountId=$('txAccount').value;
     }
     
     if(isEdit){
-      // Revert old logic is too complex for simple edit. We'll just delete old and add new.
       S.transactions = S.transactions.filter(x=>x.id!==id);
     }
     S.transactions.push(data);
@@ -744,7 +747,7 @@ function updateAccDisplay(accId, nameElId, badgeElId){
 function openAccountPicker(targetInputId, targetBadgeId){
   const accs = S.accounts.filter(a=>!a.archived);
   const curId = $(targetInputId).value;
-  let html = `<div class="modal-header"><h2>Выберите счёт</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
+  let html = `<div class="modal-header"><h2>Выберите счёт</h2><button class="btn-icon" onclick="closePicker()">✕</button></div>`;
   
   const topBanks = S.banks.filter(b=>!b.parentId);
   topBanks.forEach(b=>{
@@ -776,24 +779,25 @@ function openAccountPicker(targetInputId, targetBadgeId){
       </div>`;
     });
   });
-  openModal(html);
+  
+  $('modalContent2').innerHTML = html;
+  $('modalBackdrop2').classList.add('active');
 }
+
+function closePicker() {
+  $('modalBackdrop2').classList.remove('active');
+}
+$('modalBackdrop2').onclick = e => { if(e.target===$('modalBackdrop2')) closePicker(); };
 
 function selectAcc(targetInputId, targetBadgeId, accId){
   $(targetInputId).value = accId;
-  updateAccDisplay(accId, targetInputId.replace('tx','tx')+'Name', targetBadgeId);
-  closeModal();
-  // Hack to reopen main tx modal if closed. Wait, openModal overwrites. 
-  // Better approach: Don't close the main modal, just render picker inside the SAME modal? 
-  // Since we use a single modal container, we need to re-open the Tx modal.
-  // For simplicity in this local version, let's just alert the user or require them to click edit again.
-  // Actually, let's just cache the form state (too complex). 
-  // Let's just use prompt for now? No, we built the picker.
-  // We need to store the current Tx form data, close modal, open picker, on select, restore form.
-  // Too complex for now. Just update the text and let user click Save in the main modal if we didn't overwrite it.
+  const a = getAcc(accId);
+  const b = getBank(a.bankId);
+  $(targetInputId + 'Name').textContent = a.name;
+  const color = b ? b.color : '#888';
+  $(targetBadgeId).innerHTML = b ? `<span class="bank-badge" style="background:${color}20; color:${color}; border:1px solid ${color}40;">${esc(b.name)}</span>` : '';
+  closePicker();
 }
-// FIX: Instead of opening picker in the main modal, open it in a SEPARATE overlay.
-// To keep code small, we'll use a secondary modal layer.
 
 function deleteTx(id){
   const tx = S.transactions.find(t=>t.id===id);
@@ -815,7 +819,6 @@ function openAccountModal(id,bankId){
   
   const form=acc||{id:null,name:'',type:'debit',balance:'',initialBalance:'',currency:'RUB',rate:'',term:'indefinite',openedAt:'',viaFinuslugi:false,isTransit:false,inCushion:false,creditLimit:'',role:'none',hedgeFor:'',autoRenew:false,refillable:false,archived:false,gracePeriod:''};
   
-  // Get possible banks for dropdown (parent banks + sub banks)
   let bankOpts = '';
   S.banks.forEach(b=>{
     if(b.parentId){ bankOpts += `<option value="${b.id}" ${bid===b.id?'selected':''}>↳ ${esc(getBank(b.parentId).name)} / ${esc(b.name)}</option>`; }
@@ -877,12 +880,6 @@ function openAccountModal(id,bankId){
     }
     
     if(isEdit){
-      // If balance changed manually, update initialBalance and recalculate
-      const old = getAcc(id);
-      if(old.balance !== initBal) {
-         // User adjusted balance. We need to adjust initialBalance so calculations match the new reality.
-         // This is tricky. We'll just set initialBalance = newBal - (Sum of tx effects)
-      }
       const i=S.accounts.findIndex(a=>a.id===id);
       S.accounts[i]=data;
     } else {
@@ -943,7 +940,6 @@ function renderStats(){
     });
   }
 
-  // Snapshots table
   let snapHTML = '';
   if(S.snapshots.length){
     snapHTML = `<table style="width:100%; font-size:13px; text-align:left; border-collapse:collapse;">
@@ -1044,7 +1040,7 @@ function renderCatList(type){
 function addCategory(){
   const name = prompt('Название категории:');
   if(!name) return;
-  S.categories.push({id:uid(), type: 'expense', name: name.trim(), passive: false}); // Default to expense, user can switch tabs
+  S.categories.push({id:uid(), type: 'expense', name: name.trim(), passive: false}); 
   save(); renderCatList('expense');
 }
 
@@ -1057,7 +1053,7 @@ function editCategory(id){
 function deleteCategory(id){
   const c = getCat(id);
   if(S.transactions.some(t=>t.categoryId===id)){
-    alert('Нельзя удалить: к категории привязаны операции. Сначала перенесите их.');
+    alert('Нельзя удалить: к категории привязаны операции.');
     return;
   }
   if(confirm('Удалить категорию?')){ S.categories = S.categories.filter(x=>x.id!==id); save(); renderCatList(c.type); }
@@ -1107,7 +1103,6 @@ document.querySelectorAll('.nav-tab').forEach(t=>{
   };
 });
 
-// Back button / Swipe Back protection
 history.pushState(null, null, location.href);
 window.onpopstate = function () {
   history.pushState(null, null, location.href);
@@ -1116,19 +1111,6 @@ window.onpopstate = function () {
 
 $('fabBtn').onclick=()=>openTxModal();
 $('menuBtn').onclick=openMenu;
-
-function lockApp(){
-  openModal(`
-  <div class="modal-header"><h2>Введите PIN-код</h2></div>
-  <div class="form-group"><input type="password" id="pinInput" maxlength="4" style="text-align:center;font-size:24px;letter-spacing:10px" oninput="checkPin(this.value)"></div>
-  `);
-}
-function checkPin(val){
-  if(val.length===4){
-    if(val===S.settings.pinCode) closeModal();
-    else { toast('Неверный PIN'); $('pinInput').value=''; }
-  }
-}
 
 function renderAll(){
   applySettings();
@@ -1145,7 +1127,6 @@ maybeSnapshot();
 renderAll();
 if(S.settings.usdtRate.mode==='auto')fetchUSDT();
 
-// Touch block for pull-to-refresh inside forms
 let startY = 0;
 document.addEventListener('touchstart', e => { startY = e.touches[0].pageY; }, {passive: true});
 document.addEventListener('touchmove', e => {
