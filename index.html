@@ -14,27 +14,27 @@
 :root[data-theme="light"]{--bg:#f4f6fb;--bg2:#e8ecf3;--card:#fff;--card2:#f8f9fb;--text:#1c2333;--muted:#7a8399;--border:#e6e9f2;--accent:#3b6ef5;--accent2:#5b82f0;--green:#1e9e6a;--red:#e04a4a;--yellow:#f2a93b;--purple:#8b5cf6}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
-body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:var(--font-size, 15px);padding-bottom:calc(80px + env(safe-area-inset-bottom));padding-top:env(safe-area-inset-top);overflow-x:hidden;min-height:100vh}
+body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:var(--font-size, 15px);padding-bottom:calc(80px + env(safe-area-inset-bottom));padding-top:env(safe-area-inset-top);overflow-x:hidden;min-height:100vh;max-width:1400px;margin:0 auto;}
 .app-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border)}
 .app-header h1{font-size:17px;margin:0;font-weight:700}
 .icon-btn{background:transparent;border:none;color:var(--text);font-size:20px;padding:8px;cursor:pointer;border-radius:8px}
 .page{display:none;padding:14px}
 .page.active{display:block}
 
-/* Стили для новой главной страницы (Дзен-мани) */
+/* Стили для главной страницы */
 .total-bar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; padding: 0 4px; }
 .total-val { font-size: 26px; font-weight: 800; margin-top: 4px; }
 .total-label { font-size: 12px; color: var(--muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px;}
 
 .banks-carousel { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
 .banks-carousel::-webkit-scrollbar { display: none; }
-.bank-chip { flex-shrink: 0; background: var(--card2); border: 1px solid var(--border); border-radius: 14px; padding: 12px; min-width: 110px; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; gap: 6px; }
+.bank-chip { flex-shrink: 0; background: var(--card2); border: 1px solid var(--border); border-radius: 14px; padding: 12px; min-width: 130px; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; gap: 6px; }
 .bank-chip.active { border-color: var(--accent); background: rgba(77,127,255,0.1); }
 .bank-chip .bc-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px;}
 .bank-chip .bc-bal { font-size: 15px; font-weight: 800; }
-.bank-chip .bc-debt { font-size: 10px; color: var(--red); font-weight: 700; }
+.bank-chip .bc-debt { font-size: 11px; color: var(--red); font-weight: 700; }
 
-.acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
 .section-title { font-size: 16px; font-weight: 700; margin: 10px 0 12px 4px; display: flex; justify-content: space-between; align-items: center; }
 
 .card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--border)}
@@ -50,11 +50,20 @@ button:active{filter:brightness(0.9)}
 .btn-small{padding:6px 12px;font-size:13px}
 .btn-block{width:100%}
 .btn-icon{background:transparent;color:var(--muted);border:none;padding:6px;font-size:16px;border-radius:6px}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom); max-width: 1400px; margin: 0 auto;}
 .nav-tab{flex:1;background:transparent;border:none;color:var(--muted);padding:8px 2px;text-align:center;font-size:10px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 .nav-tab .nav-icon{font-size:22px;line-height:1}
 .nav-tab.active{color:var(--accent)}
 .fab{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom));right:16px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 4px 12px rgba(77,127,255,0.4);z-index:101;display:flex;align-items:center;justify-content:center;padding:0}
+
+/* Адаптивность для ПК */
+@media (min-width: 800px) {
+  .banks-carousel { flex-wrap: wrap; overflow-x: visible; }
+  .bank-chip { flex: 1; min-width: 200px; }
+  .month-stats { max-width: 600px; }
+  .fab { right: calc(50% - 700px + 16px); } /* Позиционирование кнопки + на ПК */
+}
+
 .form-group{margin-bottom:12px}
 .form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600}
 input,select,textarea{width:100%;padding:10px 12px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit}
@@ -118,24 +127,24 @@ input[type="date"]{color-scheme:dark}
 .drag-handle{cursor:grab; color:var(--muted); font-size:16px; user-select:none; padding:0 4px; display:inline-block;}
 .drag-handle:active{cursor:grabbing;}
 
-/* Пластиковая карта (v2.3) */
+/* Пластиковая карта (Уменьшенная версия) */
 .plastic-card{
-  position:relative; border-radius:12px; padding:12px 14px; color:#fff; display:flex; flex-direction:column; justify-content:space-between;
-  height: 135px; box-shadow:0 4px 10px rgba(0,0,0,0.25); overflow:hidden; cursor:pointer; transition:transform 0.2s;
+  position:relative; border-radius:12px; padding:10px 12px; color:#fff; display:flex; flex-direction:column; justify-content:space-between;
+  height: 120px; box-shadow:0 4px 10px rgba(0,0,0,0.25); overflow:hidden; cursor:pointer; transition:transform 0.2s;
   width: 100%;
 }
 .plastic-card:active{transform:scale(0.98);}
-.plastic-card::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.1);}
-.plastic-card::after{content:'';position:absolute;bottom:-40px;left:-40px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.05);}
+.plastic-card::before{content:'';position:absolute;top:-40px;right:-40px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.1);}
+.plastic-card::after{content:'';position:absolute;bottom:-40px;left:-40px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,0.05);}
 .pc-row{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;}
-.pc-type{font-size:9px;text-transform:uppercase;font-weight:700;opacity:0.9;}
-.pc-bank{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
-.pc-chip{width:28px;height:20px;background:linear-gradient(135deg,#e0e0e0,#b0b0b0);border-radius:4px;margin:2px 0;position:relative;z-index:1;}
-.pc-chip::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:10px;border:1px solid #999;border-radius:2px;}
-.pc-number{font-family:monospace;font-size:12px;letter-spacing:1px;margin-bottom:2px;opacity:0.9;position:relative;z-index:1;}
-.pc-balance{font-size:20px;font-weight:800;line-height:1.2;}
-.pc-details{font-size:10px;opacity:0.8;margin-top:2px;}
-.pc-debt{font-size:14px;color:#ff5c5c;font-weight:800;margin-top:4px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);}
+.pc-type{font-size:8px;text-transform:uppercase;font-weight:700;opacity:0.9;}
+.pc-bank{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+.pc-chip{width:24px;height:16px;background:linear-gradient(135deg,#e0e0e0,#b0b0b0);border-radius:3px;margin:2px 0;position:relative;z-index:1;}
+.pc-chip::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:8px;border:1px solid #999;border-radius:2px;}
+.pc-number{font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:2px;opacity:0.9;position:relative;z-index:1;}
+.pc-balance{font-size:18px;font-weight:800;line-height:1.1;}
+.pc-details{font-size:9px;opacity:0.8;margin-top:1px;}
+.pc-debt{font-size:13px;color:#ff5c5c;font-weight:800;margin-top:2px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);}
 
 .account-list-wrapper{padding: 10px 0;}
 </style>
@@ -343,7 +352,7 @@ function maybeSnapshot(){
   save();
 }
 
-// НОВЫЙ РЕНДЕР ГЛАВНОЙ (стиль Дзен-мани)
+// РЕНДЕР ГЛАВНОЙ
 function renderDashboard(){
   recalculateBalances();
   const t=computeTotals();
@@ -355,7 +364,7 @@ function renderDashboard(){
   <div class="total-bar">
     <div>
       <div class="total-label">Баланс</div>
-      <div class="total-val">${fmt(t.totalCap + t.debt)}</div> <!-- Общий баланс без вычета долгов -->
+      <div class="total-val">${fmt(t.totalCap + t.debt)}</div>
     </div>
     <div style="text-align:right;">
       <div class="total-label">Кредиты</div>
@@ -375,7 +384,6 @@ function renderDashboard(){
   const topBanks = S.banks.filter(b => !b.parentId).sort((a,b) => (a.order||0) - (b.order||0));
   
   topBanks.forEach(b => {
-    // Считаем локальный баланс банка (включая под-банки)
     let bankTotal = 0;
     let bankDebt = 0;
     
@@ -413,7 +421,6 @@ function renderDashboard(){
 
   let filteredAccs = S.accounts.filter(a => !a.archived);
   if (dashFilterBank !== 'all') {
-      // Если выбран конкретный банк
       filteredAccs = filteredAccs.filter(a => {
           if (a.bankId === dashFilterBank) return true;
           const parentBank = getBank(a.bankId);
@@ -421,7 +428,6 @@ function renderDashboard(){
       });
   }
   
-  // Сортируем: сначала карты, потом остальное
   filteredAccs.sort((a,b) => {
       const order = {debit:1, credit:2, deposit:3, savings:4, cash:5};
       return (order[a.type]||10) - (order[b.type]||10);
@@ -439,7 +445,7 @@ function renderDashboard(){
 
   // 4. Блок статистики за месяц (компактный)
   let statsHtml = `
-  <div class="card" style="margin-top:20px;">
+  <div class="card month-stats" style="margin-top:20px;">
     <div style="font-weight:700;margin-bottom:10px">Этот месяц</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
       <div>Доходы<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.income)}</div></div>
@@ -472,7 +478,7 @@ function renderProductRow(a, bank) {
     let mainAmount = isCredit ? Math.max(0, limit - v) : v;
     let mainLabel = isCredit ? 'Доступно' : 'Баланс';
     
-    // Долг для кредитки (жирный, красный, крупный)
+    // Долг для кредитки (жирный, красный)
     let debtHtml = '';
     if (isCredit) {
         if (v > 0) {
