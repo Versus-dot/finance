@@ -212,10 +212,10 @@ async function restoreFromYandexDisk() {
     }
     toast('⏳ Поиск файла на Яндекс.Диске...');
 
-    // Теперь ищем в КОРНЕ диска
     const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`);
 
     try {
+        // 1. Получаем ссылку на скачивание
         const downloadUrlRes = await fetch(`${YANDEX_API_URL}/resources/download?path=${filePath}`, {
             headers: { 'Authorization': `OAuth ${YANDEX_TOKEN}` }
         });
@@ -224,15 +224,34 @@ async function restoreFromYandexDisk() {
             toast('❌ Файл бэкапа не найден на Яндекс.Диске');
             return;
         }
-        if (!downloadUrlRes.ok) throw new Error('Не удалось получить URL для скачивания');
+        if (!downloadUrlRes.ok) {
+            console.error('Ошибка API:', downloadUrlRes.status);
+            throw new Error('Не удалось получить ссылку от Яндекса');
+        }
         
         const downloadUrlData = await downloadUrlRes.json();
         const downloadUrl = downloadUrlData.href;
 
+        // 2. Скачиваем файл по ссылке
         const fileRes = await fetch(downloadUrl);
-        if (!fileRes.ok) throw new Error('Ошибка при скачивании файла');
-        const fileData = await fileRes.json();
+        
+        if (!fileRes.ok) {
+            console.error('Статус скачивания:', fileRes.status, fileRes.statusText);
+            throw new Error(`Ошибка сети при скачивании (Код: ${fileRes.status})`);
+        }
+        
+        // Читаем как текст, а потом превращаем в JSON (это надежнее)
+        const fileText = await fileRes.text();
+        
+        let fileData;
+        try {
+            fileData = JSON.parse(fileText);
+        } catch (e) {
+            console.error('Пришел не JSON, вот начало ответа:', fileText.substring(0, 100));
+            throw new Error('Файл на Диске поврежден или не является JSON');
+        }
 
+        // 3. Применяем данные
         if (confirm('Вы уверены, что хотите заменить текущие данные данными из облака?')) {
             S = Object.assign(defaultState(), fileData);
             save();
@@ -243,6 +262,6 @@ async function restoreFromYandexDisk() {
         }
     } catch (error) {
         console.error('Yandex Restore Error:', error);
-        toast('❌ Ошибка при скачивании файла');
+        toast('❌ Ошибка: ' + error.message); // Теперь мы выведем точную причину
     }
 }
