@@ -39,7 +39,8 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .bank-group-header:active { cursor: grabbing; }
 .bank-group-list { padding: 4px 0; }
 
-.account-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; transition: 0.1s; border-bottom: 1px solid var(--border); margin: 0 6px; border-radius: 8px;}
+/* Универсальная строка счета (для Главной и Счетов) */
+.account-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; transition: 0.1s; border-bottom: 1px solid var(--border); margin: 0 6px; border-radius: 8px;}
 .account-row:last-child { border-bottom: none; }
 .account-row:active { background: rgba(255,255,255,0.05); }
 
@@ -47,11 +48,11 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .account-row.style-bg { background: rgba(255,255,255,0.03); margin-bottom: 4px; border-bottom: none; }
 .account-row.style-stripe { border-left: 4px solid var(--bank-color); border-radius: 0 8px 8px 0; margin-left: 10px; border-bottom: 1px solid var(--border); }
 
-.acc-icon { font-size: 20px; width: 30px; text-align: center; }
+.acc-icon { font-size: 22px; width: 32px; text-align: center; }
 .acc-info { flex: 1; min-width: 0; }
-.acc-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.acc-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
-.acc-balance { text-align: right; font-weight: 700; font-size: 15px; white-space: nowrap; }
+.acc-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.acc-balance { text-align: right; font-weight: 700; font-size: 16px; white-space: nowrap; }
 .acc-debt { font-size: 11px; color: var(--red); font-weight: 700; margin-top: 2px; }
 
 .section-title { font-size: 16px; font-weight: 700; margin: 10px 0 12px 4px; display: flex; justify-content: space-between; align-items: center; }
@@ -60,7 +61,7 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 @media (min-width: 800px) {
   .banks-carousel { flex-wrap: wrap; overflow-x: visible; }
   .bank-chip { flex: 1; min-width: 200px; }
-  .acc-grid-pc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .acc-grid-pc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;}
   .month-stats { max-width: 600px; }
   .fab { right: calc(50% - 700px + 16px); }
 }
@@ -102,11 +103,7 @@ input[type="date"]{color-scheme:dark}
 .bank-section{background:var(--card);border-radius:14px;margin-bottom:12px;border:1px solid var(--border);overflow:hidden}
 .bank-header{padding:12px 14px;background:var(--card2);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:14px}
 .bank-total{font-size:13px;color:var(--muted);font-weight:500}
-.product-item{padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.product-item .info{flex:1;min-width:0}
-.product-item .name{font-weight:600;font-size:14px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;}
-.product-item .meta{font-size:11px;color:var(--muted);margin-top:3px}
-.product-item .amount{font-weight:700;font-size:14px;white-space:nowrap;text-align:right}
+
 .badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;background:var(--card2);color:var(--muted);font-weight:700;margin-left:4px;text-transform:uppercase}
 .progress{height:8px;background:var(--card2);border-radius:4px;overflow:hidden;margin-top:6px}
 .progress-bar{height:100%;background:var(--accent);transition:width .3s}
@@ -422,7 +419,7 @@ function renderDashboard(){
   let groupsHtml = `<div class="section-title">Карты и счета
       <button class="btn-primary btn-small" style="padding:4px 10px; border-radius:8px;" onclick="openAccountModal(null, '${dashFilterBank === 'all' ? S.banks.find(b=>!b.parentId).id : dashFilterBank}')">+</button>
   </div>
-  <div class="acc-grid-pc">`; // Обертка для ПК (2 колонки)
+  <div class="acc-grid-pc">`;
 
   const banksToRender = dashFilterBank === 'all' 
       ? S.banks.filter(b => !b.parentId).sort((a,b) => (a.order||0) - (b.order||0))
@@ -431,23 +428,18 @@ function renderDashboard(){
   banksToRender.forEach(b => {
       if(!b) return;
       
-      // Собираем все счета этого банка и его под-банков
       const allGroupAccounts = [];
-      
-      // Счета самого банка
       const directAccs = S.accounts.filter(a => a.bankId===b.id && !a.archived);
       directAccs.forEach(a => allGroupAccounts.push(a));
 
-      // Счета под-банков (если это платформа)
       const subBanks = S.banks.filter(sb => sb.parentId===b.id);
       subBanks.forEach(sb => {
           const subAccs = S.accounts.filter(a => a.bankId===sb.id && !a.archived);
           subAccs.forEach(a => allGroupAccounts.push(a));
       });
 
-      if(allGroupAccounts.length === 0) return; // Не рисуем пустую группу
+      if(allGroupAccounts.length === 0) return;
 
-      // Считаем общий баланс группы для заголовка
       let groupTotal = allGroupAccounts.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
 
       groupsHtml += `<div class="bank-group" data-bank-id="${b.id}">
@@ -461,7 +453,6 @@ function renderDashboard(){
           </div>
           <div class="bank-group-list" data-bank-id="${b.id}">`;
 
-      // Сначала выводим счета самого банка, затем подгруппы
       directAccs.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(a => {
           groupsHtml += renderAccountRow(a, b);
       });
@@ -481,7 +472,7 @@ function renderDashboard(){
 
   groupsHtml += `</div>`;
 
-  // 4. Блок статистики за месяц
+  // 4. Блок статистики
   let statsHtml = `
   <div class="card month-stats" style="margin-top:20px;">
     <div style="font-weight:700;margin-bottom:10px">Этот месяц</div>
@@ -495,7 +486,6 @@ function renderDashboard(){
 
   el.innerHTML = topBarHtml + banksHtml + groupsHtml + statsHtml;
   
-  // Инициализируем перетаскивание для групп и счетов
   initDashSortable();
 }
 
@@ -504,6 +494,7 @@ function setDashFilter(bankId) {
     renderDashboard();
 }
 
+// ЕДИНАЯ ФУНКЦИЯ ОТРИСОВКИ СТРОКИ СЧЕТА
 function renderAccountRow(a, bank) {
   const style = S.settings.badgeStyle === 'stripe' ? 'style-stripe' : 'style-bg';
   const bColor = bank ? bank.color : '#888';
@@ -549,7 +540,6 @@ function renderAccountRow(a, bank) {
 function initDashSortable() {
    if(typeof Sortable === 'undefined') return;
    
-   // Сортируем банки (группы)
    const groupsContainer = document.querySelector('.acc-grid-pc');
    if(groupsContainer) {
       new Sortable(groupsContainer, {
@@ -568,18 +558,15 @@ function initDashSortable() {
       });
    }
 
-   // Сортируем счета внутри банков
    document.querySelectorAll('.bank-group-list').forEach(container => {
       new Sortable(container, {
          animation: 150,
-         group: 'shared', // Разрешаем двигать только внутри этого контейнера
+         group: 'shared',
          handle: '.account-row',
          filter: 'button, input, select',
          onEnd: function(evt) {
-            // Переназначаем order только для элементов внутри этого контейнера
             const items = container.querySelectorAll(':scope > .account-row');
             items.forEach((item, index) => {
-               // Нам нужно найти id счета. Он лежит в onclick атрибуте, вытащим регуляркой
                const onclickAttr = item.getAttribute('onclick');
                const match = onclickAttr.match(/openAccountModal\('([^']+)'\)/);
                if(match && match[1]) {
@@ -588,13 +575,12 @@ function initDashSortable() {
                }
             });
             save();
-            // Примечание: при перетаскивании между банками (если разрешить) логика сложнее.
-            // Но у нас group: 'shared' только внутри контейнера.
          }
       });
    });
 }
 
+// ВКЛАДКА СЧЕТА
 function renderAccounts(){
   const el=$('page-accounts');const showArch=S.ui.showArchived;
   let html=`<button class="btn-primary btn-block" style="margin-bottom:12px" onclick="openBankModal()">+ Добавить банк</button>`;
@@ -641,14 +627,16 @@ function renderAccounts(){
         </div>
         <div class="bank-accounts-list" data-bank-id="${sb.id}" style="${sbCollapsed?'display:none':''}">
         ${sbAccs.map(a=>{
-           return `<div data-acc-id="${a.id}">${renderProductRow(a, sb)}</div>`;
+           // ТЕПЕРЬ ИСПОЛЬЗУЕМ КОМПАКТНУЮ СТРОКУ ВМЕСТО ОГРОМНОЙ КАРТЫ
+           return `<div data-acc-id="${a.id}">${renderAccountRow(a, sb)}</div>`;
         }).join('')}
         </div>
       </div>`;
     });
 
     accs.forEach(a=>{
-      html+=`<div data-acc-id="${a.id}">${renderProductRow(a, b)}</div>`;
+      // ТЕПЕРЬ ИСПОЛЬЗУЕМ КОМПАКТНУЮ СТРОКУ ВМЕСТО ОГРОМНОЙ КАРТЫ
+      html+=`<div data-acc-id="${a.id}">${renderAccountRow(a, b)}</div>`;
     });
 
     html+=`</div>
@@ -711,54 +699,6 @@ function initSortable() {
       }
     });
   });
-}
-
-function renderProductRow(a, bank) {
-  const bankIndicator = getBankIndicatorHtml(bank);
-
-  // Вкладка "Счета" - детальный вид (в виде карточек, как в предыдущей версии)
-  if (a.type === 'debit' || a.type === 'credit') {
-    const isCredit = a.type === 'credit';
-    const bColor = bank ? (bank.color || '#4d7fff') : '#4d7fff';
-    const gradient = `linear-gradient(135deg, ${bColor} 0%, #1a1f2b 120%)`;
-    const v = accValue(a);
-    const limit = a.creditLimit || 0;
-    let mainAmount = isCredit ? Math.max(0, limit - v) : v;
-    let mainLabel = isCredit ? 'Доступно' : 'Баланс';
-    let debtHtml = isCredit ? (v > 0 ? `<div class="acc-debt" style="font-size:13px; margin-top:4px;">Долг: ${fmt(v)}</div>` : '') : '';
-    
-    return `
-    <div class="product-item" style="padding:10px; display:block; border:none;" onclick="openAccountModal('${a.id}')">
-        <div style="background: ${gradient}; border-radius:12px; padding:12px; position:relative; overflow:hidden;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                <span style="font-size:9px; text-transform:uppercase; font-weight:700; opacity:0.9;">${isCredit ? 'Кредитная' : 'Дебетовая'}</span>
-                <span style="font-size:11px; font-weight:700; text-transform:uppercase;">${bank ? esc(bank.name) : ''}</span>
-            </div>
-            <div style="font-family:monospace; font-size:12px; opacity:0.8; margin-bottom:8px;">•••• ${Math.floor(Math.random()*9000+1000)}</div>
-            <div style="font-size:10px; opacity:0.8;">${mainLabel}</div>
-            <div style="font-size:18px; font-weight:800;">${fmt(mainAmount)}</div>
-            ${debtHtml}
-        </div>
-    </div>`;
-  }
-
-  // Обычные списки (вклады, наличные)
-  let meta = ACC_TYPES[a.type] || a.type;
-  if(a.type==='deposit' || a.type==='savings'){
-    meta = a.type==='deposit' ? '🔒 Срочный' : '🐷 Бессрочный';
-    if(a.rate) meta += ` · ${a.rate}%`;
-  }
-  
-  const v = accValue(a);
-  return `<div class="product-item" style="border-radius:14px; border:1px solid var(--border); background:var(--card); margin:6px 14px;">
-    <div class="info" onclick="openAccountModal('${a.id}')" style="cursor:pointer; padding:4px;">
-      <div class="name">${bankIndicator} ${esc(a.name)} ${a.inCushion?'⭐':''}</div>
-      <div class="meta">${meta}</div>
-    </div>
-    <div class="amount" style="padding:4px;">
-      ${fmt(v)}
-    </div>
-  </div>`;
 }
 
 function toggleBank(id){
