@@ -200,13 +200,13 @@ const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
 const YANDEX_BACKUP_FILENAME = 'finance-backup.json';
 
 // Загрузка файла на Яндекс.Диск
-async function backupToYandexDisk() {
+async function backupToYandexDisk(silent = false) {
     const token = S.settings.yandexToken;
     if (!token) {
-        toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
+        if (!silent) toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
         return;
     }
-    toast('⏳ Отправка на Яндекс.Диск...');
+    if (!silent) toast('⏳ Отправка на Яндекс.Диск...');
 
     const fileContent = JSON.stringify(S, null, 2);
     const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`); 
@@ -224,10 +224,15 @@ async function backupToYandexDisk() {
         const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileContent });
         if (!uploadRes.ok) throw new Error('Ошибка при загрузке');
         
-        toast('✅ Успешно сохранено на Яндекс.Диск');
+        // Запоминаем время успешного бэкапа
+        S.settings.lastCloudBackup = Date.now();
+        save(); 
+
+        if (!silent) toast('✅ Успешно сохранено на Яндекс.Диск');
+        else console.log('✅ Автоматический бэкап выполнен');
     } catch (error) {
         console.error('Yandex Backup Error:', error);
-        toast('❌ Ошибка при отправке');
+        if (!silent) toast('❌ Ошибка при отправке');
     }
 }
 
