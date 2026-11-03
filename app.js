@@ -118,6 +118,9 @@ function openSettings(){
         <label>Токен доступа Яндекса</label>
         <input id="setYandexToken" type="password" value="${esc(S.settings.yandexToken || '')}" placeholder="Вставьте ваш токен сюда">
         <div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится только на этом устройстве.</div>
+        <div style="font-size:12px; color:var(--green); margin-top:6px; font-weight:bold;">
+    Последний бэкап: ${S.settings.lastCloudBackup ? new Date(S.settings.lastCloudBackup).toLocaleString('ru-RU') : 'Еще не делался'}
+</div>
     </div>
 
     <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
