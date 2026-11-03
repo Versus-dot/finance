@@ -759,6 +759,11 @@ function openModal(html){$('modalContent').innerHTML=html;$('modalBackdrop').cla
 function closeModal(){$('modalBackdrop').classList.remove('active');}
 $('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};
 
+function toggleNewCpInput(val) {
+  const w = $('newCpWrapper');
+  if(w) w.style.display = (val === '__new') ? 'block' : 'none';
+}
+
 function openTxModal(id){
   const tx=id?S.transactions.find(t=>t.id===id):null;
   const isEdit=!!tx;
@@ -790,7 +795,13 @@ function openTxModal(id){
         <option value="repaid" ${form.debtType==='repaid'?'selected':''}>Я отдал долг</option>
       </select>
       <label style="margin-top:10px">Контрагент</label>
-      <select id="txCounterparty">${S.counterparties.map(c=>`<option value="${c.id}" ${form.counterpartyId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}<option value="__new">+ Новый контрагент</option></select>
+      <select id="txCounterparty" onchange="toggleNewCpInput(this.value)">
+        ${S.counterparties.map(c=>`<option value="${c.id}" ${form.counterpartyId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+        <option value="__new" ${!S.counterparties.length || form.counterpartyId==='__new'?'selected':''}>+ Новый контрагент</option>
+      </select>
+      <div id="newCpWrapper" style="display:none; margin-top:8px;">
+        <input type="text" id="newCpName" placeholder="Имя нового контрагента">
+      </div>
     </div>
 
     <div class="form-group"><label id="accLabel">Счёт</label>
@@ -820,6 +831,10 @@ function openTxModal(id){
     $('debtGroup').style.display=t==='debt'?'':'none';
     $('accLabel').textContent=(t==='transfer'||t==='debt')?'Счёт (источник/получатель)':'Счёт';
     
+    if(t==='debt') {
+      toggleNewCpInput($('txCounterparty').value);
+    }
+    
     const cats=S.categories.filter(c=>c.type===t);
     $('txCategory').innerHTML=cats.map(c=>`<option value="${c.id}" ${form.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
     
@@ -832,10 +847,6 @@ function openTxModal(id){
     $('txSavKind').value=form.savingsKind||'';
   };
   typeSel.onchange=upd;upd();
-
-  $('txCounterparty').onchange=e=>{
-    if(e.target.value==='__new'){const n=prompt('Имя контрагента:');if(n&&n.trim()){const c={id:uid(),name:n.trim()};S.counterparties.push(c);save();openTxModal(id);}}
-  };
 
   $('txForm').onsubmit=e=>{
     e.preventDefault();
@@ -850,7 +861,16 @@ function openTxModal(id){
     }else if(t==='debt'){
       data.accountId=$('txAccount').value;
       data.debtType=$('txDebtType').value;
-      data.counterpartyId=$('txCounterparty').value;
+      
+      let cpId = $('txCounterparty').value;
+      if (cpId === '__new') {
+        const newName = $('newCpName').value.trim();
+        if (!newName) { toast('Введите имя контрагента'); return; }
+        const newCp = { id: uid(), name: newName };
+        S.counterparties.push(newCp);
+        cpId = newCp.id;
+      }
+      data.counterpartyId = cpId;
       
       // Update debts array
       if(!isEdit) {
@@ -1171,10 +1191,23 @@ function openCategoryEditor(){
     <button class="chip active" id="tabInc" onclick="renderCatList('income')">Доходы</button>
     <button class="chip" id="tabExp" onclick="renderCatList('expense')">Расходы</button>
   </div>
-  <div id="catList"></div>
-  <button class="btn-primary btn-block" style="margin-top:12px" onclick="addCategory()">+ Добавить категорию</button>`;
+  <div style="display:flex; gap:8px; margin-bottom:12px;">
+    <input id="newCatNameInput" type="text" placeholder="Название новой категории" style="flex:1;">
+    <button class="btn-primary" onclick="addCategoryInline()">+</button>
+  </div>
+  <div id="catList"></div>`;
   openModal(html);
   renderCatList('expense');
+}
+
+function addCategoryInline(){
+  const name = $('newCatNameInput').value.trim();
+  if(!name) return;
+  const type = $('tabInc').classList.contains('active') ? 'income' : 'expense';
+  S.categories.push({id:uid(), type: type, name: name, passive: false}); 
+  save(); 
+  $('newCatNameInput').value = '';
+  renderCatList(type);
 }
 
 function renderCatList(type){
@@ -1184,28 +1217,18 @@ function renderCatList(type){
   const cats = S.categories.filter(c=>c.type===type);
   let html = '';
   cats.forEach(c=>{
-    html += `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
-      <span>${esc(c.name)} ${c.passive?'<span class="badge">ПАССИВНЫЙ</span>':''}</span>
-      <div>
-        <button class="btn-icon" onclick="editCategory('${c.id}')">✏️</button>
-        <button class="btn-icon" onclick="deleteCategory('${c.id}')">🗑</button>
-      </div>
+    html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border)">
+      <input type="text" value="${esc(c.name)}" style="width:70%; padding:6px; background:transparent; border:1px solid transparent; border-radius:4px;" onfocus="this.style.border='1px solid var(--border)'" onblur="this.style.border='1px solid transparent'; if(this.value.trim() && this.value!=='${esc(c.name)}'){updateCatName('${c.id}', this.value.trim())}">
+      ${c.passive ? '<span class="badge">ПАССИВНЫЙ</span>' : ''}
+      <button class="btn-icon" onclick="deleteCategory('${c.id}')">🗑</button>
     </div>`;
   });
   $('catList').innerHTML = html || '<div class="empty">Нет категорий</div>';
 }
 
-function addCategory(){
-  const name = prompt('Название категории:');
-  if(!name) return;
-  S.categories.push({id:uid(), type: 'expense', name: name.trim(), passive: false}); 
-  save(); renderCatList('expense');
-}
-
-function editCategory(id){
+function updateCatName(id, name) {
   const c = getCat(id);
-  const name = prompt('Новое название:', c.name);
-  if(name && name.trim()) { c.name = name.trim(); save(); renderCatList(c.type); }
+  if(c) { c.name = name; save(); }
 }
 
 function deleteCategory(id){
@@ -1214,7 +1237,40 @@ function deleteCategory(id){
     alert('Нельзя удалить: к категории привязаны операции.');
     return;
   }
-  if(confirm('Удалить категорию?')){ S.categories = S.categories.filter(x=>x.id!==id); save(); renderCatList(c.type); }
+  S.categories = S.categories.filter(x=>x.id!==id); 
+  save(); renderCatList(c.type); 
+}
+
+function openCounterparties(){
+  const list = S.counterparties.map(c=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span>${esc(c.name)}</span>
+      <button class="btn-icon" onclick="delCounterparty('${c.id}')">🗑</button>
+    </div>
+  `).join('');
+  
+  openModal(`
+    <div class="modal-header"><h2>Контрагенты (Долги)</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <input id="newCpNameInput" type="text" placeholder="Имя контрагента" style="flex:1;">
+      <button class="btn-primary" onclick="addCounterparty()">Добавить</button>
+    </div>
+    <div style="max-height:300px; overflow-y:auto;">${list || '<div class="empty">Нет контрагентов</div>'}</div>
+  `);
+}
+
+function addCounterparty(){
+  const n = $('newCpNameInput').value.trim();
+  if(!n) return;
+  S.counterparties.push({id:uid(), name:n});
+  save();
+  openCounterparties();
+}
+
+function delCounterparty(id){
+  S.counterparties = S.counterparties.filter(c=>c.id!==id);
+  save();
+  openCounterparties();
 }
 
 function openSettings(){
