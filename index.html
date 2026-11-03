@@ -20,8 +20,9 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .icon-btn{background:transparent;border:none;color:var(--text);font-size:20px;padding:8px;cursor:pointer;border-radius:8px}
 .page{display:none;padding:14px}
 .page.active{display:block}
-.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;border:1px solid var(--border)}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+
+/* Сетка теперь адаптивная */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:10px;margin-bottom:14px}
 .stat-card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--border);cursor:pointer;transition:transform 0.1s}
 .stat-card:active{transform:scale(0.98)}
 .stat-card .label{font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -36,11 +37,14 @@ button:active{filter:brightness(0.9)}
 .btn-small{padding:6px 12px;font-size:13px}
 .btn-block{width:100%}
 .btn-icon{background:transparent;color:var(--muted);border:none;padding:6px;font-size:16px;border-radius:6px}
+
+/* Нижнее меню и кнопка + на месте */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
 .nav-tab{flex:1;background:transparent;border:none;color:var(--muted);padding:8px 2px;text-align:center;font-size:10px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 .nav-tab .nav-icon{font-size:22px;line-height:1}
 .nav-tab.active{color:var(--accent)}
 .fab{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom));right:16px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 4px 12px rgba(77,127,255,0.4);z-index:101;display:flex;align-items:center;justify-content:center;padding:0}
+
 .form-group{margin-bottom:12px}
 .form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600}
 input,select,textarea{width:100%;padding:10px 12px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit}
@@ -104,12 +108,12 @@ input[type="date"]{color-scheme:dark}
 .drag-handle{cursor:grab; color:var(--muted); font-size:16px; user-select:none; padding:0 4px; display:inline-block;}
 .drag-handle:active{cursor:grabbing;}
 
-/* Стили для пластиковых карт */
+/* Пластиковая карта больше не растягивается, но остается адаптивной */
 .plastic-card{
   position:relative; border-radius:16px; padding:18px; color:#fff; display:flex; flex-direction:column; justify-content:space-between;
   height:190px; box-shadow:0 6px 16px rgba(0,0,0,0.3); overflow:hidden; cursor:pointer; transition:transform 0.2s;
-  max-width: 380px; /* Ограничение ширины для ПК */
-  width: calc(100% - 20px);
+  max-width: 380px; /* Ограничение ширины */
+  width: calc(100% - 28px);
   margin: 10px auto; /* Центрирование */
 }
 .plastic-card:active{transform:scale(0.98);}
@@ -127,14 +131,6 @@ input[type="date"]{color-scheme:dark}
 .pc-credit-fill{height:100%;background:#fff;}
 
 .account-list-wrapper{padding: 10px 0;}
-
-/* Адаптация под ПК */
-@media (min-width: 800px) {
-  .app-header { max-width: 800px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
-  main { max-width: 800px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-height: calc(100vh - 60px); }
-  .bottom-nav { max-width: 800px; margin: 0 auto; left: 50%; transform: translateX(-50%); border-left: 1px solid var(--border); border-right: 1px solid var(--border); border-radius: 16px 16px 0 0; }
-  .fab { right: calc(50% - 400px + 16px); }
-}
 </style>
 </head>
 <body>
@@ -491,7 +487,6 @@ function initHomeSortable() {
 function renderProductRow(a, bank) {
   const bankIndicator = getBankIndicatorHtml(bank);
 
-  // ПЛАСТИКОВЫЕ КАРТЫ
   if (a.type === 'debit' || a.type === 'credit') {
     const isCredit = a.type === 'credit';
     const bColor = bank ? (bank.color || '#4d7fff') : '#4d7fff';
@@ -539,7 +534,6 @@ function renderProductRow(a, bank) {
     </div>`;
   }
 
-  // ОБЫЧНЫЕ СПИСКИ (ВКЛАДЫ, НАЛИЧНЫЕ, БРОКЕРСКИЕ)
   let meta = ACC_TYPES[a.type] || a.type;
   if(a.type==='deposit' || a.type==='savings'){
     meta = a.type==='deposit' ? '🔒 Срочный' : '🐷 Бессрочный';
@@ -939,7 +933,6 @@ function openTxModal(id){
       }
       data.counterpartyId = cpId;
       
-      // Update debts array
       if(!isEdit) {
         if (data.debtType === 'lent') {
            S.debts.push({id:uid(), direction:'lent', counterpartyId: data.counterpartyId, amount:amt, remaining:amt, date:data.date, accountId:data.accountId, note:data.note});
