@@ -157,37 +157,42 @@ if ('serviceWorker' in navigator) {
     });
 }
 // ==========================================
-// ☁️ ИНТЕГРАЦИЯ С ЯНДЕКС.ДИСКОМ
+// ☁️ ИНТЕГРАЦИЯ С ЯНДЕКС.ДИСКОМ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 // ==========================================
-const YANDEX_TOKEN = 'y0__wgBELX6SYYY8lOlPOHu8EZMMOhYsITdnDoJCHkZLU5dQlxp9Y1HCGLI'; // Ваш токен
+const YANDEX_TOKEN = 'y0__wgBELX-6SYYy8lOIPOHu9EZMM-OhYsITdnDoJCHkZLU5dQlxtP9Y1HCGLI'; // Вставьте сюда ваш токен, если он другой!
 const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
 const YANDEX_BACKUP_FILENAME = 'finance-backup.json';
 
 // Загрузка файла на Яндекс.Диск
 async function backupToYandexDisk() {
-    if (!YANDEX_TOKEN || YANDEX_TOKEN === 'ВАШ_ACCESS_TOKEN_СЮДА') {
+    if (!YANDEX_TOKEN) {
         toast('❌ Ошибка: не задан токен Яндекс.Диска в коде.');
         return;
     }
     toast('⏳ Отправка на Яндекс.Диск...');
 
     const fileContent = JSON.stringify(S, null, 2);
-    const filePath = encodeURIComponent(`/app:/${YANDEX_BACKUP_FILENAME}`); 
+    // Теперь сохраняем в КОРЕНЬ диска, без папки app:
+    const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`); 
 
     try {
-        // 1. Получаем URL для загрузки
         const uploadUrlRes = await fetch(`${YANDEX_API_URL}/resources/upload?path=${filePath}&overwrite=true`, {
             headers: { 'Authorization': `OAuth ${YANDEX_TOKEN}` }
         });
-        if (!uploadUrlRes.ok) throw new Error('Не удалось получить URL для загрузки');
+        
+        if (!uploadUrlRes.ok) {
+            const errData = await uploadUrlRes.json();
+            console.error('Ошибка API Яндекса:', errData);
+            throw new Error('Не удалось получить URL для загрузки');
+        }
+        
         const uploadUrlData = await uploadUrlRes.json();
         const uploadUrl = uploadUrlData.href;
 
-        // 2. Загружаем файл
+        // Убрали заголовок Content-Type, чтобы избежать ошибки CORS
         const uploadRes = await fetch(uploadUrl, {
             method: 'PUT',
-            body: fileContent,
-            headers: { 'Content-Type': 'application/json' }
+            body: fileContent
         });
 
         if (!uploadRes.ok) throw new Error('Ошибка при загрузке файла');
@@ -201,16 +206,16 @@ async function backupToYandexDisk() {
 
 // Скачивание файла с Яндекс.Диска
 async function restoreFromYandexDisk() {
-    if (!YANDEX_TOKEN || YANDEX_TOKEN === 'ВАШ_ACCESS_TOKEN_СЮДА') {
+    if (!YANDEX_TOKEN) {
         toast('❌ Ошибка: не задан токен Яндекс.Диска в коде.');
         return;
     }
     toast('⏳ Поиск файла на Яндекс.Диске...');
 
-    const filePath = encodeURIComponent(`/app:/${YANDEX_BACKUP_FILENAME}`);
+    // Теперь ищем в КОРНЕ диска
+    const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`);
 
     try {
-        // 1. Получаем ссылку для скачивания
         const downloadUrlRes = await fetch(`${YANDEX_API_URL}/resources/download?path=${filePath}`, {
             headers: { 'Authorization': `OAuth ${YANDEX_TOKEN}` }
         });
@@ -224,7 +229,6 @@ async function restoreFromYandexDisk() {
         const downloadUrlData = await downloadUrlRes.json();
         const downloadUrl = downloadUrlData.href;
 
-        // 2. Скачиваем файл
         const fileRes = await fetch(downloadUrl);
         if (!fileRes.ok) throw new Error('Ошибка при скачивании файла');
         const fileData = await fileRes.json();
