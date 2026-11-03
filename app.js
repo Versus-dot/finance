@@ -109,3 +109,17 @@ $('menuBtn').onclick=openMenu;
 function renderAll(){applySettings();renderDashboard();renderAccounts();renderTransactions();renderStats();}
 load();applyTheme();applySettings();maybeSnapshot();renderAll();if(S.settings.usdtRate.mode==='auto')fetchUSDT();
 let startY=0;document.addEventListener('touchstart',e=>{startY=e.touches[0].pageY;},{passive:true});document.addEventListener('touchmove',e=>{if(document.querySelector('.modal-backdrop.active')){if(e.touches[0].pageY>startY&&window.scrollY===0)e.preventDefault();}},{passive:false});
+// ==========================================
+// РЕГИСТРАЦИЯ SERVICE WORKER ДЛЯ PWA
+// ==========================================
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker зарегистрирован успешно!', registration.scope);
+            })
+            .catch(error => {
+                console.error('❌ Ошибка регистрации Service Worker:', error);
+            });
+    });
+}
