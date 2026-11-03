@@ -292,7 +292,7 @@ function checkAutoBackup() {
     if (!token) return; // Если токена нет, ничего не делаем
     
     const lastBackup = S.settings.lastCloudBackup || 0;
-    const oneDay = 1 * 60 * 1000; // Временно: 1 минута для теста!
+    const oneDay = 24 * 60 * 60 * 1000; // 24 часа в миллисекундах
     
     // Если прошло больше 24 часов с последнего бэкапа
     if (Date.now() - lastBackup > oneDay) {
