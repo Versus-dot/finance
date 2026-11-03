@@ -21,7 +21,7 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .page{display:none;padding:14px}
 .page.active{display:block}
 
-/* Стили для главной страницы */
+/* Главная (Дзен-мани стиль) */
 .total-bar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; padding: 0 4px; }
 .total-val { font-size: 26px; font-weight: 800; margin-top: 4px; }
 .total-label { font-size: 12px; color: var(--muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px;}
@@ -34,8 +34,36 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .bank-chip .bc-bal { font-size: 15px; font-weight: 800; }
 .bank-chip .bc-debt { font-size: 11px; color: var(--red); font-weight: 700; }
 
-.acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.bank-group { margin-bottom: 16px; background: var(--card); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; }
+.bank-group-header { padding: 10px 14px; background: var(--card2); font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; cursor: grab; border-bottom: 1px solid var(--border); }
+.bank-group-header:active { cursor: grabbing; }
+.bank-group-list { padding: 4px 0; }
+
+.account-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; transition: 0.1s; border-bottom: 1px solid var(--border); margin: 0 6px; border-radius: 8px;}
+.account-row:last-child { border-bottom: none; }
+.account-row:active { background: rgba(255,255,255,0.05); }
+
+/* Стили оформления (фон или полоска) */
+.account-row.style-bg { background: rgba(255,255,255,0.03); margin-bottom: 4px; border-bottom: none; }
+.account-row.style-stripe { border-left: 4px solid var(--bank-color); border-radius: 0 8px 8px 0; margin-left: 10px; border-bottom: 1px solid var(--border); }
+
+.acc-icon { font-size: 20px; width: 30px; text-align: center; }
+.acc-info { flex: 1; min-width: 0; }
+.acc-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.acc-balance { text-align: right; font-weight: 700; font-size: 15px; white-space: nowrap; }
+.acc-debt { font-size: 11px; color: var(--red); font-weight: 700; margin-top: 2px; }
+
 .section-title { font-size: 16px; font-weight: 700; margin: 10px 0 12px 4px; display: flex; justify-content: space-between; align-items: center; }
+
+/* ПК Адаптивность */
+@media (min-width: 800px) {
+  .banks-carousel { flex-wrap: wrap; overflow-x: visible; }
+  .bank-chip { flex: 1; min-width: 200px; }
+  .acc-grid-pc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .month-stats { max-width: 600px; }
+  .fab { right: calc(50% - 700px + 16px); }
+}
 
 .card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--border)}
 .stat-card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--border)}
@@ -56,14 +84,6 @@ button:active{filter:brightness(0.9)}
 .nav-tab.active{color:var(--accent)}
 .fab{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom));right:16px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 4px 12px rgba(77,127,255,0.4);z-index:101;display:flex;align-items:center;justify-content:center;padding:0}
 
-/* Адаптивность для ПК */
-@media (min-width: 800px) {
-  .banks-carousel { flex-wrap: wrap; overflow-x: visible; }
-  .bank-chip { flex: 1; min-width: 200px; }
-  .month-stats { max-width: 600px; }
-  .fab { right: calc(50% - 700px + 16px); } /* Позиционирование кнопки + на ПК */
-}
-
 .form-group{margin-bottom:12px}
 .form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600}
 input,select,textarea{width:100%;padding:10px 12px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit}
@@ -77,6 +97,8 @@ input[type="date"]{color-scheme:dark}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .modal-header h2{margin:0;font-size:17px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Вкладка Счета (детальный вид) */
 .bank-section{background:var(--card);border-radius:14px;margin-bottom:12px;border:1px solid var(--border);overflow:hidden}
 .bank-header{padding:12px 14px;background:var(--card2);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:14px}
 .bank-total{font-size:13px;color:var(--muted);font-weight:500}
@@ -126,27 +148,6 @@ input[type="date"]{color-scheme:dark}
 .bank-stripe{display:inline-block;width:4px;height:16px;border-radius:2px;margin-right:8px;vertical-align:middle}
 .drag-handle{cursor:grab; color:var(--muted); font-size:16px; user-select:none; padding:0 4px; display:inline-block;}
 .drag-handle:active{cursor:grabbing;}
-
-/* Пластиковая карта (Уменьшенная версия) */
-.plastic-card{
-  position:relative; border-radius:12px; padding:10px 12px; color:#fff; display:flex; flex-direction:column; justify-content:space-between;
-  height: 120px; box-shadow:0 4px 10px rgba(0,0,0,0.25); overflow:hidden; cursor:pointer; transition:transform 0.2s;
-  width: 100%;
-}
-.plastic-card:active{transform:scale(0.98);}
-.plastic-card::before{content:'';position:absolute;top:-40px;right:-40px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.1);}
-.plastic-card::after{content:'';position:absolute;bottom:-40px;left:-40px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,0.05);}
-.pc-row{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;}
-.pc-type{font-size:8px;text-transform:uppercase;font-weight:700;opacity:0.9;}
-.pc-bank{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
-.pc-chip{width:24px;height:16px;background:linear-gradient(135deg,#e0e0e0,#b0b0b0);border-radius:3px;margin:2px 0;position:relative;z-index:1;}
-.pc-chip::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:8px;border:1px solid #999;border-radius:2px;}
-.pc-number{font-family:monospace;font-size:11px;letter-spacing:1px;margin-bottom:2px;opacity:0.9;position:relative;z-index:1;}
-.pc-balance{font-size:18px;font-weight:800;line-height:1.1;}
-.pc-details{font-size:9px;opacity:0.8;margin-top:1px;}
-.pc-debt{font-size:13px;color:#ff5c5c;font-weight:800;margin-top:2px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);}
-
-.account-list-wrapper{padding: 10px 0;}
 </style>
 </head>
 <body>
@@ -175,7 +176,7 @@ input[type="date"]{color-scheme:dark}
 <div class="toast" id="toast"></div>
 
 <script>
-const KEY='financeApp_v22';
+const KEY='financeApp_v23';
 const ACC_TYPES={debit:'Дебетовая карта',credit:'Кредитная карта',brokerage:'Брокерский',iis:'ИИС',pds:'ПДС',deposit:'Вклад',savings:'Накопительный',crypto_wallet:'Криптокошелек',crypto_exchange:'Криптобиржа',cash:'Наличные',invest_kopilka:'Инвесткопилка',finu_wallet:'Кошелёк Финуслуги'};
 const TERMS={indefinite:'Бессрочный','14d':'14 дней','3m':'3 мес','6m':'6 мес','12m':'1 год','24m':'2 года'};
 const TARGET_TYPES=['deposit','savings','brokerage','iis','pds','crypto_wallet','crypto_exchange','invest_kopilka'];
@@ -198,7 +199,7 @@ const KNOWN_BANKS = {
 };
 
 function defaultState(){return {
-  settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'badge',pinCode:''},
+  settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'bg',pinCode:''},
   ui:{collapsedBanks:[],showArchived:false,lastSnapshot:null},
   categories:[
     {id:'c_sal',type:'income',name:'Зарплата',passive:false},{id:'c_adv',type:'income',name:'Аванс',passive:false},{id:'c_freelance',type:'income',name:'Фриланс',passive:false},{id:'c_gift',type:'income',name:'Подарки',passive:false},{id:'c_cashback',type:'income',name:'Кешбэк',passive:true},{id:'c_coupon',type:'income',name:'Купоны',passive:true},{id:'c_dividend',type:'income',name:'Дивиденды',passive:true},{id:'c_interest',type:'income',name:'Проценты по вкладам',passive:true},{id:'c_taxrefund',type:'income',name:'Возврат налога',passive:true},{id:'c_other_inc',type:'income',name:'Прочий доход',passive:false},
@@ -209,7 +210,7 @@ function defaultState(){return {
 };}
 
 let S=defaultState();
-let dashFilterBank = 'all'; // Глобальная переменная для фильтра банков на главной
+let dashFilterBank = 'all'; 
 
 const $=id=>document.getElementById(id);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -235,6 +236,14 @@ function load(){
       const p=JSON.parse(r);
       S = {...defaultState(), ...p};
       if(!S.banks.length) S.banks = defaultState().banks;
+    } else {
+      // Миграция со старой версии (v22)
+      const oldR = localStorage.getItem('financeApp_v22');
+      if(oldR) {
+         const oldP = JSON.parse(oldR);
+         S = {...defaultState(), ...oldP};
+         S.settings.badgeStyle = S.settings.badgeStyle === 'badge' ? 'bg' : S.settings.badgeStyle;
+      }
     }
   }catch(e){console.error(e);}
 }
@@ -251,7 +260,7 @@ function getBankIndicatorHtml(bank) {
   if (!bank) return '';
   const bColor = bank.color || '#888';
   const style = S.settings.badgeStyle;
-  if(style==='badge') return `<span class="bank-badge" style="background:${bColor}20; color:${bColor}; border:1px solid ${bColor}40;">${esc(bank.name)}</span>`;
+  if(style==='bg') return `<span class="bank-badge" style="background:${bColor}20; color:${bColor}; border:1px solid ${bColor}40;">${esc(bank.name)}</span>`;
   if(style==='dot') return `<span class="bank-dot" style="background:${bColor}"></span>`;
   if(style==='text') return `<span style="color:${bColor}; font-size:10px; font-weight:700; margin-left:6px;">${esc(bank.name)}</span>`;
   if(style==='stripe') return `<span class="bank-stripe" style="background:${bColor}"></span>`;
@@ -352,14 +361,14 @@ function maybeSnapshot(){
   save();
 }
 
-// РЕНДЕР ГЛАВНОЙ
+// ГЛАВНЫЙ РЕНДЕР (Дзен-мани + группировка)
 function renderDashboard(){
   recalculateBalances();
   const t=computeTotals();
   const m=computeMonth();
   const el=$('page-home');
   
-  // 1. Верхняя панель с общим балансом и долгами
+  // 1. Верхняя панель
   let topBarHtml = `
   <div class="total-bar">
     <div>
@@ -374,8 +383,6 @@ function renderDashboard(){
 
   // 2. Карусель банков
   let banksHtml = `<div class="banks-carousel">`;
-  
-  // Кнопка "Все банки"
   banksHtml += `<div class="bank-chip ${dashFilterBank==='all'?'active':''}" onclick="setDashFilter('all')">
       <div class="bc-name">🏦 Все банки</div>
       <div class="bc-bal">${fmt(t.totalCap + t.debt)}</div>
@@ -386,14 +393,12 @@ function renderDashboard(){
   topBanks.forEach(b => {
     let bankTotal = 0;
     let bankDebt = 0;
-    
     const accs = S.accounts.filter(a => a.bankId===b.id && !a.archived);
     accs.forEach(a => {
         const v = accValue(a);
         if(a.type==='credit') bankDebt += v;
         else bankTotal += v;
     });
-    
     const subBanks = S.banks.filter(sb => sb.parentId===b.id);
     subBanks.forEach(sb => {
         const subAccs = S.accounts.filter(a => a.bankId===sb.id && !a.archived);
@@ -413,37 +418,70 @@ function renderDashboard(){
   });
   banksHtml += `</div>`;
 
-  // 3. Список карт и счетов
-  let accsHtml = `<div class="section-title">Карты и счета
+  // 3. Группировка счетов
+  let groupsHtml = `<div class="section-title">Карты и счета
       <button class="btn-primary btn-small" style="padding:4px 10px; border-radius:8px;" onclick="openAccountModal(null, '${dashFilterBank === 'all' ? S.banks.find(b=>!b.parentId).id : dashFilterBank}')">+</button>
   </div>
-  <div class="acc-grid">`;
+  <div class="acc-grid-pc">`; // Обертка для ПК (2 колонки)
 
-  let filteredAccs = S.accounts.filter(a => !a.archived);
-  if (dashFilterBank !== 'all') {
-      filteredAccs = filteredAccs.filter(a => {
-          if (a.bankId === dashFilterBank) return true;
-          const parentBank = getBank(a.bankId);
-          return parentBank && parentBank.parentId === dashFilterBank;
+  const banksToRender = dashFilterBank === 'all' 
+      ? S.banks.filter(b => !b.parentId).sort((a,b) => (a.order||0) - (b.order||0))
+      : [getBank(dashFilterBank)];
+
+  banksToRender.forEach(b => {
+      if(!b) return;
+      
+      // Собираем все счета этого банка и его под-банков
+      const allGroupAccounts = [];
+      
+      // Счета самого банка
+      const directAccs = S.accounts.filter(a => a.bankId===b.id && !a.archived);
+      directAccs.forEach(a => allGroupAccounts.push(a));
+
+      // Счета под-банков (если это платформа)
+      const subBanks = S.banks.filter(sb => sb.parentId===b.id);
+      subBanks.forEach(sb => {
+          const subAccs = S.accounts.filter(a => a.bankId===sb.id && !a.archived);
+          subAccs.forEach(a => allGroupAccounts.push(a));
       });
-  }
-  
-  filteredAccs.sort((a,b) => {
-      const order = {debit:1, credit:2, deposit:3, savings:4, cash:5};
-      return (order[a.type]||10) - (order[b.type]||10);
+
+      if(allGroupAccounts.length === 0) return; // Не рисуем пустую группу
+
+      // Считаем общий баланс группы для заголовка
+      let groupTotal = allGroupAccounts.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
+
+      groupsHtml += `<div class="bank-group" data-bank-id="${b.id}">
+          <div class="bank-group-header">
+             <span style="display:flex; align-items:center;">
+               <span class="drag-handle" style="cursor:grab; margin-right:6px;" onclick="event.stopPropagation()">⋮⋮</span>
+               <span style="width:10px;height:10px;border-radius:50%;background:${b.color||'#888'};margin-right:6px;"></span>
+               ${esc(b.name)}
+             </span>
+             <span style="color:var(--muted); font-weight:600;">${fmt(groupTotal)}</span>
+          </div>
+          <div class="bank-group-list" data-bank-id="${b.id}">`;
+
+      // Сначала выводим счета самого банка, затем подгруппы
+      directAccs.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(a => {
+          groupsHtml += renderAccountRow(a, b);
+      });
+
+      subBanks.forEach(sb => {
+          const subAccs = S.accounts.filter(a => a.bankId===sb.id && !a.archived);
+          if(subAccs.length === 0) return;
+          
+          groupsHtml += `<div style="padding: 6px 14px; font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">↳ ${esc(sb.name)}</div>`;
+          subAccs.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(a => {
+              groupsHtml += renderAccountRow(a, sb);
+          });
+      });
+
+      groupsHtml += `</div></div>`;
   });
 
-  if(!filteredAccs.length) {
-      accsHtml += `<div class="empty" style="grid-column:1/-1;">Нет счетов</div>`;
-  } else {
-      filteredAccs.forEach(a => {
-          const b = getBank(a.bankId);
-          accsHtml += renderProductRow(a, b);
-      });
-  }
-  accsHtml += `</div>`;
+  groupsHtml += `</div>`;
 
-  // 4. Блок статистики за месяц (компактный)
+  // 4. Блок статистики за месяц
   let statsHtml = `
   <div class="card month-stats" style="margin-top:20px;">
     <div style="font-weight:700;margin-bottom:10px">Этот месяц</div>
@@ -455,7 +493,10 @@ function renderDashboard(){
     </div>
   </div>`;
 
-  el.innerHTML = topBarHtml + banksHtml + accsHtml + statsHtml;
+  el.innerHTML = topBarHtml + banksHtml + groupsHtml + statsHtml;
+  
+  // Инициализируем перетаскивание для групп и счетов
+  initDashSortable();
 }
 
 function setDashFilter(bankId) {
@@ -463,79 +504,95 @@ function setDashFilter(bankId) {
     renderDashboard();
 }
 
-function renderProductRow(a, bank) {
-  const bankIndicator = getBankIndicatorHtml(bank);
-
-  if (a.type === 'debit' || a.type === 'credit') {
-    const isCredit = a.type === 'credit';
-    const bColor = bank ? (bank.color || '#4d7fff') : '#4d7fff';
-    const gradient = `linear-gradient(135deg, ${bColor} 0%, #1a1f2b 120%)`;
-    
-    const v = accValue(a);
-    const limit = a.creditLimit || 0;
-    
-    // Главная цифра: если кредитка - доступный лимит, если дебет - баланс
-    let mainAmount = isCredit ? Math.max(0, limit - v) : v;
-    let mainLabel = isCredit ? 'Доступно' : 'Баланс';
-    
-    // Долг для кредитки (жирный, красный)
-    let debtHtml = '';
-    if (isCredit) {
-        if (v > 0) {
-            debtHtml = `<div class="pc-debt">Долг: ${fmt(v)}</div>`;
-        } else if (v < 0) {
-            debtHtml = `<div class="pc-debt" style="color:#2ecc71;">Переплата: ${fmt(Math.abs(v))}</div>`;
-        } else {
-            debtHtml = `<div class="pc-debt" style="color:#8a94a6;">Долг: 0 ₽</div>`;
-        }
-    }
-    
-    let graceHtml = '';
-    if (isCredit && a.gracePeriod) {
-      const daysLeft = Math.ceil((new Date(a.gracePeriod) - new Date()) / (1000*60*60*24));
-      let color = daysLeft > 14 ? '#2ecc71' : (daysLeft > 3 ? '#f5b945' : '#ff5c5c');
-      let text = daysLeft > 0 ? `${daysLeft} дн.` : 'Просрочено';
-      graceHtml = `<div class="pc-details" style="color:${color}; font-weight:700; font-size:9px;">⏳ ${text}</div>`;
-    }
-
-    return `
-    <div class="plastic-card" style="background: ${gradient}" onclick="openAccountModal('${a.id}')">
-        <div class="pc-row">
-            <span class="pc-type">${isCredit ? 'Кредитная' : 'Дебетовая'} ${a.inCushion ? '⭐' : ''}</span>
-            <span class="pc-bank">${bank ? esc(bank.name) : ''}</span>
-        </div>
-        <div class="pc-chip"></div>
-        <div class="pc-number">•••• •••• •••• ${Math.floor(Math.random()*9000+1000)}</div>
-        <div class="pc-row" style="align-items: flex-end;">
-            <div>
-                <div class="pc-details">${mainLabel}</div>
-                <div class="pc-balance">${fmt(mainAmount)}</div>
-                ${debtHtml}
-            </div>
-            <div style="text-align:right;">
-                ${graceHtml}
-            </div>
-        </div>
-    </div>`;
-  }
-
-  // Обычные списки (вклады, наличные)
+function renderAccountRow(a, bank) {
+  const style = S.settings.badgeStyle === 'stripe' ? 'style-stripe' : 'style-bg';
+  const bColor = bank ? bank.color : '#888';
+  
+  let icon = '💳';
+  if(['brokerage','iis','pds','invest_kopilka'].includes(a.type)) icon = '📈';
+  else if(a.type==='deposit') icon = '🔒';
+  else if(a.type==='savings') icon = '🐷';
+  else if(a.type==='crypto_wallet'||a.type==='crypto_exchange') icon = '🪙';
+  else if(a.type==='cash') icon = '💵';
+  
   let meta = ACC_TYPES[a.type] || a.type;
   if(a.type==='deposit' || a.type==='savings'){
-    meta = a.type==='deposit' ? '🔒 Срочный' : '🐷 Бессрочный';
     if(a.rate) meta += ` · ${a.rate}%`;
   }
-  
+
   const v = accValue(a);
-  return `<div class="product-item" style="border-radius:14px; border:1px solid var(--border); background:var(--card);">
-    <div class="info" onclick="openAccountModal('${a.id}')" style="cursor:pointer; padding:4px;">
-      <div class="name">${bankIndicator} ${esc(a.name)} ${a.inCushion?'⭐':''}</div>
-      <div class="meta">${meta}</div>
+  let balHtml = '';
+  
+  if (a.type === 'credit') {
+      const limit = a.creditLimit || 0;
+      const avail = Math.max(0, limit - v);
+      balHtml = `<div class="acc-balance">${fmt(avail)}</div>`;
+      if (v > 0) balHtml += `<div class="acc-debt">Долг: ${fmt(v)}</div>`;
+      else if (v < 0) balHtml += `<div class="acc-debt" style="color:#2ecc71;">Переплата: ${fmt(Math.abs(v))}</div>`;
+      else balHtml += `<div class="acc-debt" style="color:var(--muted);">Долг: 0 ₽</div>`;
+  } else {
+      balHtml = `<div class="acc-balance">${fmt(v)}</div>`;
+  }
+
+  return `
+    <div class="account-row ${style}" style="--bank-color: ${bColor};" onclick="openAccountModal('${a.id}')">
+       <div class="acc-icon">${icon}</div>
+       <div class="acc-info">
+          <div class="acc-name">${esc(a.name)} ${a.inCushion?'⭐':''}</div>
+          <div class="acc-meta">${meta}</div>
+       </div>
+       <div>${balHtml}</div>
     </div>
-    <div class="amount" style="padding:4px;">
-      ${fmt(v)}
-    </div>
-  </div>`;
+  `;
+}
+
+function initDashSortable() {
+   if(typeof Sortable === 'undefined') return;
+   
+   // Сортируем банки (группы)
+   const groupsContainer = document.querySelector('.acc-grid-pc');
+   if(groupsContainer) {
+      new Sortable(groupsContainer, {
+         animation: 150,
+         handle: '.bank-group-header',
+         filter: 'button, input, select',
+         onEnd: function() {
+            const items = groupsContainer.querySelectorAll(':scope > .bank-group');
+            items.forEach((item, index) => {
+               const id = item.dataset.bankId;
+               const b = getBank(id);
+               if (b) b.order = index;
+            });
+            save();
+         }
+      });
+   }
+
+   // Сортируем счета внутри банков
+   document.querySelectorAll('.bank-group-list').forEach(container => {
+      new Sortable(container, {
+         animation: 150,
+         group: 'shared', // Разрешаем двигать только внутри этого контейнера
+         handle: '.account-row',
+         filter: 'button, input, select',
+         onEnd: function(evt) {
+            // Переназначаем order только для элементов внутри этого контейнера
+            const items = container.querySelectorAll(':scope > .account-row');
+            items.forEach((item, index) => {
+               // Нам нужно найти id счета. Он лежит в onclick атрибуте, вытащим регуляркой
+               const onclickAttr = item.getAttribute('onclick');
+               const match = onclickAttr.match(/openAccountModal\('([^']+)'\)/);
+               if(match && match[1]) {
+                   const a = getAcc(match[1]);
+                   if (a) a.order = index;
+               }
+            });
+            save();
+            // Примечание: при перетаскивании между банками (если разрешить) логика сложнее.
+            // Но у нас group: 'shared' только внутри контейнера.
+         }
+      });
+   });
 }
 
 function renderAccounts(){
@@ -654,6 +711,54 @@ function initSortable() {
       }
     });
   });
+}
+
+function renderProductRow(a, bank) {
+  const bankIndicator = getBankIndicatorHtml(bank);
+
+  // Вкладка "Счета" - детальный вид (в виде карточек, как в предыдущей версии)
+  if (a.type === 'debit' || a.type === 'credit') {
+    const isCredit = a.type === 'credit';
+    const bColor = bank ? (bank.color || '#4d7fff') : '#4d7fff';
+    const gradient = `linear-gradient(135deg, ${bColor} 0%, #1a1f2b 120%)`;
+    const v = accValue(a);
+    const limit = a.creditLimit || 0;
+    let mainAmount = isCredit ? Math.max(0, limit - v) : v;
+    let mainLabel = isCredit ? 'Доступно' : 'Баланс';
+    let debtHtml = isCredit ? (v > 0 ? `<div class="acc-debt" style="font-size:13px; margin-top:4px;">Долг: ${fmt(v)}</div>` : '') : '';
+    
+    return `
+    <div class="product-item" style="padding:10px; display:block; border:none;" onclick="openAccountModal('${a.id}')">
+        <div style="background: ${gradient}; border-radius:12px; padding:12px; position:relative; overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                <span style="font-size:9px; text-transform:uppercase; font-weight:700; opacity:0.9;">${isCredit ? 'Кредитная' : 'Дебетовая'}</span>
+                <span style="font-size:11px; font-weight:700; text-transform:uppercase;">${bank ? esc(bank.name) : ''}</span>
+            </div>
+            <div style="font-family:monospace; font-size:12px; opacity:0.8; margin-bottom:8px;">•••• ${Math.floor(Math.random()*9000+1000)}</div>
+            <div style="font-size:10px; opacity:0.8;">${mainLabel}</div>
+            <div style="font-size:18px; font-weight:800;">${fmt(mainAmount)}</div>
+            ${debtHtml}
+        </div>
+    </div>`;
+  }
+
+  // Обычные списки (вклады, наличные)
+  let meta = ACC_TYPES[a.type] || a.type;
+  if(a.type==='deposit' || a.type==='savings'){
+    meta = a.type==='deposit' ? '🔒 Срочный' : '🐷 Бессрочный';
+    if(a.rate) meta += ` · ${a.rate}%`;
+  }
+  
+  const v = accValue(a);
+  return `<div class="product-item" style="border-radius:14px; border:1px solid var(--border); background:var(--card); margin:6px 14px;">
+    <div class="info" onclick="openAccountModal('${a.id}')" style="cursor:pointer; padding:4px;">
+      <div class="name">${bankIndicator} ${esc(a.name)} ${a.inCushion?'⭐':''}</div>
+      <div class="meta">${meta}</div>
+    </div>
+    <div class="amount" style="padding:4px;">
+      ${fmt(v)}
+    </div>
+  </div>`;
 }
 
 function toggleBank(id){
@@ -1352,7 +1457,10 @@ function openSettings(){
   <div class="form-group"><label>Название приложения</label><input id="setTitle" value="${esc(S.settings.appTitle)}"></div>
   <div class="form-group"><label>PIN-код (4 цифры, пусто = отключен)</label><input id="setPin" type="text" maxlength="4" value="${S.settings.pinCode}"></div>
   <div class="form-group"><label>Частота снимков</label><select id="setSnap"><option value="monthly" ${S.settings.snapshotFreq==='monthly'?'selected':''}>Раз в месяц</option><option value="weekly" ${S.settings.snapshotFreq==='weekly'?'selected':''}>Раз в неделю</option><option value="daily" ${S.settings.snapshotFreq==='daily'?'selected':''}>Раз в день</option></select></div>
-  <div class="form-group"><label>Стиль бейджей банков</label><select id="setBadge"><option value="badge" ${S.settings.badgeStyle==='badge'?'selected':''}>Плашка</option><option value="dot" ${S.settings.badgeStyle==='dot'?'selected':''}>Кружок</option><option value="text" ${S.settings.badgeStyle==='text'?'selected':''}>Текст</option><option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Полоска</option></select></div>
+  <div class="form-group"><label>Стиль оформления (Главная)</label><select id="setBadge">
+      <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
+      <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полоски</option>
+  </select></div>
   <button class="btn-primary btn-block" onclick="saveSettings()">Сохранить</button>
   <button class="btn-secondary btn-block" style="margin-top:8px" onclick="fetchUSDT()">Обновить курс USDT</button>`);
 }
