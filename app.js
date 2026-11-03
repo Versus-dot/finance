@@ -171,77 +171,89 @@ if ('serviceWorker' in navigator) {
 // ==========================================
 // ☁️ ИНТЕГРАЦИЯ С ЯНДЕКС.ДИСКОМ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 // ==========================================
-const YANDEX_TOKEN = 'y0__wgBELX-6SYYy8lOIPOHu9EZMM-OhYsITdnDoJCHkZLU5dQlxtP9Y1HCGLI'; // Вставьте сюда ваш токен, если он другой!
+
 const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
 const YANDEX_BACKUP_FILENAME = 'finance-backup.json';
 
 // Загрузка файла на Яндекс.Диск
 async function backupToYandexDisk() {
-    if (!YANDEX_TOKEN) {
-        toast('❌ Ошибка: не задан токен Яндекс.Диска в коде.');
+    const token = S.settings.yandexToken;
+    if (!token) {
+        toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
         return;
     }
     toast('⏳ Отправка на Яндекс.Диск...');
 
     const fileContent = JSON.stringify(S, null, 2);
-    // Теперь сохраняем в КОРЕНЬ диска, без папки app:
     const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`); 
 
     try {
         const uploadUrlRes = await fetch(`${YANDEX_API_URL}/resources/upload?path=${filePath}&overwrite=true`, {
-            headers: { 'Authorization': `OAuth ${YANDEX_TOKEN}` }
+            headers: { 'Authorization': `OAuth ${token}` }
         });
         
-        if (!uploadUrlRes.ok) {
-            const errData = await uploadUrlRes.json();
-            console.error('Ошибка API Яндекса:', errData);
-            throw new Error('Не удалось получить URL для загрузки');
-        }
+        if (!uploadUrlRes.ok) throw new Error('Ошибка API');
         
         const uploadUrlData = await uploadUrlRes.json();
         const uploadUrl = uploadUrlData.href;
 
-        // Убрали заголовок Content-Type, чтобы избежать ошибки CORS
-        const uploadRes = await fetch(uploadUrl, {
-            method: 'PUT',
-            body: fileContent
-        });
-
-        if (!uploadRes.ok) throw new Error('Ошибка при загрузке файла');
+        const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileContent });
+        if (!uploadRes.ok) throw new Error('Ошибка при загрузке');
+        
         toast('✅ Успешно сохранено на Яндекс.Диск');
-
     } catch (error) {
         console.error('Yandex Backup Error:', error);
-        toast('❌ Ошибка при отправке на Яндекс.Диск');
+        toast('❌ Ошибка при отправке');
     }
 }
 
-// Скачивание файла с Яндекс.Диска (через собственный прокси Yandex Cloud)
+// Скачивание файла с Яндекс.Диска
 async function restoreFromYandexDisk() {
-    if (!YANDEX_TOKEN) {
-        toast('❌ Ошибка: не задан токен Яндекс.Диска в коде.');
+    const token = S.settings.yandexToken;
+    if (!token) {
+        toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
         return;
     }
-    toast('⏳ Поиск файла на Яндекс.Диске...');
+    toast('⏳ Поиск файла...');
 
     const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`);
 
     try {
-        // 1. Получаем прямую ссылку на скачивание у API Яндекса
-        const downloadUrlRes = await fetch(`https://cloud-api.yandex.net/v1/disk/resources/download?path=${filePath}`, {
-            headers: { 'Authorization': `OAuth ${YANDEX_TOKEN}` }
+        const downloadUrlRes = await fetch(`${YANDEX_API_URL}/resources/download?path=${filePath}`, {
+            headers: { 'Authorization': `OAuth ${token}` }
         });
 
         if (downloadUrlRes.status === 404) {
-            toast('❌ Файл бэкапа не найден на Яндекс.Диске');
+            toast('❌ Файл не найден');
             return;
         }
-        if (!downloadUrlRes.ok) {
-            throw new Error('Не удалось получить ссылку от API Яндекса');
-        }
+        if (!downloadUrlRes.ok) throw new Error('Ошибка API');
 
         const downloadUrlData = await downloadUrlRes.json();
         const directUrl = downloadUrlData.href;
+
+        const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm'; 
+        const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(directUrl)}`;
+
+        toast('⏳ Скачивание...');
+        const fileRes = await fetch(proxyUrl);
+        if (!fileRes.ok) throw new Error('Ошибка прокси');
+
+        const fileText = await fileRes.text();
+        let fileData;
+        try { fileData = JSON.parse(fileText); } 
+        catch (e) { throw new Error('Файл поврежден'); }
+
+        if (confirm('Заменить текущие данные данными из облака?')) {
+            S = Object.assign(defaultState(), fileData);
+            save(); applySettings(); renderAll(); closeModal();
+            toast('✅ Данные восстановлены');
+        }
+    } catch (error) {
+        console.error('Yandex Restore Error:', error);
+        toast('❌ Ошибка: ' + error.message);
+    }
+}
 
         // --- ИСПОЛЬЗУЕМ ВАШУ ФУНКЦИЮ В YANDEX CLOUD ---
         const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm'; 
