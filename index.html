@@ -103,6 +103,24 @@ input[type="date"]{color-scheme:dark}
 .bank-stripe{display:inline-block;width:4px;height:16px;border-radius:2px;margin-right:8px;vertical-align:middle}
 .drag-handle{cursor:grab; color:var(--muted); font-size:16px; user-select:none; padding:0 4px; display:inline-block;}
 .drag-handle:active{cursor:grabbing;}
+
+/* Стили для пластиковых карт */
+.plastic-card{position:relative;border-radius:16px;padding:16px;margin:10px 14px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;height:180px;box-shadow:0 6px 16px rgba(0,0,0,0.3);overflow:hidden;cursor:pointer;transition:transform 0.2s;}
+.plastic-card:active{transform:scale(0.97);}
+.plastic-card::before{content:'';position:absolute;top:-50px;right:-50px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,0.1);}
+.plastic-card::after{content:'';position:absolute;bottom:-50px;left:-50px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.05);}
+.pc-row{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;}
+.pc-type{font-size:10px;text-transform:uppercase;font-weight:700;letter-spacing:1px;opacity:0.9;}
+.pc-bank{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+.pc-chip{width:40px;height:30px;background:linear-gradient(135deg,#e0e0e0,#b0b0b0);border-radius:6px;margin:10px 0;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;}
+.pc-chip::after{content:'';position:absolute;width:20px;height:15px;border:1px solid #999;border-radius:4px;}
+.pc-number{font-family:monospace;font-size:18px;letter-spacing:2px;margin-bottom:10px;opacity:0.9;position:relative;z-index:1;}
+.pc-balance{font-size:22px;font-weight:700;}
+.pc-details{font-size:11px;opacity:0.85;margin-top:4px;}
+.pc-credit-bar{height:4px;background:rgba(0,0,0,0.2);border-radius:2px;margin-top:8px;overflow:hidden;}
+.pc-credit-fill{height:100%;background:#fff;}
+
+.account-list-wrapper{padding: 10px 0;}
 </style>
 </head>
 <body>
@@ -459,30 +477,70 @@ function initHomeSortable() {
 function renderProductRow(a, bank) {
   const bankIndicator = getBankIndicatorHtml(bank);
 
+  // ПЛАСТИКОВЫЕ КАРТЫ
+  if (a.type === 'debit' || a.type === 'credit') {
+    const isCredit = a.type === 'credit';
+    const bColor = bank ? (bank.color || '#4d7fff') : '#4d7fff';
+    // Делаем красивый градиент из цвета банка
+    const gradient = `linear-gradient(135deg, ${bColor} 0%, #1a1f2b 120%)`;
+    
+    const v = accValue(a);
+    const limit = a.creditLimit || 0;
+    const available = Math.max(0, limit - v);
+    const util = limit > 0 ? Math.min(100, (v / limit) * 100) : 0;
+    
+    let detailsHtml = '';
+    if (isCredit && limit > 0) {
+      detailsHtml = `
+        <div class="pc-details">Долг: ${fmt(v)} • Доступно: ${fmt(available)}</div>
+        <div class="pc-credit-bar"><div class="pc-credit-fill" style="width:${util}%"></div></div>
+      `;
+    }
+    
+    let graceHtml = '';
+    if (isCredit && a.gracePeriod) {
+      const daysLeft = Math.ceil((new Date(a.gracePeriod) - new Date()) / (1000*60*60*24));
+      let color = daysLeft > 14 ? '#2ecc71' : (daysLeft > 3 ? '#f5b945' : '#ff5c5c');
+      let text = daysLeft > 0 ? `${daysLeft} дн.` : 'Просрочено';
+      graceHtml = `<div class="pc-details" style="color:${color}; font-weight:700;">⏳ До ${new Date(a.gracePeriod).toLocaleDateString('ru-RU')} (${text})</div>`;
+    }
+
+    return `
+    <div class="plastic-card" style="background: ${gradient}" onclick="openAccountModal('${a.id}')">
+        <div class="pc-row">
+            <span class="pc-type">${isCredit ? 'Кредитная' : 'Дебетовая'} ${a.inCushion ? '⭐' : ''}</span>
+            <span class="pc-bank">${bank ? esc(bank.name) : ''}</span>
+        </div>
+        <div class="pc-chip"></div>
+        <div class="pc-number">•••• •••• •••• ${Math.floor(Math.random()*9000+1000)}</div>
+        <div class="pc-row" style="align-items: flex-end;">
+            <div>
+                <div class="pc-details">${isCredit ? 'Текущий долг' : 'Баланс'}</div>
+                <div class="pc-balance">${fmt(v)}</div>
+            </div>
+            <div style="text-align:right;">
+                ${graceHtml}
+            </div>
+        </div>
+        ${detailsHtml}
+    </div>`;
+  }
+
+  // ОБЫЧНЫЕ СПИСКИ (ВКЛАДЫ, НАЛИЧНЫЕ, БРОКЕРСКИЕ)
   let meta = ACC_TYPES[a.type] || a.type;
   if(a.type==='deposit' || a.type==='savings'){
     meta = a.type==='deposit' ? '🔒 Срочный' : '🐷 Бессрочный';
     if(a.rate) meta += ` · ${a.rate}%`;
   }
   
-  let graceHtml = '';
-  if(a.type==='credit' && a.gracePeriod){
-    const daysLeft = Math.ceil((new Date(a.gracePeriod) - new Date()) / (1000*60*60*24));
-    let color = daysLeft > 14 ? 'var(--green)' : (daysLeft > 3 ? 'var(--yellow)' : 'var(--red)');
-    let text = daysLeft > 0 ? `${daysLeft} дн.` : 'Просрочено';
-    graceHtml = `<div style="font-size:10px; font-weight:700; color:${color}; margin-top:4px;">⏳ До ${new Date(a.gracePeriod).toLocaleDateString('ru-RU')} (${text})</div>`;
-  }
-
   const v = accValue(a);
   return `<div class="product-item" onclick="openAccountModal('${a.id}')">
     <div class="info">
       <div class="name">${bankIndicator} ${esc(a.name)} ${a.inCushion?'⭐':''}</div>
       <div class="meta">${meta}</div>
-      ${graceHtml}
     </div>
-    <div class="amount ${a.type==='credit'?'neg':''}">
-      ${a.type==='credit'?'−':''}${fmt(v)}
-      ${a.type==='credit' && a.creditLimit ? `<br><span class="muted" style="font-size:10px;font-weight:400">из ${fmt(a.creditLimit)}</span>` : ''}
+    <div class="amount">
+      ${fmt(v)}
     </div>
   </div>`;
 }
@@ -491,7 +549,14 @@ function toggleBank(id){
   const i=S.ui.collapsedBanks.indexOf(id);
   if(i>=0)S.ui.collapsedBanks.splice(i,1);
   else S.ui.collapsedBanks.push(id);
-  save();renderDashboard();
+  save();renderAll(); // Важно: renderAll, чтобы обновить везде
+}
+
+function toggleBankAccs(id){
+  const i=S.ui.collapsedBanks.indexOf(id);
+  if(i>=0)S.ui.collapsedBanks.splice(i,1);
+  else S.ui.collapsedBanks.push(id);
+  save();renderAccounts(); // Обновляем только текущую вкладку
 }
 
 function openWidget(type){
@@ -549,55 +614,45 @@ function renderAccounts(){
       total += S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
     });
 
+    const collapsed = S.ui.collapsedBanks.includes(b.id);
+
     html+=`<div class="bank-section" data-bank-id="${b.id}">
-      <div class="bank-header" style="cursor:default">
+      <div class="bank-header" onclick="toggleBankAccs('${b.id}')" style="cursor:pointer">
         <span style="display:flex; align-items:center;">
-          <span class="drag-handle" style="cursor:grab; margin-right:8px;">⋮⋮</span>
+          <span class="drag-handle" style="cursor:grab; margin-right:8px;" onclick="event.stopPropagation()">⋮⋮</span>
           <span style="width:12px;height:12px;border-radius:50%;background:${b.color||'#888'};margin-right:8px;"></span>
-          ${esc(b.name)}
+          ${collapsed?'▶':'▼'} ${esc(b.name)}
         </span>
         <span class="bank-total">${fmt(total)}</span>
       </div>
-      <div class="bank-accounts-list" data-bank-id="${b.id}">`;
+      <div class="bank-accounts-list" data-bank-id="${b.id}" style="${collapsed?'display:none':''}">
+        <div class="account-list-wrapper">`;
       
     subBanks.forEach(sb=>{
       const sbAccs=S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).sort((a,b)=>(a.order||0)-(b.order||0));
+      const sbCollapsed = S.ui.collapsedBanks.includes(sb.id);
       
       html += `<div class="sub-bank-section" data-bank-id="${sb.id}" style="padding-left:14px; border-left:2px solid ${sb.color}; margin-left:14px; margin-top:8px;">
-        <div style="font-weight:600; font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-          <span><span class="drag-handle" style="cursor:grab; margin-right:4px;">⋮⋮</span>${esc(sb.name)}</span>
-          <div style="display:flex; gap:4px;">
+        <div style="font-weight:600; font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleBankAccs('${sb.id}')">
+          <span><span class="drag-handle" style="cursor:grab; margin-right:4px;" onclick="event.stopPropagation()">⋮⋮</span>${sbCollapsed?'▶':'▼'} ${esc(sb.name)}</span>
+          <div style="display:flex; gap:4px;" onclick="event.stopPropagation()">
             <button class="btn-icon" onclick="openBankModal('${sb.id}')" title="Редактировать банк">✏️</button>
             <button class="btn-icon" onclick="deleteBank('${sb.id}')" title="Удалить банк">🗑</button>
             <button class="btn-icon" onclick="openAccountModal(null,'${sb.id}')" title="Добавить счёт">+ Счёт</button>
           </div>
         </div>
-        <div class="bank-accounts-list" data-bank-id="${sb.id}">
+        <div class="bank-accounts-list" data-bank-id="${sb.id}" style="${sbCollapsed?'display:none':''}">
         ${sbAccs.map(a=>{
-          const arch=a.archived?'<span class="badge">АРХИВ</span>':'';
-          return `<div class="product-item" data-acc-id="${a.id}">
-            <div class="info" onclick="openAccountModal('${a.id}')" style="cursor:pointer; flex:1;">
-              <div class="name">${esc(a.name)} ${arch}</div>
-              <div class="meta">${ACC_TYPES[a.type]||a.type}</div>
-            </div>
-            <div class="amount">${fmt(accValue(a))}</div>
-            <button class="btn-icon" onclick="event.stopPropagation();openAccountModal('${a.id}')">✏️</button>
-          </div>`;
+           // Используем функцию renderProductRow для рендера как карт, так и списков
+           // Но нужно обернуть в контейнер, чтобы сортировка работала
+           return `<div data-acc-id="${a.id}">${renderProductRow(a, sb)}</div>`;
         }).join('')}
         </div>
       </div>`;
     });
 
     accs.forEach(a=>{
-      const arch=a.archived?'<span class="badge">АРХИВ</span>':'';
-      html+=`<div class="product-item" data-acc-id="${a.id}">
-        <div class="info" onclick="openAccountModal('${a.id}')" style="cursor:pointer; flex:1;">
-          <div class="name">${esc(a.name)} ${arch}</div>
-          <div class="meta">${ACC_TYPES[a.type]||a.type}</div>
-        </div>
-        <div class="amount">${fmt(accValue(a))}</div>
-        <button class="btn-icon" onclick="event.stopPropagation();openAccountModal('${a.id}')">✏️</button>
-      </div>`;
+      html+=`<div data-acc-id="${a.id}">${renderProductRow(a, b)}</div>`;
     });
 
     html+=`</div>
@@ -611,7 +666,8 @@ function renderAccounts(){
           ${!b.isPlatform ? `<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>` : ''}
         </div>
       </div>
-    </div>`;
+    </div>
+  </div>`;
   });
   
   html+=`</div>`;
@@ -627,7 +683,7 @@ function initSortable() {
     new Sortable(banksContainer, {
       animation: 150,
       handle: '.drag-handle',
-      filter: 'button, input, select',
+      filter: 'button, input, select, .sub-bank-section',
       onEnd: function(evt) {
         const items = banksContainer.querySelectorAll(':scope > .bank-section');
         items.forEach((item, index) => {
@@ -646,9 +702,10 @@ function initSortable() {
       animation: 150,
       group: 'accounts',
       handle: '.drag-handle', 
-      filter: 'button, input, select',
+      filter: 'button, input, select, .sub-bank-section',
       onEnd: function(evt) {
-        const items = container.querySelectorAll(':scope > .product-item');
+        // Получаем все элементы счетов (пропускаем заголовки под-банков)
+        const items = container.querySelectorAll(':scope > [data-acc-id]');
         items.forEach((item, index) => {
           const id = item.dataset.accId;
           const a = getAcc(id);
