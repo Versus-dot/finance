@@ -20,8 +20,7 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .icon-btn{background:transparent;border:none;color:var(--text);font-size:20px;padding:8px;cursor:pointer;border-radius:8px}
 .page{display:none;padding:14px}
 .page.active{display:block}
-
-/* Сетка теперь адаптивная */
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;border:1px solid var(--border)}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:10px;margin-bottom:14px}
 .stat-card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--border);cursor:pointer;transition:transform 0.1s}
 .stat-card:active{transform:scale(0.98)}
@@ -37,14 +36,11 @@ button:active{filter:brightness(0.9)}
 .btn-small{padding:6px 12px;font-size:13px}
 .btn-block{width:100%}
 .btn-icon{background:transparent;color:var(--muted);border:none;padding:6px;font-size:16px;border-radius:6px}
-
-/* Нижнее меню и кнопка + на месте */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
 .nav-tab{flex:1;background:transparent;border:none;color:var(--muted);padding:8px 2px;text-align:center;font-size:10px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 .nav-tab .nav-icon{font-size:22px;line-height:1}
 .nav-tab.active{color:var(--accent)}
 .fab{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom));right:16px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 4px 12px rgba(77,127,255,0.4);z-index:101;display:flex;align-items:center;justify-content:center;padding:0}
-
 .form-group{margin-bottom:12px}
 .form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600}
 input,select,textarea{width:100%;padding:10px 12px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit}
@@ -108,13 +104,13 @@ input[type="date"]{color-scheme:dark}
 .drag-handle{cursor:grab; color:var(--muted); font-size:16px; user-select:none; padding:0 4px; display:inline-block;}
 .drag-handle:active{cursor:grabbing;}
 
-/* Пластиковая карта больше не растягивается, но остается адаптивной */
+/* Пластиковая карта */
 .plastic-card{
   position:relative; border-radius:16px; padding:18px; color:#fff; display:flex; flex-direction:column; justify-content:space-between;
   height:190px; box-shadow:0 6px 16px rgba(0,0,0,0.3); overflow:hidden; cursor:pointer; transition:transform 0.2s;
-  max-width: 380px; /* Ограничение ширины */
+  max-width: 380px;
   width: calc(100% - 28px);
-  margin: 10px auto; /* Центрирование */
+  margin: 10px auto;
 }
 .plastic-card:active{transform:scale(0.98);}
 .plastic-card::before{content:'';position:absolute;top:-50px;right:-50px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,0.1);}
@@ -1033,6 +1029,54 @@ function deleteTx(id){
   }, 'Отменить');
 }
 
+function openReconcileModal(accId) {
+  const acc = getAcc(accId);
+  const currentBal = accValue(acc);
+  const isCredit = acc.type === 'credit';
+  
+  openModal(`
+  <div class="modal-header"><h2>Корректировка баланса</h2><button class="btn-icon" onclick="openAccountModal('${accId}')">✕</button></div>
+  <form id="reconcileForm">
+      <div class="form-group">
+          <label>Фактический баланс на сегодня (${isCredit ? 'долг' : 'доступно'})</label>
+          <input id="recNewBal" type="number" step="0.01" value="${currentBal}" required>
+      </div>
+      <div class="form-group">
+          <label>Как учесть разницу?</label>
+          <select id="recType">
+              <option value="init">Просто исправить (не влиять на доходы/расходы)</option>
+              <option value="tx">Создать операцию (повлияет на статистику)</option>
+          </select>
+      </div>
+      <button type="submit" class="btn-primary btn-block">Применить</button>
+  </form>`);
+  
+  $('reconcileForm').onsubmit = (e) => {
+      e.preventDefault();
+      const newBal = parseFloat($('recNewBal').value) || 0;
+      const diff = newBal - currentBal;
+      const method = $('recType').value;
+
+      if (diff === 0) { toast('Баланс совпадает'); return; }
+
+      if (method === 'tx') {
+          let txType = diff > 0 ? 'income' : 'expense';
+          if (isCredit) txType = diff > 0 ? 'expense' : 'income'; 
+          
+          const txAmount = Math.abs(diff);
+          const catId = txType === 'income' ? 'c_other_inc' : 'c_other_exp';
+          const note = `Корректировка баланса (${diff > 0 ? '+' : ''}${diff})`;
+          
+          S.transactions.push({ id: uid(), type: txType, amount: txAmount, date: today(), categoryId: catId, accountId: accId, note: note });
+      } else {
+          acc.initialBalance = (acc.initialBalance || 0) + diff;
+      }
+      save(); renderAll(); 
+      openAccountModal(accId);
+      toast('Баланс обновлен');
+  };
+}
+
 function openAccountModal(id,bankId){
   const acc=id?getAcc(id):null;
   const isEdit=!!acc;
@@ -1049,13 +1093,23 @@ function openAccountModal(id,bankId){
 
   openModal(`
   <div class="modal-header"><h2>${isEdit?'Счёт':'Новый счёт'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+  
+  ${isEdit ? `
+  <div style="background:var(--card2); padding:12px; border-radius:10px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+          <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">Текущий баланс</div>
+          <div style="font-weight:700; font-size:16px;" class="${acc.type==='credit'?'neg':''}">${fmt(accValue(acc))}</div>
+      </div>
+      <button type="button" class="btn-secondary btn-small" onclick="openReconcileModal('${id}')">⚖️ Скорректировать</button>
+  </div>` : ''}
+
   <form id="accForm">
     <div class="form-group"><label>Банк / Платформа</label><select id="accBank">${bankOpts}</select></div>
     <div class="form-group"><label>Название счёта</label><input id="accName" value="${esc(form.name)}" placeholder="Например, Зарплатная карта" required></div>
     <div class="form-group"><label>Тип</label><select id="accType">${Object.entries(ACC_TYPES).map(([k,v])=>`<option value="${k}" ${form.type===k?'selected':''}>${v}</option>`).join('')}</select></div>
     
     <div class="form-row">
-      <div class="form-group"><label id="accBalanceLabel">Текущий баланс (₽)</label><input id="accBalance" type="number" step="0.01" value="${form.initialBalance!==undefined?form.initialBalance:form.balance}" required></div>
+      <div class="form-group"><label id="accBalanceLabel">Начальный баланс (₽)</label><input id="accBalance" type="number" step="0.01" value="${form.initialBalance!==undefined?form.initialBalance:form.balance}" required></div>
       <div class="form-group"><label>Валюта</label><select id="accCurrency"><option value="RUB" ${form.currency==='RUB'?'selected':''}>₽</option><option value="USDT" ${form.currency==='USDT'?'selected':''}>USDT</option></select></div>
     </div>
     
@@ -1083,7 +1137,7 @@ function openAccountModal(id,bankId){
     const t=typeSel.value;
     $('depositFields').style.display=['deposit','savings'].includes(t)?'':'none';
     $('creditFields').style.display=t==='credit'?'':'none';
-    $('accBalanceLabel').textContent=t==='credit'?'Текущий долг (₽)':'Текущий баланс (₽)';
+    $('accBalanceLabel').textContent=t==='credit'?'Начальный долг (₽)':'Начальный баланс (₽)';
   };
   typeSel.onchange=upd;upd();
 
@@ -1103,7 +1157,7 @@ function openAccountModal(id,bankId){
     
     if(isEdit){
       const i=S.accounts.findIndex(a=>a.id===id);
-      S.accounts[i]=data;
+      S.accounts[i]={...S.accounts[i], ...data};
     } else {
       data.order = S.accounts.filter(a=>a.bankId===data.bankId).length;
       S.accounts.push(data);
