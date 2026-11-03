@@ -14,7 +14,7 @@
 :root[data-theme="light"]{--bg:#f4f6fb;--bg2:#e8ecf3;--card:#fff;--card2:#f8f9fb;--text:#1c2333;--muted:#7a8399;--border:#e6e9f2;--accent:#3b6ef5;--accent2:#5b82f0;--green:#1e9e6a;--red:#e04a4a;--yellow:#f2a93b;--purple:#8b5cf6}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
-body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:var(--font-size, 15px);padding-bottom:calc(80px + env(safe-area-inset-bottom));padding-top:env(safe-area-inset-top);overflow-x:hidden;min-height:100vh;max-width:1400px;margin:0 auto;}
+body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:var(--font-size, 15px);padding-bottom:calc(80px + env(safe-area-inset-bottom));padding-top:env(safe-area-inset-top);overflow-x:hidden;min-height:100vh;max-width:1200px;margin:0 auto;}
 .app-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border)}
 .app-header h1{font-size:17px;margin:0;font-weight:700}
 .icon-btn{background:transparent;border:none;color:var(--text);font-size:20px;padding:8px;cursor:pointer;border-radius:8px}
@@ -39,14 +39,13 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .bank-group-header:active { cursor: grabbing; }
 .bank-group-list { padding: 4px 0; }
 
-/* Универсальная строка счета (для Главной и Счетов) */
-.account-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; transition: 0.1s; border-bottom: 1px solid var(--border); margin: 0 6px; border-radius: 8px;}
+/* Универсальная строка счета */
+.account-row { display: flex; align-items: center; gap: 10px; padding: 12px 10px; cursor: pointer; transition: 0.1s; border-bottom: 1px solid var(--border); margin: 0 6px; border-radius: 8px;}
 .account-row:last-child { border-bottom: none; }
 .account-row:active { background: rgba(255,255,255,0.05); }
 
-/* Стили оформления (фон или полоска) */
-.account-row.style-bg { background: rgba(255,255,255,0.03); margin-bottom: 4px; border-bottom: none; }
-.account-row.style-stripe { border-left: 4px solid var(--bank-color); border-radius: 0 8px 8px 0; margin-left: 10px; border-bottom: 1px solid var(--border); }
+/* Цветная полоска слева для каждого счета */
+.account-row { border-left: 4px solid var(--bank-color); border-radius: 0 8px 8px 0; margin-left: 10px; }
 
 .acc-icon { font-size: 22px; width: 32px; text-align: center; }
 .acc-info { flex: 1; min-width: 0; }
@@ -57,13 +56,13 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 
 .section-title { font-size: 16px; font-weight: 700; margin: 10px 0 12px 4px; display: flex; justify-content: space-between; align-items: center; }
 
-/* ПК Адаптивность */
+/* ПК Адаптивность: принудительно одна колонка */
 @media (min-width: 800px) {
   .banks-carousel { flex-wrap: wrap; overflow-x: visible; }
   .bank-chip { flex: 1; min-width: 200px; }
-  .acc-grid-pc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;}
+  .acc-grid-pc { display: flex; flex-direction: column; gap: 16px; }
   .month-stats { max-width: 600px; }
-  .fab { right: calc(50% - 700px + 16px); }
+  .fab { right: calc(50% - 600px + 16px); }
 }
 
 .card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--border)}
@@ -79,7 +78,7 @@ button:active{filter:brightness(0.9)}
 .btn-small{padding:6px 12px;font-size:13px}
 .btn-block{width:100%}
 .btn-icon{background:transparent;color:var(--muted);border:none;padding:6px;font-size:16px;border-radius:6px}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom); max-width: 1400px; margin: 0 auto;}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom); max-width: 1200px; margin: 0 auto;}
 .nav-tab{flex:1;background:transparent;border:none;color:var(--muted);padding:8px 2px;text-align:center;font-size:10px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 .nav-tab .nav-icon{font-size:22px;line-height:1}
 .nav-tab.active{color:var(--accent)}
@@ -99,7 +98,7 @@ input[type="date"]{color-scheme:dark}
 .modal-header h2{margin:0;font-size:17px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-/* Вкладка Счета (детальный вид) */
+/* Вкладка Счета */
 .bank-section{background:var(--card);border-radius:14px;margin-bottom:12px;border:1px solid var(--border);overflow:hidden}
 .bank-header{padding:12px 14px;background:var(--card2);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:14px}
 .bank-total{font-size:13px;color:var(--muted);font-weight:500}
@@ -196,7 +195,7 @@ const KNOWN_BANKS = {
 };
 
 function defaultState(){return {
-  settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'bg',pinCode:''},
+  settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'stripe',pinCode:''},
   ui:{collapsedBanks:[],showArchived:false,lastSnapshot:null},
   categories:[
     {id:'c_sal',type:'income',name:'Зарплата',passive:false},{id:'c_adv',type:'income',name:'Аванс',passive:false},{id:'c_freelance',type:'income',name:'Фриланс',passive:false},{id:'c_gift',type:'income',name:'Подарки',passive:false},{id:'c_cashback',type:'income',name:'Кешбэк',passive:true},{id:'c_coupon',type:'income',name:'Купоны',passive:true},{id:'c_dividend',type:'income',name:'Дивиденды',passive:true},{id:'c_interest',type:'income',name:'Проценты по вкладам',passive:true},{id:'c_taxrefund',type:'income',name:'Возврат налога',passive:true},{id:'c_other_inc',type:'income',name:'Прочий доход',passive:false},
@@ -234,12 +233,11 @@ function load(){
       S = {...defaultState(), ...p};
       if(!S.banks.length) S.banks = defaultState().banks;
     } else {
-      // Миграция со старой версии (v22)
       const oldR = localStorage.getItem('financeApp_v22');
       if(oldR) {
          const oldP = JSON.parse(oldR);
          S = {...defaultState(), ...oldP};
-         S.settings.badgeStyle = S.settings.badgeStyle === 'badge' ? 'bg' : S.settings.badgeStyle;
+         S.settings.badgeStyle = 'stripe'; // Force stripes for user
       }
     }
   }catch(e){console.error(e);}
@@ -358,7 +356,7 @@ function maybeSnapshot(){
   save();
 }
 
-// ГЛАВНЫЙ РЕНДЕР (Дзен-мани + группировка)
+// ГЛАВНЫЙ РЕНДЕР
 function renderDashboard(){
   recalculateBalances();
   const t=computeTotals();
@@ -525,8 +523,10 @@ function renderAccountRow(a, bank) {
       balHtml = `<div class="acc-balance">${fmt(v)}</div>`;
   }
 
+  // Добавляем data-acc-id для правильной работы перетаскивания
   return `
-    <div class="account-row ${style}" style="--bank-color: ${bColor};" onclick="openAccountModal('${a.id}')">
+    <div class="account-row" data-acc-id="${a.id}" style="--bank-color: ${bColor};" onclick="openAccountModal('${a.id}')">
+       <div class="drag-handle" onclick="event.stopPropagation()">⋮⋮</div>
        <div class="acc-icon">${icon}</div>
        <div class="acc-info">
           <div class="acc-name">${esc(a.name)} ${a.inCushion?'⭐':''}</div>
@@ -540,6 +540,7 @@ function renderAccountRow(a, bank) {
 function initDashSortable() {
    if(typeof Sortable === 'undefined') return;
    
+   // Сортируем банки (группы)
    const groupsContainer = document.querySelector('.acc-grid-pc');
    if(groupsContainer) {
       new Sortable(groupsContainer, {
@@ -558,21 +559,19 @@ function initDashSortable() {
       });
    }
 
+   // Сортируем счета внутри банков (ЗАПРЕЩАЕМ ПЕРЕНОС В ДРУГИЕ БАНКИ)
    document.querySelectorAll('.bank-group-list').forEach(container => {
       new Sortable(container, {
          animation: 150,
-         group: 'shared',
-         handle: '.account-row',
+         handle: '.drag-handle',
+         group: { name: 'accounts', pull: false, put: false }, // Отключаем перемещение между группами!
          filter: 'button, input, select',
          onEnd: function(evt) {
             const items = container.querySelectorAll(':scope > .account-row');
             items.forEach((item, index) => {
-               const onclickAttr = item.getAttribute('onclick');
-               const match = onclickAttr.match(/openAccountModal\('([^']+)'\)/);
-               if(match && match[1]) {
-                   const a = getAcc(match[1]);
-                   if (a) a.order = index;
-               }
+               const id = item.dataset.accId;
+               const a = getAcc(id);
+               if (a) a.order = index;
             });
             save();
          }
@@ -627,7 +626,6 @@ function renderAccounts(){
         </div>
         <div class="bank-accounts-list" data-bank-id="${sb.id}" style="${sbCollapsed?'display:none':''}">
         ${sbAccs.map(a=>{
-           // ТЕПЕРЬ ИСПОЛЬЗУЕМ КОМПАКТНУЮ СТРОКУ ВМЕСТО ОГРОМНОЙ КАРТЫ
            return `<div data-acc-id="${a.id}">${renderAccountRow(a, sb)}</div>`;
         }).join('')}
         </div>
@@ -635,7 +633,6 @@ function renderAccounts(){
     });
 
     accs.forEach(a=>{
-      // ТЕПЕРЬ ИСПОЛЬЗУЕМ КОМПАКТНУЮ СТРОКУ ВМЕСТО ОГРОМНОЙ КАРТЫ
       html+=`<div data-acc-id="${a.id}">${renderAccountRow(a, b)}</div>`;
     });
 
@@ -684,7 +681,7 @@ function initSortable() {
   document.querySelectorAll('.bank-accounts-list').forEach(container => {
     new Sortable(container, {
       animation: 150,
-      group: 'accounts',
+      group: { name: 'accounts', pull: false, put: false },
       handle: '.drag-handle', 
       filter: 'button, input, select, .sub-bank-section',
       onEnd: function(evt) {
@@ -1398,8 +1395,8 @@ function openSettings(){
   <div class="form-group"><label>PIN-код (4 цифры, пусто = отключен)</label><input id="setPin" type="text" maxlength="4" value="${S.settings.pinCode}"></div>
   <div class="form-group"><label>Частота снимков</label><select id="setSnap"><option value="monthly" ${S.settings.snapshotFreq==='monthly'?'selected':''}>Раз в месяц</option><option value="weekly" ${S.settings.snapshotFreq==='weekly'?'selected':''}>Раз в неделю</option><option value="daily" ${S.settings.snapshotFreq==='daily'?'selected':''}>Раз в день</option></select></div>
   <div class="form-group"><label>Стиль оформления (Главная)</label><select id="setBadge">
-      <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
       <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полоски</option>
+      <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
   </select></div>
   <button class="btn-primary btn-block" onclick="saveSettings()">Сохранить</button>
   <button class="btn-secondary btn-block" style="margin-top:8px" onclick="fetchUSDT()">Обновить курс USDT</button>`);
