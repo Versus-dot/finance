@@ -93,7 +93,40 @@ function deleteCategory(id){const c=getCat(id);if(S.transactions.some(t=>t.categ
 function openCounterparties(){const list=S.counterparties.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)"><span>${esc(c.name)}</span><button class="btn-icon" onclick="delCounterparty('${c.id}')">🗑</button></div>`).join('');openModal(`<div class="modal-header"><h2>Контрагенты (Долги)</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="display:flex;gap:8px;margin-bottom:12px;"><input id="newCpNameInput" type="text" placeholder="Имя контрагента" style="flex:1;"><button class="btn-primary" onclick="addCounterparty()">Добавить</button></div><div style="max-height:300px;overflow-y:auto;">${list||'<div class="empty">Нет контрагентов</div>'}</div>`);}
 function addCounterparty(){const n=$('newCpNameInput').value.trim();if(!n)return;S.counterparties.push({id:uid(),name:n});save();openCounterparties();}
 function delCounterparty(id){S.counterparties=S.counterparties.filter(c=>c.id!==id);save();openCounterparties();}
-function openSettings(){openModal(`<div class="modal-header"><h2>Настройки</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div class="form-group"><label>Название приложения</label><input id="setTitle" value="${esc(S.settings.appTitle)}"></div><div class="form-group"><label>PIN-код (4 цифры, пусто = отключен)</label><input id="setPin" type="text" maxlength="4" value="${S.settings.pinCode}"></div><div class="form-group"><label>Частота снимков</label><select id="setSnap"><option value="monthly" ${S.settings.snapshotFreq==='monthly'?'selected':''}>Раз в месяц</option><option value="weekly" ${S.settings.snapshotFreq==='weekly'?'selected':''}>Раз в неделю</option><option value="daily" ${S.settings.snapshotFreq==='daily'?'selected':''}>Раз в день</option></select></div><div class="form-group"><label>Стиль оформления (Главная)</label><select id="setBadge"><option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полоски</option><option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option></select></div><button class="btn-primary btn-block" onclick="saveSettings()">Сохранить</button><button class="btn-secondary btn-block" style="margin-top:8px" onclick="fetchUSDT()">Обновить курс USDT</button>`);}
+function openSettings(){
+    openModal(`<div class="modal-header"><h2>Настройки</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+    
+    <div class="form-group"><label>Название приложения</label><input id="setTitle" value="${esc(S.settings.appTitle)}"></div>
+    
+    <div class="form-group"><label>PIN-код (4 цифры, пусто = отключен)</label><input id="setPin" type="text" maxlength="4" value="${S.settings.pinCode}"></div>
+    
+    <div class="form-group"><label>Частота снимков</label><select id="setSnap">
+        <option value="monthly" ${S.settings.snapshotFreq==='monthly'?'selected':''}>Раз в месяц</option>
+        <option value="weekly" ${S.settings.snapshotFreq==='weekly'?'selected':''}>Раз в неделю</option>
+        <option value="daily" ${S.settings.snapshotFreq==='daily'?'selected':''}>Раз в день</option>
+    </select></div>
+    
+    <div class="form-group"><label>Стиль оформления (Главная)</label><select id="setBadge">
+        <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полоски</option>
+        <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
+    </select></div>
+    
+    <hr style="border-color:var(--border); margin: 16px 0;">
+    <div style="font-weight:700; margin-bottom:10px;">☁️ Облачный бэкап (Яндекс.Диск)</div>
+    
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+        <button class="btn-secondary btn-block" onclick="backupToYandexDisk()">
+            ☁️ Сохранить на Яндекс.Диск
+        </button>
+        <button class="btn-secondary btn-block" onclick="restoreFromYandexDisk()">
+            ⬇️ Восстановить с Яндекс.Диска
+        </button>
+    </div>
+    <hr style="border-color:var(--border); margin: 16px 0;">
+    
+    <button class="btn-primary btn-block" onclick="saveSettings()">Сохранить</button>
+    <button class="btn-secondary btn-block" style="margin-top:8px" onclick="fetchUSDT()">Обновить курс USDT</button>`);
+}
 function saveSettings(){S.settings.appTitle=$('setTitle').value;S.settings.pinCode=$('setPin').value;S.settings.snapshotFreq=$('setSnap').value;S.settings.badgeStyle=$('setBadge').value;save();renderAll();closeModal();toast('Стиль сохранен: '+S.settings.badgeStyle);}
 function applySettings(){$('appTitle').textContent=S.settings.appTitle;document.documentElement.setAttribute('data-theme',S.settings.theme);document.body.style.fontSize=S.settings.fontSize;}
 function resetAll(){if(!confirm('Удалить ВСЕ данные?'))return;localStorage.removeItem(KEY);location.reload();}
