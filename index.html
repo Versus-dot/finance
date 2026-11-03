@@ -47,12 +47,13 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 /* Цветная полоска слева для каждого счета */
 .account-row { border-left: 4px solid var(--bank-color); border-radius: 0 8px 8px 0; margin-left: 10px; }
 
-.acc-icon { font-size: 22px; width: 32px; text-align: center; }
+/* УВЕЛИЧЕННЫЕ ИКОНКИ И ШРИФТЫ БАЛАНСА */
+.acc-icon { font-size: 28px; width: 40px; text-align: center; flex-shrink: 0; }
 .acc-info { flex: 1; min-width: 0; }
 .acc-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .acc-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
-.acc-balance { text-align: right; font-weight: 700; font-size: 16px; white-space: nowrap; }
-.acc-debt { font-size: 11px; color: var(--red); font-weight: 700; margin-top: 2px; }
+.acc-balance { text-align: right; font-weight: 800; font-size: 18px; white-space: nowrap; }
+.acc-debt { font-size: 12px; color: var(--red); font-weight: 700; margin-top: 4px; }
 
 .section-title { font-size: 16px; font-weight: 700; margin: 10px 0 12px 4px; display: flex; justify-content: space-between; align-items: center; }
 
@@ -237,7 +238,7 @@ function load(){
       if(oldR) {
          const oldP = JSON.parse(oldR);
          S = {...defaultState(), ...oldP};
-         S.settings.badgeStyle = 'stripe'; // Force stripes for user
+         S.settings.badgeStyle = 'stripe'; 
       }
     }
   }catch(e){console.error(e);}
@@ -523,7 +524,6 @@ function renderAccountRow(a, bank) {
       balHtml = `<div class="acc-balance">${fmt(v)}</div>`;
   }
 
-  // Добавляем data-acc-id для правильной работы перетаскивания
   return `
     <div class="account-row" data-acc-id="${a.id}" style="--bank-color: ${bColor};" onclick="openAccountModal('${a.id}')">
        <div class="drag-handle" onclick="event.stopPropagation()">⋮⋮</div>
