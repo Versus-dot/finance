@@ -20,13 +20,39 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .icon-btn{background:transparent;border:none;color:var(--text);font-size:20px;padding:8px;cursor:pointer;border-radius:8px}
 .page{display:none;padding:14px}
 .page.active{display:block}
-.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;border:1px solid var(--border)}
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:10px;margin-bottom:14px}
+
+/* Bento Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dashboard-grid > div {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+@media (min-width: 800px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .bento-col-1 { grid-column: span 1; }
+  .bento-col-2 { grid-column: span 2; }
+  .bento-col-4 { grid-column: span 4; }
+}
+@media (max-width: 799px) {
+  .bento-col-2, .bento-col-4, .wide { grid-column: span 2; }
+  .bento-col-1 { grid-column: span 1; }
+}
+
+.card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--border)}
 .stat-card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--border);cursor:pointer;transition:transform 0.1s}
 .stat-card:active{transform:scale(0.98)}
 .stat-card .label{font-size:12px;color:var(--muted);margin-bottom:6px}
 .stat-card .value{font-size:17px;font-weight:700}
-.stat-card.wide{grid-column:1/-1;cursor:default}
+.stat-card.wide{cursor:default}
 .pos{color:var(--green)}.neg{color:var(--red)}.muted{color:var(--muted)}
 button{font-family:inherit;font-size:14px;cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-weight:600;transition:filter .15s}
 button:active{filter:brightness(0.9)}
@@ -104,14 +130,11 @@ input[type="date"]{color-scheme:dark}
 .drag-handle{cursor:grab; color:var(--muted); font-size:16px; user-select:none; padding:0 4px; display:inline-block;}
 .drag-handle:active{cursor:grabbing;}
 
-/* Уменьшенная пластиковая карта */
+/* Пластиковая карта */
 .plastic-card{
   position:relative; border-radius:12px; padding:10px 14px; color:#fff; display:flex; flex-direction:column; justify-content:space-between;
-  height: 140px; /* Уменьшили высоту */
-  box-shadow:0 4px 10px rgba(0,0,0,0.25); overflow:hidden; cursor:pointer; transition:transform 0.2s;
-  max-width: 320px; /* Уменьшили ширину */
-  width: calc(100% - 20px);
-  margin: 8px auto;
+  height: 140px; box-shadow:0 4px 10px rgba(0,0,0,0.25); overflow:hidden; cursor:pointer; transition:transform 0.2s;
+  max-width: 320px; width: calc(100% - 20px); margin: 8px auto;
 }
 .plastic-card:active{transform:scale(0.98);}
 .plastic-card::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.1);}
@@ -124,7 +147,7 @@ input[type="date"]{color-scheme:dark}
 .pc-number{font-family:monospace;font-size:12px;letter-spacing:1px;margin-bottom:2px;opacity:0.9;position:relative;z-index:1;}
 .pc-balance{font-size:18px;font-weight:700;line-height:1.2;}
 .pc-details{font-size:10px;opacity:0.8;margin-top:2px;}
-.pc-debt{font-size:10px;color:#ff5c5c;font-weight:700;margin-top:2px;} /* Красный цвет для долга */
+.pc-debt{font-size:10px;color:#ff5c5c;font-weight:700;margin-top:2px;}
 
 .account-list-wrapper{padding: 10px 0;}
 </style>
@@ -338,34 +361,35 @@ function renderDashboard(){
   const el=$('page-home');
   
   el.innerHTML=`
-  <div class="stat-grid">
-    <div class="stat-card wide"><div class="label">Общий капитал</div><div class="value" style="font-size:24px">${fmt(t.totalCap)}</div>${t.debt>0?`<div class="muted" style="font-size:12px;margin-top:4px">Долг по кредиткам: <span class="neg">${fmt(t.debt)}</span></div>`:''}</div>
-    <div class="stat-card" onclick="openWidget('free')"><div class="label">Свободно</div><div class="value">${fmt(t.free)}</div></div>
-    <div class="stat-card" onclick="openWidget('debt')"><div class="label">Кредиты</div><div class="value neg">${t.debt>0?'−'+fmt(t.debt):fmt(0)}</div></div>
-    <div class="stat-card" onclick="openWidget('deposits')"><div class="label">Вклады</div><div class="value">${fmt(t.deposits)}</div></div>
-    <div class="stat-card" onclick="openWidget('brokerage')"><div class="label">Брокерские</div><div class="value">${fmt(t.brokerage)}</div></div>
-    <div class="stat-card" onclick="openWidget('pds')"><div class="label">ПДС</div><div class="value">${fmt(t.pds)}</div></div>
-    <div class="stat-card" onclick="openWidget('crypto')"><div class="label">Крипта</div><div class="value">${fmt(t.crypto)}</div><div class="muted" style="font-size:11px">USDT: ${fmtNum(getUSDTRate())}₽</div></div>
-    <div class="stat-card" onclick="openWidget('cash')"><div class="label">Наличные</div><div class="value">${fmt(t.cash)}</div></div>
-    <div class="stat-card" onclick="openWidget('cushion')"><div class="label">Подушка</div><div class="value">${fmt(t.cushion)}</div><div class="progress"><div class="progress-bar ${cp>=100?'green':'yellow'}" style="width:${cp}%"></div></div></div>
-  </div>
-  
-  <div class="card"><div style="font-weight:700;margin-bottom:10px">Этот месяц</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
-      <div>Доходы<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.income)}</div></div>
-      <div>Расходы<div class="neg" style="font-weight:700;font-size:15px">${fmt(m.expense)}</div></div>
-      <div>Отложено<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.savedTotal)}</div></div>
-      <div>Норма сбережений<div style="font-weight:700;font-size:15px">${m.savingsRate.toFixed(0)}%</div></div>
-    </div>
-    ${m.passive>0?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px">Свободный поток: <strong class="pos">${fmt(m.passive)}</strong></div>`:''}
-  </div>
+  <div class="dashboard-grid">
+    <div class="stat-card wide bento-col-2"><div class="label">Общий капитал</div><div class="value" style="font-size:24px">${fmt(t.totalCap)}</div>${t.debt>0?`<div class="muted" style="font-size:12px;margin-top:4px">Долг по кредиткам: <span class="neg">${fmt(t.debt)}</span></div>`:''}</div>
+    <div class="stat-card bento-col-1" onclick="openWidget('free')"><div class="label">Свободно</div><div class="value">${fmt(t.free)}</div></div>
+    <div class="stat-card bento-col-1" onclick="openWidget('debt')"><div class="label">Кредиты</div><div class="value neg">${t.debt>0?'−'+fmt(t.debt):fmt(0)}</div></div>
+    <div class="stat-card bento-col-1" onclick="openWidget('deposits')"><div class="label">Вклады</div><div class="value">${fmt(t.deposits)}</div></div>
+    <div class="stat-card bento-col-1" onclick="openWidget('brokerage')"><div class="label">Брокерские</div><div class="value">${fmt(t.brokerage)}</div></div>
+    <div class="stat-card bento-col-1" onclick="openWidget('pds')"><div class="label">ПДС</div><div class="value">${fmt(t.pds)}</div></div>
+    <div class="stat-card bento-col-1" onclick="openWidget('crypto')"><div class="label">Крипта</div><div class="value">${fmt(t.crypto)}</div><div class="muted" style="font-size:11px">USDT: ${fmtNum(getUSDTRate())}₽</div></div>
+    <div class="stat-card bento-col-1" onclick="openWidget('cash')"><div class="label">Наличные</div><div class="value">${fmt(t.cash)}</div></div>
+    <div class="stat-card bento-col-1" onclick="openWidget('cushion')"><div class="label">Подушка</div><div class="value">${fmt(t.cushion)}</div><div class="progress"><div class="progress-bar ${cp>=100?'green':'yellow'}" style="width:${cp}%"></div></div></div>
 
-  <div class="card" onclick="openWidget('debts_detail')" style="cursor:pointer">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div><div style="font-weight:700">Долги</div><div class="muted" style="font-size:12px">Мне должны / Я должен</div></div>
-      <div style="text-align:right">
-        <div class="pos" style="font-weight:700">+${fmt(S.debts.filter(d=>d.direction==='lent'&&d.remaining>0).reduce((s,d)=>s+d.remaining,0))}</div>
-        <div class="neg" style="font-weight:700">−${fmt(S.debts.filter(d=>d.direction==='borrowed'&&d.remaining>0).reduce((s,d)=>s+d.remaining,0))}</div>
+    <div class="card bento-col-2">
+      <div style="font-weight:700;margin-bottom:10px">Этот месяц</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+        <div>Доходы<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.income)}</div></div>
+        <div>Расходы<div class="neg" style="font-weight:700;font-size:15px">${fmt(m.expense)}</div></div>
+        <div>Отложено<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.savedTotal)}</div></div>
+        <div>Норма сбережений<div style="font-weight:700;font-size:15px">${m.savingsRate.toFixed(0)}%</div></div>
+      </div>
+      ${m.passive>0?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px">Свободный поток: <strong class="pos">${fmt(m.passive)}</strong></div>`:''}
+    </div>
+
+    <div class="card bento-col-2" onclick="openWidget('debts_detail')" style="cursor:pointer">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-weight:700">Долги</div><div class="muted" style="font-size:12px">Мне должны / Я должен</div></div>
+        <div style="text-align:right">
+          <div class="pos" style="font-weight:700">+${fmt(S.debts.filter(d=>d.direction==='lent'&&d.remaining>0).reduce((s,d)=>s+d.remaining,0))}</div>
+          <div class="neg" style="font-weight:700">−${fmt(S.debts.filter(d=>d.direction==='borrowed'&&d.remaining>0).reduce((s,d)=>s+d.remaining,0))}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -491,7 +515,6 @@ function renderProductRow(a, bank) {
     const v = accValue(a);
     const limit = a.creditLimit || 0;
     
-    // Логика отображения главной суммы
     let mainAmount = isCredit ? Math.max(0, limit - v) : v;
     let mainLabel = isCredit ? 'Доступно' : 'Остаток';
     
