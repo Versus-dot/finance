@@ -204,7 +204,7 @@ async function backupToYandexDisk() {
     }
 }
 
-// Скачивание файла с Яндекс.Диска (обход CORS через прокси)
+// Скачивание файла с Яндекс.Диска (с автоматическим перебором прокси)
 async function restoreFromYandexDisk() {
     if (!YANDEX_TOKEN) {
         toast('❌ Ошибка: не задан токен Яндекс.Диска в коде.');
@@ -215,7 +215,7 @@ async function restoreFromYandexDisk() {
     const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`);
 
     try {
-        // 1. Получаем ссылку на скачивание у API Яндекса
+        // 1. Получаем прямую ссылку на скачивание у API Яндекса
         const downloadUrlRes = await fetch(`https://cloud-api.yandex.net/v1/disk/resources/download?path=${filePath}`, {
             headers: { 'Authorization': `OAuth ${YANDEX_TOKEN}` }
         });
@@ -229,19 +229,42 @@ async function restoreFromYandexDisk() {
         }
 
         const downloadUrlData = await downloadUrlRes.json();
-        const downloadUrl = downloadUrlData.href;
+        const directUrl = downloadUrlData.href;
 
-        // 2. Используем прокси для скачивания файла, чтобы обойти CORS
-        // allorigins.win - публичный и безопасный прокси, который просто перенаправляет запрос
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(downloadUrl)}`;
-        
-        toast('⏳ Скачивание файла через прокси...');
-        const fileRes = await fetch(proxyUrl);
+        // 2. Список резервных CORS-прокси
+        const proxies = [
+            (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+            (url) => `https://thingproxy.freeboard.io/fetch/${url}`
+        ];
 
-        if (!fileRes.ok) {
-            throw new Error('Ошибка сети при скачивании файла через прокси');
+        let fileRes = null;
+        let lastError = null;
+
+        // 3. Пробуем каждый прокси по очереди
+        for (const makeProxyUrl of proxies) {
+            try {
+                toast('⏳ Скачивание файла...');
+                const proxyUrl = makeProxyUrl(directUrl);
+                const response = await fetch(proxyUrl);
+                
+                if (response.ok) {
+                    fileRes = response;
+                    break; // Успех! Выходим из цикла
+                } else {
+                    lastError = new Error(`Прокси вернул статус ${response.status}`);
+                }
+            } catch (e) {
+                lastError = e;
+                // Продолжаем цикл, пробуя следующий прокси
+            }
         }
 
+        if (!fileRes) {
+            throw lastError || new Error('Все прокси-серверы недоступны');
+        }
+
+        // 4. Читаем и применяем данные
         const fileText = await fileRes.text();
         
         let fileData;
@@ -252,7 +275,6 @@ async function restoreFromYandexDisk() {
             throw new Error('Файл на Диске поврежден или не является JSON');
         }
 
-        // 3. Применяем данные
         if (confirm('Вы уверены, что хотите заменить текущие данные данными из облака?')) {
             S = Object.assign(defaultState(), fileData);
             save();
