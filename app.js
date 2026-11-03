@@ -171,7 +171,9 @@ if ('serviceWorker' in navigator) {
 // ==========================================
 // ☁️ ИНТЕГРАЦИЯ С ЯНДЕКС.ДИСКОМ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 // ==========================================
-
+// ==========================================
+// ☁️ ИНТЕГРАЦИЯ С ЯНДЕКС.ДИСКОМ
+// ==========================================
 const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
 const YANDEX_BACKUP_FILENAME = 'finance-backup.json';
 
@@ -248,41 +250,6 @@ async function restoreFromYandexDisk() {
             S = Object.assign(defaultState(), fileData);
             save(); applySettings(); renderAll(); closeModal();
             toast('✅ Данные восстановлены');
-        }
-    } catch (error) {
-        console.error('Yandex Restore Error:', error);
-        toast('❌ Ошибка: ' + error.message);
-    }
-}
-
-        // --- ИСПОЛЬЗУЕМ ВАШУ ФУНКЦИЮ В YANDEX CLOUD ---
-        const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm'; 
-        const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(directUrl)}`;
-
-        toast('⏳ Скачивание файла...');
-        const fileRes = await fetch(proxyUrl);
-
-        if (!fileRes.ok) {
-            throw new Error(`Прокси вернул ошибку: ${fileRes.status}`);
-        }
-
-        const fileText = await fileRes.text();
-        
-        let fileData;
-        try {
-            fileData = JSON.parse(fileText);
-        } catch (e) {
-            console.error('Пришел не JSON:', fileText.substring(0, 200));
-            throw new Error('Файл на Диске поврежден или не является JSON');
-        }
-
-        if (confirm('Вы уверены, что хотите заменить текущие данные данными из облака?')) {
-            S = Object.assign(defaultState(), fileData);
-            save();
-            applySettings();
-            renderAll();
-            closeModal();
-            toast('✅ Данные успешно восстановлены с Яндекс.Диска');
         }
     } catch (error) {
         console.error('Yandex Restore Error:', error);
