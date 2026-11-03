@@ -101,6 +101,8 @@ input[type="date"]{color-scheme:dark}
 .bank-badge{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;display:inline-block}
 .bank-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .bank-stripe{display:inline-block;width:4px;height:16px;border-radius:2px;margin-right:8px;vertical-align:middle}
+.drag-handle{cursor:grab; color:var(--muted); font-size:16px; user-select:none; padding:0 4px; display:inline-block;}
+.drag-handle:active{cursor:grabbing;}
 </style>
 </head>
 <body>
@@ -137,6 +139,19 @@ const SAVINGS_TYPES=['deposit','savings'];
 const INVEST_TYPES=['brokerage','iis','pds','crypto_wallet','crypto_exchange','invest_kopilka'];
 
 const BANK_COLORS=['#2ecc71','#f5b945','#ff5c5c','#4d7fff','#a78bfa','#ff9f43','#00d2d3','#8395a7'];
+
+const KNOWN_BANKS = {
+  'сбер': '#2ecc71', 'sber': '#2ecc71',
+  'т-банк': '#f5b945', 'тинькофф': '#f5b945', 'tinkoff': '#f5b945', 'tbank': '#f5b945',
+  'альфа': '#ff5c5c', 'alfa': '#ff5c5c',
+  'втб': '#4d7fff', 'vtb': '#4d7fff',
+  'райф': '#f5b945', 'raif': '#f5b945',
+  'озон': '#a78bfa', 'ozon': '#a78bfa',
+  'яндекс': '#ff5c5c', 'yandex': '#ff5c5c',
+  'финуслуги': '#00d2d3', 'finu': '#00d2d3',
+  'мкб': '#4d7fff', 'дом.рф': '#2ecc71', 'бкс': '#4d7fff', 'уралсиб': '#ff5c5c',
+  'газпромбанк': '#4d7fff', 'россельхозбанк': '#2ecc71', 'открытие': '#00d2d3', 'росбанк': '#a78bfa', 'совкомбанк': '#f5b945', 'почта банк': '#ff5c5c', 'мтс банк': '#ff5c5c'
+};
 
 function defaultState(){return {
   settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'badge',pinCode:''},
@@ -334,7 +349,7 @@ function renderHomeAccounts(){
   
   topBanks.forEach(b => {
     const accs = S.accounts.filter(a => a.bankId===b.id && !a.archived).sort((a,b)=>(a.order||0)-(b.order||0));
-    const subBanks = S.banks.filter(sb => sb.parentId===b.id);
+    const subBanks = S.banks.filter(sb => sb.parentId===b.id).sort((a,b)=>(a.order||0)-(b.order||0));
     
     let total = accs.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
     
@@ -343,7 +358,7 @@ function renderHomeAccounts(){
       total += subAccs.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
     });
 
-    if(accs.length === 0 && subBanks.length === 0 && !b.isPlatform) return; // Skip empty banks on DASHBOARD only
+    if(accs.length === 0 && subBanks.length === 0 && !b.isPlatform) return;
 
     const collapsed = S.ui.collapsedBanks.includes(b.id);
     
@@ -359,7 +374,7 @@ function renderHomeAccounts(){
       const subTotal = subAccs.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
       const sbCollapsed = S.ui.collapsedBanks.includes(sb.id);
       
-      if(subAccs.length === 0) return; // Skip empty subbanks on dashboard
+      if(subAccs.length === 0) return;
 
       html += `<div style="padding-left:10px; border-left:2px solid ${sb.color||'#888'}; margin: 4px 10px;">
         <div style="padding:8px 0; display:flex; justify-content:space-between; cursor:pointer; font-size:13px; font-weight:600;" onclick="event.stopPropagation(); toggleBank('${sb.id}')">
@@ -469,42 +484,46 @@ function renderAccounts(){
   
   const topBanks = S.banks.filter(b => !b.parentId).sort((a,b) => (a.order||0) - (b.order||0));
   
+  html += `<div id="banksSortable">`;
+  
   topBanks.forEach(b=>{
-    const accs=S.accounts.filter(a=>a.bankId===b.id&&(showArch||!a.archived));
-    const subBanks=S.banks.filter(sb=>sb.parentId===b.id);
+    const accs=S.accounts.filter(a=>a.bankId===b.id&&(showArch||!a.archived)).sort((a,b)=>(a.order||0)-(b.order||0));
+    const subBanks=S.banks.filter(sb=>sb.parentId===b.id).sort((a,b)=>(a.order||0)-(b.order||0));
     
     let total = accs.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
     subBanks.forEach(sb=>{
       total += S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
     });
 
-    html+=`<div class="bank-section">
+    html+=`<div class="bank-section" data-bank-id="${b.id}">
       <div class="bank-header" style="cursor:default">
         <span style="display:flex; align-items:center;">
+          <span class="drag-handle" style="cursor:grab; margin-right:8px;">⋮⋮</span>
           <span style="width:12px;height:12px;border-radius:50%;background:${b.color||'#888'};margin-right:8px;"></span>
           ${esc(b.name)}
         </span>
         <span class="bank-total">${fmt(total)}</span>
       </div>
-      <div>`;
+      <div class="bank-accounts-list" data-bank-id="${b.id}">`;
       
-    // Sub banks - ALWAYS SHOW
+    // Под-банки
     subBanks.forEach(sb=>{
-      const sbAccs=S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived));
+      const sbAccs=S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).sort((a,b)=>(a.order||0)-(b.order||0));
       
-      html += `<div style="padding-left:14px; border-left:2px solid ${sb.color}; margin-left:14px; margin-top:8px;">
+      html += `<div class="sub-bank-section" data-bank-id="${sb.id}" style="padding-left:14px; border-left:2px solid ${sb.color}; margin-left:14px; margin-top:8px;">
         <div style="font-weight:600; font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-          <span>${esc(sb.name)}</span>
+          <span><span class="drag-handle" style="cursor:grab; margin-right:4px;">⋮⋮</span>${esc(sb.name)}</span>
           <div style="display:flex; gap:4px;">
             <button class="btn-icon" onclick="openBankModal('${sb.id}')" title="Редактировать банк">✏️</button>
             <button class="btn-icon" onclick="deleteBank('${sb.id}')" title="Удалить банк">🗑</button>
             <button class="btn-icon" onclick="openAccountModal(null,'${sb.id}')" title="Добавить счёт">+ Счёт</button>
           </div>
         </div>
+        <div class="bank-accounts-list" data-bank-id="${sb.id}">
         ${sbAccs.map(a=>{
           const arch=a.archived?'<span class="badge">АРХИВ</span>':'';
-          return `<div class="product-item">
-            <div class="info" onclick="openAccountModal('${a.id}')" style="cursor:pointer">
+          return `<div class="product-item" data-acc-id="${a.id}">
+            <div class="info" onclick="openAccountModal('${a.id}')" style="cursor:pointer; flex:1;">
               <div class="name">${esc(a.name)} ${arch}</div>
               <div class="meta">${ACC_TYPES[a.type]||a.type}</div>
             </div>
@@ -512,14 +531,15 @@ function renderAccounts(){
             <button class="btn-icon" onclick="event.stopPropagation();openAccountModal('${a.id}')">✏️</button>
           </div>`;
         }).join('')}
+        </div>
       </div>`;
     });
 
-    // Direct accounts
+    // Прямые счета
     accs.forEach(a=>{
       const arch=a.archived?'<span class="badge">АРХИВ</span>':'';
-      html+=`<div class="product-item">
-        <div class="info" onclick="openAccountModal('${a.id}')" style="cursor:pointer">
+      html+=`<div class="product-item" data-acc-id="${a.id}">
+        <div class="info" onclick="openAccountModal('${a.id}')" style="cursor:pointer; flex:1;">
           <div class="name">${esc(a.name)} ${arch}</div>
           <div class="meta">${ACC_TYPES[a.type]||a.type}</div>
         </div>
@@ -542,8 +562,51 @@ function renderAccounts(){
     </div>`;
   });
   
+  html+=`</div>`;
   html+=`<button class="btn-secondary btn-block" style="margin-top:12px" onclick="S.ui.showArchived=!S.ui.showArchived;save();renderAccounts()">${showArch?'Скрыть архив':'Показать архив'}</button>`;
   el.innerHTML=html;
+  
+  initSortable();
+}
+
+function initSortable() {
+  const banksContainer = document.getElementById('banksSortable');
+  if (banksContainer && typeof Sortable !== 'undefined') {
+    new Sortable(banksContainer, {
+      animation: 150,
+      handle: '.drag-handle',
+      filter: 'button, input, select',
+      onEnd: function(evt) {
+        const items = banksContainer.querySelectorAll(':scope > .bank-section');
+        items.forEach((item, index) => {
+          const id = item.dataset.bankId;
+          const b = getBank(id);
+          if (b) b.order = index;
+        });
+        save();
+        renderAccounts();
+      }
+    });
+  }
+
+  document.querySelectorAll('.bank-accounts-list').forEach(container => {
+    new Sortable(container, {
+      animation: 150,
+      group: 'accounts',
+      handle: '.drag-handle', 
+      filter: 'button, input, select',
+      onEnd: function(evt) {
+        const items = container.querySelectorAll(':scope > .product-item');
+        items.forEach((item, index) => {
+          const id = item.dataset.accId;
+          const a = getAcc(id);
+          if (a) a.order = index;
+        });
+        save();
+        renderAccounts();
+      }
+    });
+  });
 }
 
 function deleteBank(id){
@@ -559,8 +622,25 @@ function deleteBank(id){
 }
 
 function openSubBankModal(parentId){
-  openModal(`<div class="modal-header"><h2>Банк внутри платформы</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><form id="subBankForm"><div class="form-group"><label>Название банка</label><input id="sbName" placeholder="Например, МКБ" required></div><button type="submit" class="btn-primary btn-block">Добавить</button></form>`);
+  openModal(`<div class="modal-header"><h2>Банк внутри платформы</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><form id="subBankForm"><div class="form-group"><label>Название банка</label><input id="sbName" placeholder="Например, МКБ" required oninput="autoColorBank(this.value)"></div><button type="submit" class="btn-primary btn-block">Добавить</button></form>`);
   $('subBankForm').onsubmit=e=>{e.preventDefault();const n=$('sbName').value.trim();if(!n)return;S.banks.push({id:uid(),name:n,color:getBank(parentId).color,parentId:parentId,order:S.banks.length});save();renderAll();closeModal();};
+}
+
+function autoColorBank(val) {
+  const lower = val.toLowerCase();
+  for (const key in KNOWN_BANKS) {
+    if (lower.includes(key)) {
+      const color = KNOWN_BANKS[key];
+      window._selColor = color;
+      document.querySelectorAll('.color-opt').forEach(el => {
+        el.style.border = 'none';
+        if (el.dataset.color === color) {
+          el.style.border = '2px solid #fff';
+        }
+      });
+      break;
+    }
+  }
 }
 
 let txFilter='all',txSearch='', txDateStart='', txDateEnd='';
@@ -916,10 +996,10 @@ function openBankModal(id){
   openModal(`
   <div class="modal-header"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
   <form id="bankForm">
-    <div class="form-group"><label>Название банка</label><input id="bankName" placeholder="Например, Т-Банк" value="${bank ? esc(bank.name) : ''}" required></div>
+    <div class="form-group"><label>Название банка</label><input id="bankName" placeholder="Например, Т-Банк" value="${bank ? esc(bank.name) : ''}" required oninput="autoColorBank(this.value)"></div>
     <div class="form-group"><label>Цвет банка</label>
       <div style="display:flex; gap:8px; flex-wrap:wrap;" id="colorPick">
-        ${BANK_COLORS.map(c=>`<div onclick="document.querySelectorAll('.color-opt').forEach(el=>el.style.border='none');this.style.border='2px solid #fff';window._selColor='${c}'" class="color-opt" style="width:30px;height:30px;border-radius:50%;background:${c};cursor:pointer; ${c===currentColor?'border:2px solid #fff':''}"></div>`).join('')}
+        ${BANK_COLORS.map(c=>`<div onclick="document.querySelectorAll('.color-opt').forEach(el=>el.style.border='none');this.style.border='2px solid #fff';window._selColor='${c}'" class="color-opt" data-color="${c}" style="width:30px;height:30px;border-radius:50%;background:${c};cursor:pointer; ${c===currentColor?'border:2px solid #fff':''}"></div>`).join('')}
       </div>
     </div>
     <button type="submit" class="btn-primary btn-block">${isEdit ? 'Сохранить' : 'Добавить'}</button>
