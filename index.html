@@ -47,13 +47,10 @@ input,select,textarea{width:100%;padding:10px 12px;background:var(--card2);color
 input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
 input[type="date"]{color-scheme:dark}
 :root[data-theme="light"] input[type="date"]{color-scheme:light}
-
-/* ИСПРАВЛЕННЫЕ МОДАЛЬНЫЕ ОКНА (ЦЕНТР) */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
 .modal-backdrop.active{display:flex}
 #modalBackdrop2{z-index:250;}
 .modal{background:var(--card);width:100%;max-width:500px;max-height:85vh;overflow-y:auto;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
-
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .modal-header h2{margin:0;font-size:17px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -496,9 +493,13 @@ function renderAccounts(){
       const sbAccs=S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived));
       
       html += `<div style="padding-left:14px; border-left:2px solid ${sb.color}; margin-left:14px; margin-top:8px;">
-        <div style="font-weight:600; font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between;">
+        <div style="font-weight:600; font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
           <span>${esc(sb.name)}</span>
-          <button class="btn-icon" onclick="openAccountModal(null,'${sb.id}')">+ Счёт</button>
+          <div style="display:flex; gap:4px;">
+            <button class="btn-icon" onclick="openBankModal('${sb.id}')" title="Редактировать банк">✏️</button>
+            <button class="btn-icon" onclick="deleteBank('${sb.id}')" title="Удалить банк">🗑</button>
+            <button class="btn-icon" onclick="openAccountModal(null,'${sb.id}')" title="Добавить счёт">+ Счёт</button>
+          </div>
         </div>
         ${sbAccs.map(a=>{
           const arch=a.archived?'<span class="badge">АРХИВ</span>':'';
@@ -528,10 +529,15 @@ function renderAccounts(){
     });
 
     html+=`</div>
-      <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>
-        ${b.isPlatform ? `<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>` : ''}
-        <button class="btn-icon" style="margin-left:auto" onclick="deleteBank('${b.id}')">🗑</button>
+      <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap; justify-content:space-between;">
+        <div style="display:flex; gap:8px;">
+          <button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>
+          ${b.isPlatform ? `<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>` : ''}
+        </div>
+        <div style="display:flex; gap:4px;">
+          <button class="btn-icon" onclick="openBankModal('${b.id}')" title="Редактировать банк">✏️</button>
+          ${!b.isPlatform ? `<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>` : ''}
+        </div>
       </div>
     </div>`;
   });
@@ -541,11 +547,15 @@ function renderAccounts(){
 }
 
 function deleteBank(id){
-  if(!confirm('Удалить банк и все его счета (включая под-банки)?'))return;
-  const toDel = [id, ...S.banks.filter(b=>b.parentId===id).map(b=>b.id)];
+  const b = getBank(id);
+  if(!b) return;
+  if(!confirm(`Удалить "${b.name}" и все его счета (включая под-банки)?`))return;
+  
+  const toDel = [id, ...S.banks.filter(x=>x.parentId===id).map(x=>x.id)];
   S.accounts=S.accounts.filter(a=>!toDel.includes(a.bankId));
-  S.banks=S.banks.filter(b=>!toDel.includes(b.id));
-  save();renderAll();
+  S.banks=S.banks.filter(x=>!toDel.includes(x.id));
+  
+  save(); renderAll(); closeModal(); toast('Удалено');
 }
 
 function openSubBankModal(parentId){
@@ -897,23 +907,39 @@ function deleteAccount(id){
   toast('Счёт удален', ()=>{ S.accounts=backup; save(); renderAll(); }, 'Отменить');
 }
 
-function openBankModal(){
+function openBankModal(id){
+  const bank = id ? getBank(id) : null;
+  const isEdit = !!bank;
+  const currentColor = bank ? bank.color : BANK_COLORS[0];
+  const title = isEdit ? 'Редактировать банк' : 'Новый банк';
+
   openModal(`
-  <div class="modal-header"><h2>Новый банк</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+  <div class="modal-header"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
   <form id="bankForm">
-    <div class="form-group"><label>Название банка</label><input id="bankName" placeholder="Например, Т-Банк" required></div>
+    <div class="form-group"><label>Название банка</label><input id="bankName" placeholder="Например, Т-Банк" value="${bank ? esc(bank.name) : ''}" required></div>
     <div class="form-group"><label>Цвет банка</label>
       <div style="display:flex; gap:8px; flex-wrap:wrap;" id="colorPick">
-        ${BANK_COLORS.map((c,i)=>`<div onclick="document.querySelectorAll('.color-opt').forEach(el=>el.style.border='none');this.style.border='2px solid #fff';window._selColor='${c}'" class="color-opt" style="width:30px;height:30px;border-radius:50%;background:${c};cursor:pointer; ${i===0?'border:2px solid #fff':''}"></div>`).join('')}
+        ${BANK_COLORS.map(c=>`<div onclick="document.querySelectorAll('.color-opt').forEach(el=>el.style.border='none');this.style.border='2px solid #fff';window._selColor='${c}'" class="color-opt" style="width:30px;height:30px;border-radius:50%;background:${c};cursor:pointer; ${c===currentColor?'border:2px solid #fff':''}"></div>`).join('')}
       </div>
     </div>
-    <button type="submit" class="btn-primary btn-block">Добавить</button>
+    <button type="submit" class="btn-primary btn-block">${isEdit ? 'Сохранить' : 'Добавить'}</button>
+    ${isEdit && !bank.isPlatform ? `<button type="button" class="btn-danger btn-block" style="margin-top:8px" onclick="deleteBank('${id}')">Удалить банк</button>` : ''}
   </form>`);
-  window._selColor = BANK_COLORS[0];
+  
+  window._selColor = currentColor;
+  
   $('bankForm').onsubmit=e=>{
-    e.preventDefault();const n=$('bankName').value.trim();if(!n)return;
-    S.banks.push({id:uid(),name:n,color:window._selColor,parentId:null,order:S.banks.length});
-    save();renderAll();closeModal();toast('Банк добавлен');
+    e.preventDefault();
+    const n=$('bankName').value.trim();
+    if(!n) return;
+
+    if(isEdit){
+      bank.name = n;
+      bank.color = window._selColor;
+    } else {
+      S.banks.push({id:uid(),name:n,color:window._selColor,parentId:null,order:S.banks.length});
+    }
+    save();renderAll();closeModal();toast(isEdit?'Банк обновлен':'Банк добавлен');
   };
 }
 
