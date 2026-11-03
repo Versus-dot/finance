@@ -204,7 +204,7 @@ async function backupToYandexDisk() {
     }
 }
 
-// Скачивание файла с Яндекс.Диска (с автоматическим перебором прокси)
+// Скачивание файла с Яндекс.Диска (через собственный прокси Yandex Cloud)
 async function restoreFromYandexDisk() {
     if (!YANDEX_TOKEN) {
         toast('❌ Ошибка: не задан токен Яндекс.Диска в коде.');
@@ -225,46 +225,23 @@ async function restoreFromYandexDisk() {
             return;
         }
         if (!downloadUrlRes.ok) {
-            throw new Error('Не удалось получить ссылку для скачивания от API Яндекса');
+            throw new Error('Не удалось получить ссылку от API Яндекса');
         }
 
         const downloadUrlData = await downloadUrlRes.json();
         const directUrl = downloadUrlData.href;
 
-        // 2. Список резервных CORS-прокси
-        const proxies = [
-            (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-            (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-            (url) => `https://thingproxy.freeboard.io/fetch/${url}`
-        ];
+        // --- ИСПОЛЬЗУЕМ ВАШУ ФУНКЦИЮ В YANDEX CLOUD ---
+        const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm'; 
+        const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(directUrl)}`;
 
-        let fileRes = null;
-        let lastError = null;
+        toast('⏳ Скачивание файла...');
+        const fileRes = await fetch(proxyUrl);
 
-        // 3. Пробуем каждый прокси по очереди
-        for (const makeProxyUrl of proxies) {
-            try {
-                toast('⏳ Скачивание файла...');
-                const proxyUrl = makeProxyUrl(directUrl);
-                const response = await fetch(proxyUrl);
-                
-                if (response.ok) {
-                    fileRes = response;
-                    break; // Успех! Выходим из цикла
-                } else {
-                    lastError = new Error(`Прокси вернул статус ${response.status}`);
-                }
-            } catch (e) {
-                lastError = e;
-                // Продолжаем цикл, пробуя следующий прокси
-            }
+        if (!fileRes.ok) {
+            throw new Error(`Прокси вернул ошибку: ${fileRes.status}`);
         }
 
-        if (!fileRes) {
-            throw lastError || new Error('Все прокси-серверы недоступны');
-        }
-
-        // 4. Читаем и применяем данные
         const fileText = await fileRes.text();
         
         let fileData;
