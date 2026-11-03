@@ -59,7 +59,7 @@ input[type="date"]{color-scheme:dark}
 .bank-total{font-size:13px;color:var(--muted);font-weight:500}
 .product-item{padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
 .product-item .info{flex:1;min-width:0}
-.product-item .name{font-weight:600;font-size:14px}
+.product-item .name{font-weight:600;font-size:14px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;}
 .product-item .meta{font-size:11px;color:var(--muted);margin-top:3px}
 .product-item .amount{font-weight:700;font-size:14px;white-space:nowrap;text-align:right}
 .badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;background:var(--card2);color:var(--muted);font-weight:700;margin-left:4px;text-transform:uppercase}
@@ -1236,7 +1236,7 @@ function saveSettings(){
   save();
   renderAll(); 
   closeModal(); 
-  toast('Сохранено');
+  toast('Стиль сохранен: ' + S.settings.badgeStyle);
 }
 
 function applySettings(){
