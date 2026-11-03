@@ -123,3 +123,89 @@ if ('serviceWorker' in navigator) {
             });
     });
 }
+// ==========================================
+// ☁️ ИНТЕГРАЦИЯ С ЯНДЕКС.ДИСКОМ
+// ==========================================
+const YANDEX_TOKEN = 'y0__wgBELX6SYYY8lOlPOHu8EZMMOhYsITdnDoJCHkZLU5dQlxp9Y1HCGLI'; // Ваш токен
+const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
+const YANDEX_BACKUP_FILENAME = 'finance-backup.json';
+
+// Загрузка файла на Яндекс.Диск
+async function backupToYandexDisk() {
+    if (!YANDEX_TOKEN || YANDEX_TOKEN === 'ВАШ_ACCESS_TOKEN_СЮДА') {
+        toast('❌ Ошибка: не задан токен Яндекс.Диска в коде.');
+        return;
+    }
+    toast('⏳ Отправка на Яндекс.Диск...');
+
+    const fileContent = JSON.stringify(S, null, 2);
+    const filePath = encodeURIComponent(`/app:/${YANDEX_BACKUP_FILENAME}`); 
+
+    try {
+        // 1. Получаем URL для загрузки
+        const uploadUrlRes = await fetch(`${YANDEX_API_URL}/resources/upload?path=${filePath}&overwrite=true`, {
+            headers: { 'Authorization': `OAuth ${YANDEX_TOKEN}` }
+        });
+        if (!uploadUrlRes.ok) throw new Error('Не удалось получить URL для загрузки');
+        const uploadUrlData = await uploadUrlRes.json();
+        const uploadUrl = uploadUrlData.href;
+
+        // 2. Загружаем файл
+        const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: fileContent,
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!uploadRes.ok) throw new Error('Ошибка при загрузке файла');
+        toast('✅ Успешно сохранено на Яндекс.Диск');
+
+    } catch (error) {
+        console.error('Yandex Backup Error:', error);
+        toast('❌ Ошибка при отправке на Яндекс.Диск');
+    }
+}
+
+// Скачивание файла с Яндекс.Диска
+async function restoreFromYandexDisk() {
+    if (!YANDEX_TOKEN || YANDEX_TOKEN === 'ВАШ_ACCESS_TOKEN_СЮДА') {
+        toast('❌ Ошибка: не задан токен Яндекс.Диска в коде.');
+        return;
+    }
+    toast('⏳ Поиск файла на Яндекс.Диске...');
+
+    const filePath = encodeURIComponent(`/app:/${YANDEX_BACKUP_FILENAME}`);
+
+    try {
+        // 1. Получаем ссылку для скачивания
+        const downloadUrlRes = await fetch(`${YANDEX_API_URL}/resources/download?path=${filePath}`, {
+            headers: { 'Authorization': `OAuth ${YANDEX_TOKEN}` }
+        });
+        
+        if (downloadUrlRes.status === 404) {
+            toast('❌ Файл бэкапа не найден на Яндекс.Диске');
+            return;
+        }
+        if (!downloadUrlRes.ok) throw new Error('Не удалось получить URL для скачивания');
+        
+        const downloadUrlData = await downloadUrlRes.json();
+        const downloadUrl = downloadUrlData.href;
+
+        // 2. Скачиваем файл
+        const fileRes = await fetch(downloadUrl);
+        if (!fileRes.ok) throw new Error('Ошибка при скачивании файла');
+        const fileData = await fileRes.json();
+
+        if (confirm('Вы уверены, что хотите заменить текущие данные данными из облака?')) {
+            S = Object.assign(defaultState(), fileData);
+            save();
+            applySettings();
+            renderAll();
+            closeModal();
+            toast('✅ Данные успешно восстановлены с Яндекс.Диска');
+        }
+    } catch (error) {
+        console.error('Yandex Restore Error:', error);
+        toast('❌ Ошибка при скачивании файла');
+    }
+}
