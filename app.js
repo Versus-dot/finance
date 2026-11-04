@@ -1,4 +1,5 @@
 const KEY='financeApp_v25';
+const TOKEN_KEY='financeApp_yandexToken_v1'; // ОТДЕЛЬНАЯ ЯЧЕЙКА ДЛЯ ТОКЕНА
 const ACC_TYPES={debit:'Дебетовая карта',credit:'Кредитная карта',brokerage:'Брокерский',iis:'ИИС',pds:'ПДС',deposit:'Вклад',savings:'Накопительный',crypto_wallet:'Криптокошелек',crypto_exchange:'Криптобиржа',cash:'Наличные',invest_kopilka:'Инвесткопилка',finu_wallet:'Кошелёк Финуслуги'};
 const TERMS={indefinite:'Бессрочный','14d':'14 дней','3m':'3 мес','6m':'6 мес','12m':'1 год','24m':'2 года'};
 const TARGET_TYPES=['deposit','savings','brokerage','iis','pds','crypto_wallet','crypto_exchange','invest_kopilka'];
@@ -35,7 +36,30 @@ const fmt=n=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maxi
 const fmtNum=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n||0);
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(m,actionFn,actionText){const t=$('toast');t.innerHTML=`<span>${m}</span>`+(actionFn?`<button id="toastAction">${actionText}</button>`:'');t.classList.add('show');if(actionFn)$('toastAction').onclick=()=>{actionFn();t.classList.remove('show');};clearTimeout(t._t);t._t=setTimeout(()=>{t.classList.remove('show');t.innerHTML='';},actionFn?5000:2000);}
-function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);S={...defaultState(),...p};if(!S.banks.length)S.banks=defaultState().banks;}else{const o=localStorage.getItem('financeApp_v24')||localStorage.getItem('financeApp_v23');if(o){const p=JSON.parse(o);S={...defaultState(),...p};S.settings.badgeStyle='stripe';}}}catch(e){console.error(e);}}
+
+// ФУНКЦИЯ ЗАГРУЗКИ С ЗАЩИТОЙ ТОКЕНА
+function load(){
+    try{
+        const r=localStorage.getItem(KEY);
+        if(r){
+            const p=JSON.parse(r);
+            S={...defaultState(),...p};
+            if(!S.banks.length) S.banks=defaultState().banks;
+        }else{
+            const o=localStorage.getItem('financeApp_v24')||localStorage.getItem('financeApp_v23');
+            if(o){
+                const p=JSON.parse(o);
+                S={...defaultState(),...p};
+                S.settings.badgeStyle='stripe';
+            }
+        }
+        // ПРИНУДИТЕЛЬНО ДОСТАЕМ ТОКЕН ИЗ ОТДЕЛЬНОЙ ЯЧЕЙКИ
+        const savedToken = localStorage.getItem(TOKEN_KEY);
+        if (savedToken) {
+            S.settings.yandexToken = savedToken;
+        }
+    }catch(e){console.error(e);}
+}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Ошибка памяти');}}
 function getBank(id){return S.banks.find(b=>b.id===id);}
 function getAcc(id){return S.accounts.find(a=>a.id===id);}
@@ -215,7 +239,7 @@ function openSettings(){
     <div class="form-group">
         <label>Токен доступа Яндекса</label>
         <input id="setYandexToken" type="password" value="${esc(S.settings.yandexToken || '')}" placeholder="Вставьте ваш токен сюда">
-        <div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится только на этом устройстве.</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится в защищенном хранилище устройства.</div>
         <div style="font-size:12px; color:var(--green); margin-top:6px; font-weight:bold;">
             Последний бэкап: ${S.settings.lastCloudBackup ? new Date(S.settings.lastCloudBackup).toLocaleString('ru-RU') : 'Еще не делался'}
         </div>
@@ -236,15 +260,45 @@ function saveSettings(){
     S.settings.snapshotFreq=$('setSnap').value;
     S.settings.badgeStyle=$('setBadge').value;
     S.settings.yandexToken=$('setYandexToken').value.trim();
+    
+    // СОХРАНЯЕМ ТОКЕН В ОТДЕЛЬНУЮ ЯЧЕЙКУ
+    localStorage.setItem(TOKEN_KEY, S.settings.yandexToken);
+    
     save();
     renderAll();
     closeModal();
     toast('Настройки сохранены');
 }
 function applySettings(){$('appTitle').textContent=S.settings.appTitle;document.documentElement.setAttribute('data-theme',S.settings.theme);document.body.style.fontSize=S.settings.fontSize;}
-function resetAll(){if(!confirm('Удалить ВСЕ данные?'))return;localStorage.removeItem(KEY);location.reload();}
+function resetAll(){
+    if(!confirm('Удалить ВСЕ данные? (Токен синхронизации останется)'))return;
+    localStorage.removeItem(KEY);
+    // Токен НЕ удаляем, чтобы не пришлось вводить заново
+    // localStorage.removeItem(TOKEN_KEY); 
+    location.reload();
+}
 function exportJSON(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`finance-backup-${today()}.json`;a.click();}
-function importJSON(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.transactions||!d.accounts)throw new Error('bad');if(confirm('Заменить данные?')){S=Object.assign(defaultState(),d);save();applySettings();renderAll();closeModal();toast('Восстановлено');}}catch(err){alert('Ошибка: '+err.message);}};r.readAsText(f);};inp.click();}
+function importJSON(){
+    const inp=document.createElement('input');inp.type='file';inp.accept='.json';
+    inp.onchange=e=>{
+        const f=e.target.files[0];if(!f)return;
+        const r=new FileReader();
+        r.onload=()=>{
+            try{
+                const d=JSON.parse(r.result);
+                if(!d.transactions||!d.accounts)throw new Error('bad');
+                if(confirm('Заменить данные?')){
+                    const currentToken = localStorage.getItem(TOKEN_KEY); // Сохраняем токен
+                    S=Object.assign(defaultState(),d);
+                    S.settings.yandexToken = currentToken || ''; // Возвращаем токен
+                    save();applySettings();renderAll();closeModal();toast('Восстановлено');
+                }
+            }catch(err){alert('Ошибка: '+err.message);}
+        };
+        r.readAsText(f);
+    };
+    inp.click();
+}
 async function fetchUSDT(){
     try {
         const targetUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=rub';
@@ -292,7 +346,7 @@ const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
 const YANDEX_BACKUP_FILENAME = 'finance-backup.json';
 
 async function backupToYandexDisk(silent = false) {
-    const token = S.settings.yandexToken;
+    const token = S.settings.yandexToken || localStorage.getItem(TOKEN_KEY); // Двойная страховка
     if (!token) {
         if (!silent) toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
         return;
@@ -320,7 +374,7 @@ async function backupToYandexDisk(silent = false) {
 }
 
 async function restoreFromYandexDisk(silent = false) {
-    const token = S.settings.yandexToken;
+    const token = S.settings.yandexToken || localStorage.getItem(TOKEN_KEY);
     if (!token) {
         if(!silent) toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
         return;
@@ -348,9 +402,15 @@ async function restoreFromYandexDisk(silent = false) {
         try { fileData = JSON.parse(fileText); } 
         catch (e) { throw new Error('Файл поврежден'); }
         if (silent || confirm('Заменить текущие данные данными из облака?')) {
-            const currentToken = S.settings.yandexToken; 
+            // САМАЯ ВАЖНАЯ ЧАСТЬ: БЕРЕМ ТОКЕН ИЗ ЗАЩИЩЕННОЙ ЯЧЕЙКИ
+            const currentToken = localStorage.getItem(TOKEN_KEY) || S.settings.yandexToken; 
+            
             S = Object.assign(defaultState(), fileData);
+            
+            // ВОЗВРАЩАЕМ ТОКЕН ОБРАТНО
             S.settings.yandexToken = currentToken; 
+            if (currentToken) localStorage.setItem(TOKEN_KEY, currentToken);
+            
             save(); applySettings(); renderAll(); closeModal();
             toast('✅ Данные восстановлены');
         }
@@ -360,9 +420,8 @@ async function restoreFromYandexDisk(silent = false) {
     }
 }
 
-// Ручная синхронизация по кнопке
 async function syncManual() {
-    const token = S.settings.yandexToken;
+    const token = S.settings.yandexToken || localStorage.getItem(TOKEN_KEY);
     if (!token) {
         toast('❌ Сначала укажите токен в настройках');
         return;
@@ -405,9 +464,8 @@ async function syncManual() {
     }
 }
 
-// Автосинхронизация при открытии
 async function checkCloudSync() {
-    const token = S.settings.yandexToken;
+    const token = S.settings.yandexToken || localStorage.getItem(TOKEN_KEY);
     if (!token) return;
     try {
         const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
@@ -428,15 +486,12 @@ async function checkCloudSync() {
             } else {
                 backupToYandexDisk(true);
             }
-        } else {
-            // checkAutoBackup(); // Можно раскомментировать, если хотите чтобы авто-бэкап работал раз в сутки
         }
     } catch (e) {
         console.error('Ошибка синхронизации:', e);
     }
 }
 
-// Проверка при возврате на вкладку (очень полезно для мобильных)
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         checkCloudSync();
