@@ -1,4 +1,4 @@
-const CACHE = 'finance-v30'; 
+const CACHE = 'finance-v31'; 
 const ASSETS=[
   './',
   './index.html',
@@ -27,7 +27,7 @@ self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET')return;
   const url=new URL(e.request.url);
   
-  if(url.origin!==location.origin)return; 
+  if(url.location.origin!==location.origin)return; 
 
   e.respondWith(
     caches.match(e.request).then(r=>{
