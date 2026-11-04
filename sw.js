@@ -1,4 +1,4 @@
-const CACHE = 'finance-v27'; // Изменили версию на 27, чтобы сбросить старый кэш
+const CACHE = 'finance-v28'; // Изменили версию на 27, чтобы сбросить старый кэш
 const ASSETS=[
   './',
   './index.html',
