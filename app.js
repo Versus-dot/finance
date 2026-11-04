@@ -1,5 +1,4 @@
 const KEY='financeApp_v25';
-const TOKEN_KEY='financeApp_yandexToken_v1'; // ОТДЕЛЬНАЯ ЯЧЕЙКА ДЛЯ ТОКЕНА
 const ACC_TYPES={debit:'Дебетовая карта',credit:'Кредитная карта',brokerage:'Брокерский',iis:'ИИС',pds:'ПДС',deposit:'Вклад',savings:'Накопительный',crypto_wallet:'Криптокошелек',crypto_exchange:'Криптобиржа',cash:'Наличные',invest_kopilka:'Инвесткопилка',finu_wallet:'Кошелёк Финуслуги'};
 const TERMS={indefinite:'Бессрочный','14d':'14 дней','3m':'3 мес','6m':'6 мес','12m':'1 год','24m':'2 года'};
 const TARGET_TYPES=['deposit','savings','brokerage','iis','pds','crypto_wallet','crypto_exchange','invest_kopilka'];
@@ -36,29 +35,7 @@ const fmt=n=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maxi
 const fmtNum=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n||0);
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(m,actionFn,actionText){const t=$('toast');t.innerHTML=`<span>${m}</span>`+(actionFn?`<button id="toastAction">${actionText}</button>`:'');t.classList.add('show');if(actionFn)$('toastAction').onclick=()=>{actionFn();t.classList.remove('show');};clearTimeout(t._t);t._t=setTimeout(()=>{t.classList.remove('show');t.innerHTML='';},actionFn?5000:2000);}
-
-function load(){
-    try{
-        const r=localStorage.getItem(KEY);
-        if(r){
-            const p=JSON.parse(r);
-            S={...defaultState(),...p};
-            if(!S.banks.length) S.banks=defaultState().banks;
-        }else{
-            const o=localStorage.getItem('financeApp_v24')||localStorage.getItem('financeApp_v23');
-            if(o){
-                const p=JSON.parse(o);
-                S={...defaultState(),...p};
-                S.settings.badgeStyle='stripe';
-            }
-        }
-        // ПРИНУДИТЕЛЬНО ДОСТАЕМ ТОКЕН ИЗ ОТДЕЛЬНОЙ ЯЧЕЙКИ
-        const savedToken = localStorage.getItem(TOKEN_KEY);
-        if (savedToken) {
-            S.settings.yandexToken = savedToken;
-        }
-    }catch(e){console.error(e);}
-}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);S={...defaultState(),...p};if(!S.banks.length)S.banks=defaultState().banks;}else{const o=localStorage.getItem('financeApp_v24')||localStorage.getItem('financeApp_v23');if(o){const p=JSON.parse(o);S={...defaultState(),...p};S.settings.badgeStyle='stripe';}}}catch(e){console.error(e);}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Ошибка памяти');}}
 function getBank(id){return S.banks.find(b=>b.id===id);}
 function getAcc(id){return S.accounts.find(a=>a.id===id);}
@@ -238,7 +215,7 @@ function openSettings(){
     <div class="form-group">
         <label>Токен доступа Яндекса</label>
         <input id="setYandexToken" type="password" value="${esc(S.settings.yandexToken || '')}" placeholder="Вставьте ваш токен сюда">
-        <div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится в защищенном хранилище устройства.</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится только на этом устройстве.</div>
         <div style="font-size:12px; color:var(--green); margin-top:6px; font-weight:bold;">
             Последний бэкап: ${S.settings.lastCloudBackup ? new Date(S.settings.lastCloudBackup).toLocaleString('ru-RU') : 'Еще не делался'}
         </div>
@@ -259,56 +236,15 @@ function saveSettings(){
     S.settings.snapshotFreq=$('setSnap').value;
     S.settings.badgeStyle=$('setBadge').value;
     S.settings.yandexToken=$('setYandexToken').value.trim();
-    
-    // СОХРАНЯЕМ ТОКЕН В ОТДЕЛЬНУЮ ЯЧЕЙКУ
-    localStorage.setItem(TOKEN_KEY, S.settings.yandexToken);
-    
     save();
     renderAll();
     closeModal();
     toast('Настройки сохранены');
 }
 function applySettings(){$('appTitle').textContent=S.settings.appTitle;document.documentElement.setAttribute('data-theme',S.settings.theme);document.body.style.fontSize=S.settings.fontSize;}
-function resetAll(){
-    if(!confirm('Удалить ВСЕ данные? (Токен синхронизации останется)'))return;
-    localStorage.removeItem(KEY);
-    location.reload();
-}
-
-// ФУНКЦИЯ ЭКСПОРТА (осталась без изменений)
+function resetAll(){if(!confirm('Удалить ВСЕ данные?'))return;localStorage.removeItem(KEY);location.reload();}
 function exportJSON(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`finance-backup-${today()}.json`;a.click();}
-
-// ИСПРАВЛЕННАЯ ФУНКЦИЯ ИМПОРТА
-function importJSON(){
-    const inp=document.createElement('input');inp.type='file';inp.accept='.json';
-    inp.onchange=e=>{
-        const f=e.target.files[0];if(!f)return;
-        const r=new FileReader();
-        r.onload=()=>{
-            try{
-                const d=JSON.parse(r.result);
-                if(!d.transactions||!d.accounts)throw new Error('bad');
-                if(confirm('Заменить данные?')){
-                    // БЕРЕМ ТОКЕН ИЗ ЗАЩИЩЕННОЙ ЯЧЕЙКИ (или из текущего состояния)
-                    const safeToken = localStorage.getItem(TOKEN_KEY) || S.settings.yandexToken || ''; 
-                    
-                    // Заменяем все данные
-                    S = Object.assign(defaultState(), d);
-                    
-                    // Возвращаем токен
-                    S.settings.yandexToken = safeToken; 
-                    
-                    // Принудительно пишем его обратно в хранилище
-                    if (safeToken) localStorage.setItem(TOKEN_KEY, safeToken);
-                    
-                    save();applySettings();renderAll();closeModal();toast('Данные восстановлены. Токен сохранен.');
-                }
-            }catch(err){alert('Ошибка: '+err.message);}
-        };
-        r.readAsText(f);
-    };
-    inp.click();
-}
+function importJSON(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.transactions||!d.accounts)throw new Error('bad');if(confirm('Заменить данные?')){S=Object.assign(defaultState(),d);save();applySettings();renderAll();closeModal();toast('Восстановлено');}}catch(err){alert('Ошибка: '+err.message);}};r.readAsText(f);};inp.click();}
 async function fetchUSDT(){
     try {
         const targetUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=rub';
@@ -356,7 +292,7 @@ const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
 const YANDEX_BACKUP_FILENAME = 'finance-backup.json';
 
 async function backupToYandexDisk(silent = false) {
-    const token = S.settings.yandexToken || localStorage.getItem(TOKEN_KEY);
+    const token = S.settings.yandexToken;
     if (!token) {
         if (!silent) toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
         return;
@@ -384,7 +320,7 @@ async function backupToYandexDisk(silent = false) {
 }
 
 async function restoreFromYandexDisk(silent = false) {
-    const token = S.settings.yandexToken || localStorage.getItem(TOKEN_KEY);
+    const token = S.settings.yandexToken;
     if (!token) {
         if(!silent) toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
         return;
@@ -411,11 +347,13 @@ async function restoreFromYandexDisk(silent = false) {
         let fileData;
         try { fileData = JSON.parse(fileText); } 
         catch (e) { throw new Error('Файл поврежден'); }
+        
         if (silent || confirm('Заменить текущие данные данными из облака?')) {
-            const currentToken = localStorage.getItem(TOKEN_KEY) || S.settings.yandexToken; 
+            const currentToken = S.settings.yandexToken; 
             S = Object.assign(defaultState(), fileData);
             S.settings.yandexToken = currentToken; 
-            if (currentToken) localStorage.setItem(TOKEN_KEY, currentToken);
+            // ВАЖНО: После скачивания обновляем время бэкапа, чтобы не спрашивало снова!
+            S.settings.lastCloudBackup = new Date(fileData.modified || Date.now()).getTime() || Date.now();
             save(); applySettings(); renderAll(); closeModal();
             toast('✅ Данные восстановлены');
         }
@@ -425,28 +363,79 @@ async function restoreFromYandexDisk(silent = false) {
     }
 }
 
-async function syncManual() {
-    const token = S.settings.yandexToken || localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-        toast('❌ Сначала укажите токен в настройках');
-        return;
+function checkAutoBackup() {
+    const token = S.settings.yandexToken;
+    if (!token) return;
+    const lastBackup = S.settings.lastCloudBackup || 0;
+    const oneDay = 24 * 60 * 60 * 1000; 
+    if (Date.now() - lastBackup > oneDay) {
+        console.log('Прошло больше 24 часов. Запускаем автосохранение...');
+        backupToYandexDisk(true); 
     }
-    toast('⏳ Проверка облака...');
+}
+
+async function checkCloudSync() {
+    const token = S.settings.yandexToken;
+    if (!token) return;
     try {
         const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
         const res = await fetch(targetUrl, {
             headers: { 'Authorization': `OAuth ${token}` }
         });
         if (res.status === 404) {
+            backupToYandexDisk(true);
+            return;
+        }
+        if (!res.ok) return;
+        const data = await res.json();
+        const cloudModified = new Date(data.modified).getTime(); 
+        const localLastBackup = S.settings.lastCloudBackup || 0;
+        
+        // Если облако новее более чем на 5 секунд, спрашиваем
+        if (cloudModified > localLastBackup + 5000) {
+            if (confirm(`☁️ Обнаружены более свежие данные в облаке (от ${new Date(cloudModified).toLocaleString('ru-RU')}).\n\nСкачать их?`)) {
+                restoreFromYandexDisk(true);
+            } else {
+                backupToYandexDisk(true);
+            }
+        } else {
+            checkAutoBackup();
+        }
+    } catch (e) {
+        console.error('Ошибка синхронизации:', e);
+        checkAutoBackup(); 
+    }
+}
+
+// НОВАЯ КНОПКА ДЛЯ РУЧНОЙ СИНХРОНИЗАЦИИ
+async function syncManual() {
+    const token = S.settings.yandexToken;
+    if (!token) {
+        toast('❌ Сначала укажите токен в настройках');
+        return;
+    }
+    
+    toast('⏳ Проверка облака...');
+    
+    try {
+        const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
+        const res = await fetch(targetUrl, {
+            headers: { 'Authorization': `OAuth ${token}` }
+        });
+        
+        if (res.status === 404) {
             await backupToYandexDisk(true);
             toast('✅ Данные сохранены в облако');
             return;
         }
+        
         if (!res.ok) throw new Error('Ошибка API');
+        
         const data = await res.json();
         const cloudModified = new Date(data.modified).getTime(); 
         const localLastBackup = S.settings.lastCloudBackup || 0;
-        if (cloudModified > localLastBackup + 1000) { 
+        
+        if (cloudModified > localLastBackup + 1000) {
             if (confirm(`☁️ В облаке есть более свежие данные.\n\nСкачать их?`)) {
                 await restoreFromYandexDisk(true);
             } else {
@@ -462,39 +451,5 @@ async function syncManual() {
         toast('❌ Ошибка синхронизации: ' + e.message);
     }
 }
-
-async function checkCloudSync() {
-    const token = S.settings.yandexToken || localStorage.getItem(TOKEN_KEY);
-    if (!token) return;
-    try {
-        const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
-        const res = await fetch(targetUrl, {
-            headers: { 'Authorization': `OAuth ${token}` }
-        });
-        if (res.status === 404) {
-            backupToYandexDisk(true);
-            return;
-        }
-        if (!res.ok) return;
-        const data = await res.json();
-        const cloudModified = new Date(data.modified).getTime(); 
-        const localLastBackup = S.settings.lastCloudBackup || 0;
-        if (cloudModified > localLastBackup + 5000) {
-            if (confirm(`☁️ Обнаружены более свежие данные в облаке (от ${new Date(cloudModified).toLocaleString('ru-RU')}).\n\nСкачать их?`)) {
-                restoreFromYandexDisk(true);
-            } else {
-                backupToYandexDisk(true);
-            }
-        }
-    } catch (e) {
-        console.error('Ошибка синхронизации:', e);
-    }
-}
-
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        checkCloudSync();
-    }
-});
 
 setTimeout(checkCloudSync, 3000);
