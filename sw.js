@@ -1,4 +1,4 @@
-const CACHE = 'finance-v28'; // Изменили версию на 27, чтобы сбросить старый кэш
+const CACHE = 'finance-v30'; 
 const ASSETS=[
   './',
   './index.html',
@@ -27,7 +27,6 @@ self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET')return;
   const url=new URL(e.request.url);
   
-  // Не кэшируем внешние запросы (Google API, Chart.js, CoinGecko)
   if(url.origin!==location.origin)return; 
 
   e.respondWith(
