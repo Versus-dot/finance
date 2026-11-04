@@ -49,7 +49,112 @@ function recalculateBalances(){S.accounts.forEach(a=>a.balance=a.initialBalance|
 function computeTotals(){let totalCap=0,debt=0,creditLimit=0,cushion=0,deposits=0,brokerage=0,crypto=0,pds=0,free=0,cash=0;S.accounts.filter(a=>!a.archived).forEach(a=>{const v=accValue(a);if(a.type==='credit'){debt+=v;totalCap-=v;creditLimit+=a.creditLimit||0;}else{totalCap+=v;if(['deposit','savings','finu_wallet'].includes(a.type))deposits+=v;if(['brokerage','iis','invest_kopilka'].includes(a.type))brokerage+=v;if(a.type==='pds')pds+=v;if(['crypto_wallet','crypto_exchange'].includes(a.type))crypto+=v;if(a.type==='cash')cash+=v;if(['debit','cash'].includes(a.type))free+=v;}if(a.inCushion&&!a.archived)cushion+=v;});return{totalCap,debt,creditLimit,cushion,deposits,brokerage,crypto,pds,free,cash};}
 function computeMonth(m){m=m||thisMonth();let income=0,expense=0,savings=0,investment=0,passive=0;S.transactions.filter(t=>t.date.startsWith(m)).forEach(t=>{if(t.type==='income'){income+=t.amount;const c=getCat(t.categoryId);if(c&&c.passive)passive+=t.amount;}else if(t.type==='expense'){expense+=t.amount;}else if(t.type==='transfer'){const k=t.savingsKind||classifyTransfer(t.accountId,t.toAccountId);if(k==='savings')savings+=t.amount;else if(k==='investment')investment+=t.amount;}});return{income,expense,savings,investment,passive,savedTotal:savings+investment,savingsRate:income>0?(savings+investment)/income*100:0};}
 function maybeSnapshot(){const now=new Date();const freq=S.settings.snapshotFreq;let shouldSnap=false;if(freq==='monthly'){const last=new Date(now.getFullYear(),now.getMonth()+1,0);if(now.getDate()===last.getDate())shouldSnap=true;}else if(freq==='weekly'){if(now.getDay()===0)shouldSnap=true;}else if(freq==='daily'){shouldSnap=true;}if(!shouldSnap)return;const dateStr=today();if(S.snapshots.some(s=>s.date===dateStr))return;const t=computeTotals();S.snapshots.push({date:dateStr,total:t.totalCap});save();}
-function renderDashboard(){recalculateBalances();const t=computeTotals();const m=computeMonth();const el=$('page-home');let topBarHtml=`<div class="total-bar"><div><div class="total-label">Баланс</div><div class="total-val">${fmt(t.totalCap+t.debt)}</div></div><div style="text-align:right;"><div class="total-label">Кредиты</div><div class="total-val neg">${t.debt>0?fmt(t.debt):'0 ₽'}</div></div></div><div class="header-separator"></div><div class="banks-header"><div class="banks-title">Банки</div><button class="btn-add-bank" onclick="openBankModal()">+</button></div>`;let banksHtml=`<div class="banks-carousel">`;banksHtml+=`<div class="bank-chip ${dashFilterBank==='all'?'active':''}" onclick="setDashFilter('all')"><div class="bc-name">🏦 Все банки</div><div class="bc-bal">${fmt(t.totalCap+t.debt)}</div></div>`;const topBanks=S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0));topBanks.forEach(b=>{let bankTotal=0;let bankDebt=0;const accs=S.accounts.filter(a=>a.bankId===b.id&&!a.archived);accs.forEach(a=>{const v=accValue(a);if(a.type==='credit')bankDebt+=v;else bankTotal+=v;});const subBanks=S.banks.filter(sb=>sb.parentId===b.id);subBanks.forEach(sb=>{const subAccs=S.accounts.filter(a=>a.bankId===sb.id&&!a.archived);subAccs.forEach(a=>{const v=accValue(a);if(a.type==='credit')bankDebt+=v;else bankTotal+=v;});});const bColor=b.color||'#888';banksHtml+=`<div class="bank-chip ${dashFilterBank===b.id?'active':''}" onclick="setDashFilter('${b.id}')"><div class="bc-name"><span class="bank-dot" style="background:${bColor};width:8px;height:8px;margin-right:2px;"></span> ${esc(b.name)}</div><div class="bc-bal">${fmt(bankTotal)}</div>${bankDebt>0?`<div class="bc-debt">-${fmt(bankDebt)}</div>`:''}</div>`;});banksHtml+=`</div>`;let groupsHtml=`<div class="section-title">Карты и счета<button class="btn-primary btn-small" style="padding:4px 10px;border-radius:8px;" onclick="openAccountModal(null,'${dashFilterBank==='all'?S.banks.find(b=>!b.parentId).id:dashFilterBank}')">+</button></div><div class="acc-grid-pc">`;const banksToRender=dashFilterBank==='all'?S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0)):[getBank(dashFilterBank)];banksToRender.forEach(b=>{if(!b)return;const allGroupAccounts=[];const directAccs=S.accounts.filter(a=>a.bankId===b.id&&!a.archived);directAccs.forEach(a=>allGroupAccounts.push(a));const subBanks=S.banks.filter(sb=>sb.parentId===b.id);subBanks.forEach(sb=>{const subAccs=S.accounts.filter(a=>a.bankId===sb.id&&!a.archived);subAccs.forEach(a=>allGroupAccounts.push(a));});if(allGroupAccounts.length===0)return;let groupTotal=allGroupAccounts.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);const isCollapsed = S.ui.collapsedBanks.includes(b.id);groupsHtml+=`<div class="bank-group" data-bank-id="${b.id}"><div class="bank-group-header" onclick="toggleDashBank('${b.id}')"><span style="display:flex;align-items:center;"><span class="drag-handle" style="cursor:grab;margin-right:6px;" onclick="event.stopPropagation()">⋮⋮</span><span style="width:10px;height:10px;border-radius:50%;background:${b.color||'#888'};margin-right:6px;"></span>${isCollapsed?'▶':'▼'} ${esc(b.name)}</span><span class="group-total-val">${fmt(groupTotal)}</span></div><div class="bank-group-list" data-bank-id="${b.id}" style="${isCollapsed?'display:none':''}">`;directAccs.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(a=>{groupsHtml+=renderAccountRow(a,b);});subBanks.forEach(sb=>{const subAccs=S.accounts.filter(a=>a.bankId===sb.id&&!a.archived);if(subAccs.length===0)return;groupsHtml+=`<div style="padding: 6px 14px; font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">↳ ${esc(sb.name)}</div>`;subAccs.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(a=>{groupsHtml+=renderAccountRow(a,sb);});});groupsHtml+=`</div></div>`;});groupsHtml+=`</div>`;let statsHtml=`<div class="card month-stats" style="margin-top:20px;"><div style="font-weight:700;margin-bottom:10px">Этот месяц</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px"><div>Доходы<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.income)}</div></div><div>Расходы<div class="neg" style="font-weight:700;font-size:15px">${fmt(m.expense)}</div></div><div>Отложено<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.savedTotal)}</div></div><div>Норма сбережений<div style="font-weight:700;font-size:15px">${m.savingsRate.toFixed(0)}%</div></div></div></div>`;el.innerHTML=topBarHtml+banksHtml+groupsHtml+statsHtml;initDashSortable();}
+
+function openDebtsFromDashboard() {
+    // 1. Переключаем вкладку
+    document.querySelector('.nav-tab[data-tab="transactions"]').click();
+    // 2. Включаем фильтр долгов
+    txFilter = 'debt';
+    renderTransactions();
+}
+
+function renderDashboard(){
+    recalculateBalances();
+    const t=computeTotals();
+    const m=computeMonth();
+    const el=$('page-home');
+    
+    // Считаем долги
+    let totalOwed = 0;
+    let totalOwe = 0;
+    S.debts.forEach(d => {
+        if (d.direction === 'lent') totalOwed += d.remaining;
+        if (d.direction === 'borrowed') totalOwe += d.remaining;
+    });
+
+    let topBarHtml=`<div class="total-bar"><div><div class="total-label">Баланс</div><div class="total-val">${fmt(t.totalCap+t.debt)}</div></div><div style="text-align:right;"><div class="total-label">Кредиты</div><div class="total-val neg">${t.debt>0?fmt(t.debt):'0 ₽'}</div></div></div><div class="header-separator"></div>`;
+    
+    // Кнопка + для Банков (сделана в стиле btn-primary)
+    let banksHtml=`<div class="banks-header"><div class="banks-title">Банки</div><button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openBankModal()">+</button></div>`;
+    banksHtml+=`<div class="banks-carousel">`;
+    banksHtml+=`<div class="bank-chip ${dashFilterBank==='all'?'active':''}" onclick="setDashFilter('all')"><div class="bc-name">🏦 Все банки</div><div class="bc-bal">${fmt(t.totalCap+t.debt)}</div></div>`;
+    
+    const topBanks=S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0));
+    topBanks.forEach(b=>{
+        let bankTotal=0;let bankDebt=0;
+        const accs=S.accounts.filter(a=>a.bankId===b.id&&!a.archived);
+        accs.forEach(a=>{const v=accValue(a);if(a.type==='credit')bankDebt+=v;else bankTotal+=v;});
+        const subBanks=S.banks.filter(sb=>sb.parentId===b.id);
+        subBanks.forEach(sb=>{
+            const subAccs=S.accounts.filter(a=>a.bankId===sb.id&&!a.archived);
+            subAccs.forEach(a=>{const v=accValue(a);if(a.type==='credit')bankDebt+=v;else bankTotal+=v;});
+        });
+        const bColor=b.color||'#888';
+        banksHtml+=`<div class="bank-chip ${dashFilterBank===b.id?'active':''}" onclick="setDashFilter('${b.id}')"><div class="bc-name"><span class="bank-dot" style="background:${bColor};width:8px;height:8px;margin-right:2px;"></span> ${esc(b.name)}</div><div class="bc-bal">${fmt(bankTotal)}</div>${bankDebt>0?`<div class="bc-debt">-${fmt(bankDebt)}</div>`:''}</div>`;
+    });
+    banksHtml+=`</div>`;
+    
+    // Кнопка + для Карт и счетов (точно такая же)
+    let groupsHtml=`<div class="section-title">Карты и счета<button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openAccountModal(null,'${dashFilterBank==='all'?S.banks.find(b=>!b.parentId).id:dashFilterBank}')">+</button></div><div class="acc-grid-pc">`;
+    
+    const banksToRender=dashFilterBank==='all'?S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0)):[getBank(dashFilterBank)];
+    banksToRender.forEach(b=>{
+        if(!b)return;
+        const allGroupAccounts=[];
+        const directAccs=S.accounts.filter(a=>a.bankId===b.id&&!a.archived);
+        directAccs.forEach(a=>allGroupAccounts.push(a));
+        const subBanks=S.banks.filter(sb=>sb.parentId===b.id);
+        subBanks.forEach(sb=>{
+            const subAccs=S.accounts.filter(a=>a.bankId===sb.id&&!a.archived);
+            subAccs.forEach(a=>allGroupAccounts.push(a));
+        });
+        if(allGroupAccounts.length===0)return;
+        let groupTotal=allGroupAccounts.reduce((s,a)=>s+(a.type==='credit'?-accValue(a):accValue(a)),0);
+        const isCollapsed = S.ui.collapsedBanks.includes(b.id);
+        groupsHtml+=`<div class="bank-group" data-bank-id="${b.id}"><div class="bank-group-header" onclick="toggleDashBank('${b.id}')"><span style="display:flex;align-items:center;"><span class="drag-handle" style="cursor:grab;margin-right:6px;" onclick="event.stopPropagation()">⋮⋮</span><span style="width:10px;height:10px;border-radius:50%;background:${b.color||'#888'};margin-right:6px;"></span>${isCollapsed?'▶':'▼'} ${esc(b.name)}</span><span class="group-total-val">${fmt(groupTotal)}</span></div><div class="bank-group-list" data-bank-id="${b.id}" style="${isCollapsed?'display:none':''}">`;
+        directAccs.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(a=>{groupsHtml+=renderAccountRow(a,b);});
+        subBanks.forEach(sb=>{
+            const subAccs=S.accounts.filter(a=>a.bankId===sb.id&&!a.archived);
+            if(subAccs.length===0)return;
+            groupsHtml+=`<div style="padding: 6px 14px; font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">↳ ${esc(sb.name)}</div>`;
+            subAccs.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(a=>{groupsHtml+=renderAccountRow(a,sb);});
+        });
+        groupsHtml+=`</div></div>`;
+    });
+    groupsHtml+=`</div>`;
+    
+    // Третья полоса
+    groupsHtml += `<div class="header-separator"></div>`;
+
+    // Нижние виджеты
+    let bottomWidgetsHtml = `
+    <div class="bottom-widgets-grid">
+        <div class="card month-stats">
+            <div style="font-weight:700;margin-bottom:10px">Этот месяц</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+                <div>Доходы<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.income)}</div></div>
+                <div>Расходы<div class="neg" style="font-weight:700;font-size:15px">${fmt(m.expense)}</div></div>
+                <div>Отложено<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.savedTotal)}</div></div>
+                <div>Норма сбережений<div style="font-weight:700;font-size:15px">${m.savingsRate.toFixed(0)}%</div></div>
+            </div>
+        </div>
+
+        <div class="card" style="cursor:pointer; transition:transform 0.1s;" onclick="openDebtsFromDashboard()" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
+            <div style="font-weight:700;margin-bottom:10px">Долги</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:13px;color:var(--muted);">Мне должны</div>
+                <div class="pos" style="font-weight:700;font-size:15px;">${fmt(totalOwed)}</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:13px;color:var(--muted);">Я должен</div>
+                <div class="neg" style="font-weight:700;font-size:15px;">${fmt(totalOwe)}</div>
+            </div>
+        </div>
+    </div>`;
+
+    el.innerHTML=topBarHtml+banksHtml+groupsHtml+bottomWidgetsHtml;
+    initDashSortable();
+}
 function setDashFilter(bankId){dashFilterBank=bankId;renderDashboard();}
 function toggleDashBank(id){const i=S.ui.collapsedBanks.indexOf(id);if(i>=0)S.ui.collapsedBanks.splice(i,1);else S.ui.collapsedBanks.push(id);save();renderDashboard();}
 function renderAccountRow(a,bank){const style=S.settings.badgeStyle==='stripe'?'style-stripe':'style-bg';const bColor=bank?bank.color:'#888';const iconSvg=getSVG(a.type);const bgColor=bColor+'25';let meta=ACC_TYPES[a.type]||a.type;if(a.type==='deposit'||a.type==='savings'){if(a.rate)meta+=` · ${a.rate}%`;}const v=accValue(a);let balHtml='';if(a.type==='credit'){const limit=a.creditLimit||0;const avail=Math.max(0,limit-v);balHtml=`<div class="acc-balance">${fmt(avail)}</div>`;if(v>0)balHtml+=`<div class="acc-debt">Долг: ${fmt(v)}</div>`;else if(v<0)balHtml+=`<div class="acc-debt" style="color:#2ecc71;">Переплата: ${fmt(Math.abs(v))}</div>`;else balHtml+=`<div class="acc-debt" style="color:var(--muted);">Долг: 0 ₽</div>`;}else{balHtml=`<div class="acc-balance">${fmt(v)}</div>`;}return `<div class="account-row" data-acc-id="${a.id}" style="--bank-color: ${bColor};" onclick="openAccountModal('${a.id}')"><div class="drag-handle" onclick="event.stopPropagation()">⋮⋮</div><div class="acc-icon-wrap" style="background:${bgColor}; color:${bColor};">${iconSvg}</div><div class="acc-info"><div class="acc-name">${esc(a.name)} ${a.inCushion?'⭐':''}</div><div class="acc-meta">${meta}</div></div><div>${balHtml}</div></div>`;}
@@ -178,9 +283,6 @@ function renderAll(){applySettings();renderDashboard();renderAccounts();renderTr
 load();applyTheme();applySettings();maybeSnapshot();renderAll();if(S.settings.usdtRate.mode==='auto')fetchUSDT();
 let startY=0;document.addEventListener('touchstart',e=>{startY=e.touches[0].pageY;},{passive:true});document.addEventListener('touchmove',e=>{if(document.querySelector('.modal-backdrop.active')){if(e.touches[0].pageY>startY&&window.scrollY===0)e.preventDefault();}},{passive:false});
 
-// ==========================================
-// РЕГИСТРАЦИЯ SERVICE WORKER ДЛЯ PWA
-// ==========================================
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
@@ -193,13 +295,9 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// ==========================================
-// ☁️ ИНТЕГРАЦИЯ С ЯНДЕКС.ДИСКОМ
-// ==========================================
 const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
 const YANDEX_BACKUP_FILENAME = 'finance-backup.json';
 
-// Загрузка файла на Яндекс.Диск
 async function backupToYandexDisk(silent = false) {
     const token = S.settings.yandexToken;
     if (!token) {
@@ -207,26 +305,19 @@ async function backupToYandexDisk(silent = false) {
         return;
     }
     if (!silent) toast('⏳ Отправка на Яндекс.Диск...');
-
     const fileContent = JSON.stringify(S, null, 2);
     const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`); 
-
     try {
         const uploadUrlRes = await fetch(`${YANDEX_API_URL}/resources/upload?path=${filePath}&overwrite=true`, {
             headers: { 'Authorization': `OAuth ${token}` }
         });
-        
         if (!uploadUrlRes.ok) throw new Error('Ошибка API');
-        
         const uploadUrlData = await uploadUrlRes.json();
         const uploadUrl = uploadUrlData.href;
-
         const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileContent });
         if (!uploadRes.ok) throw new Error('Ошибка при загрузке');
-        
         S.settings.lastCloudBackup = Date.now();
         save(); 
-
         if (!silent) toast('✅ Успешно сохранено на Яндекс.Диск');
         else console.log('✅ Автоматический бэкап выполнен');
     } catch (error) {
@@ -235,7 +326,6 @@ async function backupToYandexDisk(silent = false) {
     }
 }
 
-// Скачивание файла с Яндекс.Диска
 async function restoreFromYandexDisk(silent = false) {
     const token = S.settings.yandexToken;
     if (!token) {
@@ -243,35 +333,27 @@ async function restoreFromYandexDisk(silent = false) {
         return;
     }
     if(!silent) toast('⏳ Поиск файла...');
-
     const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`);
-
     try {
         const downloadUrlRes = await fetch(`${YANDEX_API_URL}/resources/download?path=${filePath}`, {
             headers: { 'Authorization': `OAuth ${token}` }
         });
-
         if (downloadUrlRes.status === 404) {
             if(!silent) toast('❌ Файл не найден');
             return;
         }
         if (!downloadUrlRes.ok) throw new Error('Ошибка API');
-
         const downloadUrlData = await downloadUrlRes.json();
         const directUrl = downloadUrlData.href;
-
         const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm'; 
         const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(directUrl)}`;
-
         if(!silent) toast('⏳ Скачивание...');
         const fileRes = await fetch(proxyUrl);
         if (!fileRes.ok) throw new Error('Ошибка прокси');
-
         const fileText = await fileRes.text();
         let fileData;
         try { fileData = JSON.parse(fileText); } 
         catch (e) { throw new Error('Файл поврежден'); }
-
         if (silent || confirm('Заменить текущие данные данными из облака?')) {
             const currentToken = S.settings.yandexToken; 
             S = Object.assign(defaultState(), fileData);
@@ -288,10 +370,8 @@ async function restoreFromYandexDisk(silent = false) {
 function checkAutoBackup() {
     const token = S.settings.yandexToken;
     if (!token) return;
-    
     const lastBackup = S.settings.lastCloudBackup || 0;
     const oneDay = 24 * 60 * 60 * 1000; 
-    
     if (Date.now() - lastBackup > oneDay) {
         console.log('Прошло больше 24 часов. Запускаем автосохранение...');
         backupToYandexDisk(true); 
@@ -301,24 +381,19 @@ function checkAutoBackup() {
 async function checkCloudSync() {
     const token = S.settings.yandexToken;
     if (!token) return;
-
     try {
         const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
         const res = await fetch(targetUrl, {
             headers: { 'Authorization': `OAuth ${token}` }
         });
-
         if (res.status === 404) {
             backupToYandexDisk(true);
             return;
         }
-
         if (!res.ok) return;
-
         const data = await res.json();
         const cloudModified = new Date(data.modified).getTime(); 
         const localLastBackup = S.settings.lastCloudBackup || 0;
-
         if (cloudModified > localLastBackup + 5000) {
             if (confirm(`☁️ Обнаружены более свежие данные в облаке (от ${new Date(cloudModified).toLocaleString('ru-RU')}).\n\nСкачать их?`)) {
                 restoreFromYandexDisk(true);
@@ -333,5 +408,4 @@ async function checkCloudSync() {
         checkAutoBackup(); 
     }
 }
-
 setTimeout(checkCloudSync, 3000);
