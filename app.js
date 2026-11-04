@@ -90,7 +90,6 @@ function renderDashboard(){
     });
     banksHtml+=`</div>`;
     
-    // ДОБАВЛЕНА ПОЛОСА ЗДЕСЬ
     let groupsHtml=`<div class="header-separator"></div><div class="section-title">Карты и счета<button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openAccountModal(null,'${dashFilterBank==='all'?S.banks.find(b=>!b.parentId).id:dashFilterBank}')">+</button></div><div class="acc-grid-pc">`;
     
     const banksToRender=dashFilterBank==='all'?S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0)):[getBank(dashFilterBank)];
@@ -361,17 +360,52 @@ async function restoreFromYandexDisk(silent = false) {
     }
 }
 
-function checkAutoBackup() {
+// Ручная синхронизация по кнопке
+async function syncManual() {
     const token = S.settings.yandexToken;
-    if (!token) return;
-    const lastBackup = S.settings.lastCloudBackup || 0;
-    const oneDay = 24 * 60 * 60 * 1000; 
-    if (Date.now() - lastBackup > oneDay) {
-        console.log('Прошло больше 24 часов. Запускаем автосохранение...');
-        backupToYandexDisk(true); 
+    if (!token) {
+        toast('❌ Сначала укажите токен в настройках');
+        return;
+    }
+    
+    toast('⏳ Проверка облака...');
+    
+    try {
+        const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
+        const res = await fetch(targetUrl, {
+            headers: { 'Authorization': `OAuth ${token}` }
+        });
+        
+        if (res.status === 404) {
+            await backupToYandexDisk(true);
+            toast('✅ Данные сохранены в облако');
+            return;
+        }
+        
+        if (!res.ok) throw new Error('Ошибка API');
+        
+        const data = await res.json();
+        const cloudModified = new Date(data.modified).getTime(); 
+        const localLastBackup = S.settings.lastCloudBackup || 0;
+        
+        if (cloudModified > localLastBackup + 1000) { 
+            if (confirm(`☁️ В облаке есть более свежие данные.\n\nСкачать их?`)) {
+                await restoreFromYandexDisk(true);
+            } else {
+                await backupToYandexDisk(true);
+                toast('✅ Ваши данные загружены в облако');
+            }
+        } else {
+            await backupToYandexDisk(true);
+            toast('✅ Данные сохранены в облако');
+        }
+    } catch (e) {
+        console.error('Sync error:', e);
+        toast('❌ Ошибка синхронизации: ' + e.message);
     }
 }
 
+// Автосинхронизация при открытии
 async function checkCloudSync() {
     const token = S.settings.yandexToken;
     if (!token) return;
@@ -395,11 +429,18 @@ async function checkCloudSync() {
                 backupToYandexDisk(true);
             }
         } else {
-            checkAutoBackup();
+            // checkAutoBackup(); // Можно раскомментировать, если хотите чтобы авто-бэкап работал раз в сутки
         }
     } catch (e) {
         console.error('Ошибка синхронизации:', e);
-        checkAutoBackup(); 
     }
 }
+
+// Проверка при возврате на вкладку (очень полезно для мобильных)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        checkCloudSync();
+    }
+});
+
 setTimeout(checkCloudSync, 3000);
