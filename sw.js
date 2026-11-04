@@ -1,9 +1,9 @@
-const CACHE = 'finance-v24-' + Date.now(); // Обновил версию кэша
+const CACHE = 'finance-v27'; // Изменили версию на 27, чтобы сбросить старый кэш
 const ASSETS=[
   './',
   './index.html',
-  './style.css',  // ДОБАВЛЕНО
-  './app.js',     // ДОБАВЛЕНО
+  './style.css',
+  './app.js',
   './manifest.json'
 ];
 
