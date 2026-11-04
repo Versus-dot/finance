@@ -25,7 +25,7 @@ function getSVG(type){
 
 function defaultState(){return{settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'stripe',pinCode:'',yandexToken:'',lastCloudBackup:null},ui:{collapsedBanks:[],showArchived:false,lastSnapshot:null},categories:[{id:'c_sal',type:'income',name:'Зарплата',passive:false},{id:'c_adv',type:'income',name:'Аванс',passive:false},{id:'c_freelance',type:'income',name:'Фриланс',passive:false},{id:'c_gift',type:'income',name:'Подарки',passive:false},{id:'c_cashback',type:'income',name:'Кешбэк',passive:true},{id:'c_coupon',type:'income',name:'Купоны',passive:true},{id:'c_dividend',type:'income',name:'Дивиденды',passive:true},{id:'c_interest',type:'income',name:'Проценты по вкладам',passive:true},{id:'c_taxrefund',type:'income',name:'Возврат налога',passive:true},{id:'c_other_inc',type:'income',name:'Прочий доход',passive:false},{id:'c_food',type:'expense',name:'Еда',passive:false},{id:'c_transport',type:'expense',name:'Транспорт',passive:false},{id:'c_housing',type:'expense',name:'Жильё',passive:false},{id:'c_utilities',type:'expense',name:'Коммунальные',passive:false},{id:'c_health',type:'expense',name:'Здоровье',passive:false},{id:'c_fun',type:'expense',name:'Развлечения',passive:false},{id:'c_clothes',type:'expense',name:'Одежда',passive:false},{id:'c_phone',type:'expense',name:'Связь',passive:false},{id:'c_subs',type:'expense',name:'Подписки',passive:false},{id:'c_joint',type:'expense',name:'Совместные расходы',passive:false},{id:'c_services',type:'expense',name:'Оказание услуг',passive:false},{id:'c_taxes',type:'expense',name:'Налоги',passive:false},{id:'c_duty',type:'expense',name:'Госпошлина',passive:false},{id:'c_other_exp',type:'expense',name:'Прочее',passive:false}],banks:[{id:'b_main',name:'Основной банк',color:'#2ecc71',parentId:null,order:0},{id:'b_finu',name:'Финуслуги',color:'#00d2d3',parentId:null,order:1,isPlatform:true}],accounts:[],transactions:[],budgets:[],debts:[],counterparties:[],snapshots:[]};}
 let S=defaultState();
-let dashFilterBank='all'
+let dashFilterBank='all';
 let activeTab='home';
 const $=id=>document.getElementById(id);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -137,7 +137,7 @@ function saveSettings(){
     S.settings.pinCode=$('setPin').value;
     S.settings.snapshotFreq=$('setSnap').value;
     S.settings.badgeStyle=$('setBadge').value;
-    S.settings.yandexToken=$('setYandexToken').value.trim(); // <--- СОХРАНЯЕМ ТОКЕН
+    S.settings.yandexToken=$('setYandexToken').value.trim();
     save();
     renderAll();
     closeModal();
@@ -149,7 +149,6 @@ function exportJSON(){const b=new Blob([JSON.stringify(S,null,2)],{type:'applica
 function importJSON(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.transactions||!d.accounts)throw new Error('bad');if(confirm('Заменить данные?')){S=Object.assign(defaultState(),d);save();applySettings();renderAll();closeModal();toast('Восстановлено');}}catch(err){alert('Ошибка: '+err.message);}};r.readAsText(f);};inp.click();}
 async function fetchUSDT(){
     try {
-        // Используем наш Yandex Cloud прокси, чтобы обойти блокировки CoinGecko
         const targetUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=rub';
         const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
         const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(targetUrl)}`;
@@ -167,7 +166,6 @@ async function fetchUSDT(){
         }
     } catch(e) {
         console.log('Курс USDT временно недоступен. Используется сохраненный.');
-        // Мы не показываем красную ошибку пользователю, если курс не загрузился
     }
 }
 function applyTheme(){document.documentElement.setAttribute('data-theme',S.settings.theme);$('themeBtn').textContent=S.settings.theme==='dark'?'🌙':'☀️';}
@@ -179,6 +177,7 @@ $('menuBtn').onclick=openMenu;
 function renderAll(){applySettings();renderDashboard();renderAccounts();renderTransactions();renderStats();}
 load();applyTheme();applySettings();maybeSnapshot();renderAll();if(S.settings.usdtRate.mode==='auto')fetchUSDT();
 let startY=0;document.addEventListener('touchstart',e=>{startY=e.touches[0].pageY;},{passive:true});document.addEventListener('touchmove',e=>{if(document.querySelector('.modal-backdrop.active')){if(e.touches[0].pageY>startY&&window.scrollY===0)e.preventDefault();}},{passive:false});
+
 // ==========================================
 // РЕГИСТРАЦИЯ SERVICE WORKER ДЛЯ PWA
 // ==========================================
@@ -193,9 +192,7 @@ if ('serviceWorker' in navigator) {
             });
     });
 }
-// ==========================================
-// ☁️ ИНТЕГРАЦИЯ С ЯНДЕКС.ДИСКОМ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
-// ==========================================
+
 // ==========================================
 // ☁️ ИНТЕГРАЦИЯ С ЯНДЕКС.ДИСКОМ
 // ==========================================
@@ -286,20 +283,66 @@ async function restoreFromYandexDisk() {
         toast('❌ Ошибка: ' + error.message);
     }
 }
-// Функция проверки: не пора ли сделать автоматический бэкап?
+
+// Функция проверки: не пора ли сделать автоматический бэкап (раз в 24 часа)?
 function checkAutoBackup() {
     const token = S.settings.yandexToken;
-    if (!token) return; // Если токена нет, ничего не делаем
+    if (!token) return;
     
     const lastBackup = S.settings.lastCloudBackup || 0;
-    const oneDay = 24 * 60 * 60 * 1000; // 24 часа в миллисекундах
+    const oneDay = 24 * 60 * 60 * 1000; 
     
-    // Если прошло больше 24 часов с последнего бэкапа
     if (Date.now() - lastBackup > oneDay) {
         console.log('Прошло больше 24 часов. Запускаем автосохранение...');
-        backupToYandexDisk(true); // true = тихий режим (без всплывающих окон)
+        backupToYandexDisk(true); 
     }
 }
 
-// Запускаем проверку через 3 секунды после открытия приложения
-setTimeout(checkAutoBackup, 3000);
+// НОВАЯ Функция проверки синхронизации с облаком
+async function checkCloudSync() {
+    const token = S.settings.yandexToken;
+    if (!token) return;
+
+    try {
+        // Запрашиваем у Яндекса информацию о файле (когда он был изменен)
+        const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
+        const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
+        const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(targetUrl)}`;
+
+        const res = await fetch(proxyUrl, {
+            headers: { 'Authorization': `OAuth ${token}` }
+        });
+
+        // Если файла в облаке нет, просто делаем первый бэкап
+        if (res.status === 404) {
+            backupToYandexDisk(true);
+            return;
+        }
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        // Получаем время изменения файла в облаке
+        const cloudModified = new Date(data.modified).getTime(); 
+        // Получаем время нашего последнего локального бэкапа
+        const localLastBackup = S.settings.lastCloudBackup || 0;
+
+        // Если облако новее нашего последнего бэкапа (с допуском 5 секунд)
+        if (cloudModified > localLastBackup + 5000) {
+            if (confirm(`☁️ Обнаружены более свежие данные в облаке (от ${new Date(cloudModified).toLocaleString('ru-RU')}).\n\nСкачать их?`)) {
+                restoreFromYandexDisk(); // Скачиваем, если согласились
+            } else {
+                backupToYandexDisk(true); // Загружаем свои, если отказались
+            }
+        } else {
+            // Если облако не новее, проверяем, не пора ли сделать обычный ежедневный бэкап
+            checkAutoBackup();
+        }
+    } catch (e) {
+        console.error('Ошибка синхронизации:', e);
+        checkAutoBackup(); // Если прокси не ответил, делаем как обычно
+    }
+}
+
+// Запускаем умную проверку через 3 секунды после загрузки
+setTimeout(checkCloudSync, 3000);
