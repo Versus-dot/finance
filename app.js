@@ -23,7 +23,7 @@ function getSVG(type){
     return svgs[type] || svgs.debit;
 }
 
-function defaultState(){return{settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'stripe',pinCode:'',yandexToken:'',lastCloudBackup:null},ui:{collapsedBanks:[],showArchived:false,lastSnapshot:null},categories:[{id:'c_sal',type:'income',name:'Зарплата',passive:false},{id:'c_adv',type:'income',name:'Аванс',passive:false},{id:'c_freelance',type:'income',name:'Фриланс',passive:false},{id:'c_gift',type:'income',name:'Подарки',passive:false},{id:'c_cashback',type:'income',name:'Кешбэк',passive:true},{id:'c_coupon',type:'income',name:'Купоны',passive:true},{id:'c_dividend',type:'income',name:'Дивиденды',passive:true},{id:'c_interest',type:'income',name:'Проценты по вкладам',passive:true},{id:'c_taxrefund',type:'income',name:'Возврат налога',passive:true},{id:'c_other_inc',type:'income',name:'Прочий доход',passive:false},{id:'c_food',type:'expense',name:'Еда',passive:false},{id:'c_transport',type:'expense',name:'Транспорт',passive:false},{id:'c_housing',type:'expense',name:'Жильё',passive:false},{id:'c_utilities',type:'expense',name:'Коммунальные',passive:false},{id:'c_health',type:'expense',name:'Здоровье',passive:false},{id:'c_fun',type:'expense',name:'Развлечения',passive:false},{id:'c_clothes',type:'expense',name:'Одежда',passive:false},{id:'c_phone',type:'expense',name:'Связь',passive:false},{id:'c_subs',type:'expense',name:'Подписки',passive:false},{id:'c_joint',type:'expense',name:'Совместные расходы',passive:false},{id:'c_services',type:'expense',name:'Оказание услуг',passive:false},{id:'c_taxes',type:'expense',name:'Налоги',passive:false},{id:'c_duty',type:'expense',name:'Госпошлина',passive:false},{id:'c_other_exp',type:'expense',name:'Прочее',passive:false}],banks:[{id:'b_main',name:'Основной банк',color:'#2ecc71',parentId:null,order:0},{id:'b_finu',name:'Финуслуги',color:'#00d2d3',parentId:null,order:1,isPlatform:true}],accounts:[],transactions:[],budgets:[],debts:[],counterparties:[],snapshots:[]};}
+function defaultState(){return{settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'stripe',pinCode:'',yandexToken:'',lastCloudBackup:null},ui:{collapsedBanks:[],showArchived:false,lastSnapshot:null,bankEditMode:false},categories:[{id:'c_sal',type:'income',name:'Зарплата',passive:false},{id:'c_adv',type:'income',name:'Аванс',passive:false},{id:'c_freelance',type:'income',name:'Фриланс',passive:false},{id:'c_gift',type:'income',name:'Подарки',passive:false},{id:'c_cashback',type:'income',name:'Кешбэк',passive:true},{id:'c_coupon',type:'income',name:'Купоны',passive:true},{id:'c_dividend',type:'income',name:'Дивиденды',passive:true},{id:'c_interest',type:'income',name:'Проценты по вкладам',passive:true},{id:'c_taxrefund',type:'income',name:'Возврат налога',passive:true},{id:'c_other_inc',type:'income',name:'Прочий доход',passive:false},{id:'c_food',type:'expense',name:'Еда',passive:false},{id:'c_transport',type:'expense',name:'Транспорт',passive:false},{id:'c_housing',type:'expense',name:'Жильё',passive:false},{id:'c_utilities',type:'expense',name:'Коммунальные',passive:false},{id:'c_health',type:'expense',name:'Здоровье',passive:false},{id:'c_fun',type:'expense',name:'Развлечения',passive:false},{id:'c_clothes',type:'expense',name:'Одежда',passive:false},{id:'c_phone',type:'expense',name:'Связь',passive:false},{id:'c_subs',type:'expense',name:'Подписки',passive:false},{id:'c_joint',type:'expense',name:'Совместные расходы',passive:false},{id:'c_services',type:'expense',name:'Оказание услуг',passive:false},{id:'c_taxes',type:'expense',name:'Налоги',passive:false},{id:'c_duty',type:'expense',name:'Госпошлина',passive:false},{id:'c_other_exp',type:'expense',name:'Прочее',passive:false}],banks:[{id:'b_main',name:'Основной банк',color:'#2ecc71',parentId:null,order:0},{id:'b_finu',name:'Финуслуги',color:'#00d2d3',parentId:null,order:1,isPlatform:true}],accounts:[],transactions:[],budgets:[],debts:[],counterparties:[],snapshots:[]};}
 let S=defaultState();
 let dashFilterBank='all';
 let activeTab='home';
@@ -81,13 +81,18 @@ function openDebtsFromDashboard() {
     renderTransactions();
 }
 
+function toggleBankEditMode() {
+    S.ui.bankEditMode = !S.ui.bankEditMode;
+    save();
+    renderDashboard();
+}
+
 function renderDashboard(){
     recalculateBalances();
     const t=computeTotals();
     const m=computeMonth();
     const el=$('page-home');
     
-    // ДИНАМИЧЕСКИЙ РАСЧЕТ ДОЛГОВ ИЗ ТРАНЗАКЦИЙ
     let totalOwed = 0;
     let totalOwe = 0;
     const lentSums = {};
@@ -106,13 +111,22 @@ function renderDashboard(){
     });
     Object.values(lentSums).forEach(v=>{ if(v>0) totalOwed += v; });
     Object.values(borrowedSums).forEach(v=>{ if(v>0) totalOwe += v; });
-    // --------------------------------------
 
     let topBarHtml=`<div class="total-bar"><div><div class="total-label">Баланс</div><div class="total-val">${fmt(t.totalCap)}</div></div><div style="text-align:right;"><div class="total-label">Кредиты</div><div class="total-val neg">${t.debt>0?fmt(t.debt):'0 ₽'}</div></div></div><div class="header-separator"></div>`;
     
-    let banksHtml=`<div class="banks-header"><div class="banks-title">Банки</div><button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openBankModal()">+</button></div>`;
-    banksHtml+=`<div class="banks-carousel">`;
-    banksHtml+=`<div class="bank-chip ${dashFilterBank==='all'?'active':''}" onclick="setDashFilter('all')"><div class="bc-name">🏦 Все банки</div><div class="bc-bal">${fmt(t.totalCap)}</div></div>`;
+    // Блок с заголовком и кнопками (Замок + Добавить)
+    let lockIcon = S.ui.bankEditMode ? '🔓' : '🔒';
+    let banksHtml=`<div class="banks-header">
+        <div class="banks-title">Банки</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn-secondary btn-small" style="padding:2px 8px;border-radius:8px;font-size:16px;line-height:1;color:var(--text);" onclick="toggleBankEditMode()" title="Режим редактирования">${lockIcon}</button>
+            <button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openBankModal()">+</button>
+        </div>
+    </div>`;
+    
+    banksHtml+=`<div class="banks-carousel ${S.ui.bankEditMode?'edit-mode':''}">`;
+    // Карточка "Все банки" (не перетаскивается)
+    banksHtml+=`<div class="bank-chip ${dashFilterBank==='all'?'active':''}" ${S.ui.bankEditMode?'':'onclick="setDashFilter(\'all\')"'}><div class="bc-name">🏦 Все банки</div><div class="bc-bal">${fmt(t.totalCap)}</div></div>`;
     
     const topBanks=S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0));
     topBanks.forEach(b=>{
@@ -144,10 +158,16 @@ function renderDashboard(){
         });
         const bColor=b.color||'#888';
         
-        // Добавляем шестеренку
-        banksHtml+=`<div class="bank-chip ${dashFilterBank===b.id?'active':''}" onclick="setDashFilter('${b.id}')" style="position:relative;">
-            <span style="position:absolute; top:8px; right:8px; color:var(--muted); font-size:14px; cursor:pointer; padding:2px; opacity:0.7; transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7" onclick="event.stopPropagation(); openBankModal('${b.id}')">⚙️</span>
-            <div class="bc-name" style="padding-right:24px;"><span class="bank-dot" style="background:${bColor};width:8px;height:8px;margin-right:2px;"></span> ${esc(b.name)}</div>
+        // Если включен режим редактирования, добавляем класс draggable и шестеренку
+        const dragClass = S.ui.bankEditMode ? 'draggable' : '';
+        const clickAction = S.ui.bankEditMode ? '' : `onclick="setDashFilter('${b.id}')"`;
+        const gearHtml = S.ui.bankEditMode 
+            ? `<span style="position:absolute; top:8px; right:8px; color:var(--muted); font-size:14px; cursor:pointer; padding:2px; opacity:0.7; transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7" onclick="event.stopPropagation(); openBankModal('${b.id}')">⚙️</span>` 
+            : '';
+
+        banksHtml+=`<div class="bank-chip ${dragClass} ${dashFilterBank===b.id?'active':''}" ${clickAction} data-bank-id="${b.id}" style="position:relative;">
+            ${gearHtml}
+            <div class="bc-name" style="padding-right:${S.ui.bankEditMode?'20px':'0'};"><span class="bank-dot" style="background:${bColor};width:8px;height:8px;margin-right:2px;"></span> ${esc(b.name)}</div>
             <div class="bc-bal">${fmt(bankTotal)}</div>
             ${bankDebt>0?`<div class="bc-debt" style="color:var(--red)">-${fmt(bankDebt)}</div>`:''}
         </div>`;
@@ -260,7 +280,51 @@ function renderAccountRow(a,bank){
     return `<div class="account-row" data-acc-id="${a.id}" style="--bank-color: ${bColor};" onclick="openAccountModal('${a.id}')"><div class="drag-handle" onclick="event.stopPropagation()">⋮⋮</div><div class="acc-icon-wrap" style="background:${bgColor}; color:${bColor};">${iconSvg}</div><div class="acc-info"><div class="acc-name">${esc(a.name)} ${a.inCushion?'⭐':''}</div><div class="acc-meta">${meta}</div></div><div>${balHtml}</div></div>`;
 }
 
-function initDashSortable(){if(typeof Sortable==='undefined')return;const groupsContainer=document.querySelector('.acc-grid-pc');if(groupsContainer){new Sortable(groupsContainer,{animation:150,handle:'.drag-handle',filter:'button, input, select',onEnd:function(){const items=groupsContainer.querySelectorAll(':scope > .bank-group');items.forEach((item,index)=>{const id=item.dataset.bankId;const b=getBank(id);if(b)b.order=index;});save();}});}document.querySelectorAll('.bank-group-list').forEach(container=>{new Sortable(container,{animation:150,handle:'.drag-handle',group:{name:'accounts',pull:false,put:false},filter:'button, input, select',onEnd:function(evt){const items=container.querySelectorAll(':scope > .account-row');items.forEach((item,index)=>{const id=item.dataset.accId;const a=getAcc(id);if(a)a.order=index;});save();}});});}
+function initDashSortable(){
+    if(typeof Sortable==='undefined') return;
+
+    // Сортировка групп (Карты и счета)
+    const groupsContainer=document.querySelector('.acc-grid-pc');
+    if(groupsContainer){
+        new Sortable(groupsContainer,{animation:150,handle:'.drag-handle',filter:'button, input, select',onEnd:function(){
+            const items=groupsContainer.querySelectorAll(':scope > .bank-group');
+            items.forEach((item,index)=>{const id=item.dataset.bankId;const b=getBank(id);if(b)b.order=index;});
+            save();
+        }});
+    }
+    
+    // Сортировка счетов внутри групп
+    document.querySelectorAll('.bank-group-list').forEach(container=>{
+        new Sortable(container,{animation:150,handle:'.drag-handle',group:{name:'accounts',pull:false,put:false},filter:'button, input, select',onEnd:function(evt){
+            const items=container.querySelectorAll(':scope > .account-row');
+            items.forEach((item,index)=>{const id=item.dataset.accId;const a=getAcc(id);if(a)a.order=index;});
+            save();
+        }});
+    });
+
+    // Сортировка самих банков в карусели (если включен режим редактирования)
+    const carouselContainer = document.querySelector('.banks-carousel');
+    if(carouselContainer && S.ui.bankEditMode) {
+        new Sortable(carouselContainer, {
+            animation: 150,
+            draggable: '.draggable', // Только карточки с классом draggable
+            filter: '.bank-chip:not(.draggable)', // Игнорируем карточку "Все банки"
+            onEnd: function() {
+                const chips = carouselContainer.querySelectorAll('.bank-chip.draggable');
+                chips.forEach((chip, index) => {
+                    const bId = chip.dataset.bankId;
+                    const bank = getBank(bId);
+                    if (bank) bank.order = index;
+                });
+                save();
+                // Перерисовывать не обязательно, так как DOM уже обновлен Sortable,
+                // но для надежности можно вызвать renderDashboard() с небольшой задержкой,
+                // хотя это может дергать анимацию. Оставим без вызова, так как порядок сохранен.
+            }
+        });
+    }
+}
+
 function renderAccounts(){const el=$('page-accounts');const showArch=S.ui.showArchived;let html=`<button class="btn-primary btn-block" style="margin-bottom:12px" onclick="openBankModal()">+ Добавить банк</button>`;const topBanks=S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0));html+=`<div id="banksSortable">`;topBanks.forEach(b=>{const accs=S.accounts.filter(a=>a.bankId===b.id&&(showArch||!a.archived)).sort((a,b)=>(a.order||0)-(b.order||0));const subBanks=S.banks.filter(sb=>sb.parentId===b.id).sort((a,b)=>(a.order||0)-(b.order||0));let total=0;accs.forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit = a.creditLimit || 0;total+=Math.max(0, v - limit);}else{total+=v;}});subBanks.forEach(sb=>{S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit = a.creditLimit || 0;total+=Math.max(0, v - limit);}else{total+=v;}});});const collapsed=S.ui.collapsedBanks.includes(b.id);html+=`<div class="bank-section" data-bank-id="${b.id}"><div class="bank-header" onclick="toggleBankAccs('${b.id}')" style="cursor:pointer"><span style="display:flex;align-items:center;"><span class="drag-handle" style="cursor:grab;margin-right:8px;" onclick="event.stopPropagation()">⋮⋮</span><span style="width:12px;height:12px;border-radius:50%;background:${b.color||'#888'};margin-right:8px;"></span>${collapsed?'▶':'▼'} ${esc(b.name)}</span><span class="bank-total">${fmt(total)}</span></div><div class="bank-accounts-list" data-bank-id="${b.id}" style="${collapsed?'display:none':''}"><div class="account-list-wrapper">`;subBanks.forEach(sb=>{const sbAccs=S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).sort((a,b)=>(a.order||0)-(b.order||0));const sbCollapsed=S.ui.collapsedBanks.includes(sb.id);html+=`<div class="sub-bank-section" data-bank-id="${sb.id}" style="padding-left:14px;border-left:2px solid ${sb.color};margin-left:14px;margin-top:8px;"><div style="font-weight:600;font-size:13px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleBankAccs('${sb.id}')"><span><span class="drag-handle" style="cursor:grab;margin-right:4px;" onclick="event.stopPropagation()">⋮⋮</span>${sbCollapsed?'▶':'▼'} ${esc(sb.name)}</span><div style="display:flex;gap:4px;" onclick="event.stopPropagation()"><button class="btn-icon" onclick="openBankModal('${sb.id}')" title="Редактировать банк">✏️</button><button class="btn-icon" onclick="deleteBank('${sb.id}')" title="Удалить банк">🗑</button><button class="btn-icon" onclick="openAccountModal(null,'${sb.id}')" title="Добавить счёт">+ Счёт</button></div></div><div class="bank-accounts-list" data-bank-id="${sb.id}" style="${sbCollapsed?'display:none':''}">${sbAccs.map(a=>{return `<div data-acc-id="${a.id}">${renderAccountRow(a,sb)}</div>`;}).join('')}</div></div>`;});accs.forEach(a=>{html+=`<div data-acc-id="${a.id}">${renderAccountRow(a,b)}</div>`;});html+=`</div><div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;"><div style="display:flex;gap:8px;"><button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>${b.isPlatform?`<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>`:''}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="openBankModal('${b.id}')" title="Редактировать банк">✏️</button>${!b.isPlatform?`<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>`:''}</div></div></div></div>`;});html+=`</div>`;html+=`<button class="btn-secondary btn-block" style="margin-top:12px" onclick="S.ui.showArchived=!S.ui.showArchived;save();renderAccounts()">${showArch?'Скрыть архив':'Показать архив'}</button>`;el.innerHTML=html;initSortable();}
 function initSortable(){const banksContainer=document.getElementById('banksSortable');if(banksContainer&&typeof Sortable!=='undefined'){new Sortable(banksContainer,{animation:150,handle:'.drag-handle',filter:'button, input, select, .sub-bank-section',onEnd:function(evt){const items=banksContainer.querySelectorAll(':scope > .bank-section');items.forEach((item,index)=>{const id=item.dataset.bankId;const b=getBank(id);if(b)b.order=index;});save();renderAll();}});}document.querySelectorAll('.bank-accounts-list').forEach(container=>{new Sortable(container,{animation:150,group:{name:'accounts',pull:false,put:false},handle:'.drag-handle',filter:'button, input, select, .sub-bank-section',onEnd:function(evt){const items=container.querySelectorAll(':scope > [data-acc-id]');items.forEach((item,index)=>{const id=item.dataset.accId;const a=getAcc(id);if(a)a.order=index;});save();renderAll();}});});}
 function toggleBank(id){const i=S.ui.collapsedBanks.indexOf(id);if(i>=0)S.ui.collapsedBanks.splice(i,1);else S.ui.collapsedBanks.push(id);save();renderAll();}
