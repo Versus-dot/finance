@@ -51,9 +51,7 @@ function computeMonth(m){m=m||thisMonth();let income=0,expense=0,savings=0,inves
 function maybeSnapshot(){const now=new Date();const freq=S.settings.snapshotFreq;let shouldSnap=false;if(freq==='monthly'){const last=new Date(now.getFullYear(),now.getMonth()+1,0);if(now.getDate()===last.getDate())shouldSnap=true;}else if(freq==='weekly'){if(now.getDay()===0)shouldSnap=true;}else if(freq==='daily'){shouldSnap=true;}if(!shouldSnap)return;const dateStr=today();if(S.snapshots.some(s=>s.date===dateStr))return;const t=computeTotals();S.snapshots.push({date:dateStr,total:t.totalCap});save();}
 
 function openDebtsFromDashboard() {
-    // 1. Переключаем вкладку
     document.querySelector('.nav-tab[data-tab="transactions"]').click();
-    // 2. Включаем фильтр долгов
     txFilter = 'debt';
     renderTransactions();
 }
@@ -64,7 +62,6 @@ function renderDashboard(){
     const m=computeMonth();
     const el=$('page-home');
     
-    // Считаем долги
     let totalOwed = 0;
     let totalOwe = 0;
     S.debts.forEach(d => {
@@ -74,7 +71,6 @@ function renderDashboard(){
 
     let topBarHtml=`<div class="total-bar"><div><div class="total-label">Баланс</div><div class="total-val">${fmt(t.totalCap+t.debt)}</div></div><div style="text-align:right;"><div class="total-label">Кредиты</div><div class="total-val neg">${t.debt>0?fmt(t.debt):'0 ₽'}</div></div></div><div class="header-separator"></div>`;
     
-    // Кнопка + для Банков (сделана в стиле btn-primary)
     let banksHtml=`<div class="banks-header"><div class="banks-title">Банки</div><button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openBankModal()">+</button></div>`;
     banksHtml+=`<div class="banks-carousel">`;
     banksHtml+=`<div class="bank-chip ${dashFilterBank==='all'?'active':''}" onclick="setDashFilter('all')"><div class="bc-name">🏦 Все банки</div><div class="bc-bal">${fmt(t.totalCap+t.debt)}</div></div>`;
@@ -94,8 +90,8 @@ function renderDashboard(){
     });
     banksHtml+=`</div>`;
     
-    // Кнопка + для Карт и счетов (точно такая же)
-    let groupsHtml=`<div class="section-title">Карты и счета<button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openAccountModal(null,'${dashFilterBank==='all'?S.banks.find(b=>!b.parentId).id:dashFilterBank}')">+</button></div><div class="acc-grid-pc">`;
+    // ДОБАВЛЕНА ПОЛОСА ЗДЕСЬ
+    let groupsHtml=`<div class="header-separator"></div><div class="section-title">Карты и счета<button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openAccountModal(null,'${dashFilterBank==='all'?S.banks.find(b=>!b.parentId).id:dashFilterBank}')">+</button></div><div class="acc-grid-pc">`;
     
     const banksToRender=dashFilterBank==='all'?S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0)):[getBank(dashFilterBank)];
     banksToRender.forEach(b=>{
@@ -123,10 +119,8 @@ function renderDashboard(){
     });
     groupsHtml+=`</div>`;
     
-    // Третья полоса
     groupsHtml += `<div class="header-separator"></div>`;
 
-    // Нижние виджеты
     let bottomWidgetsHtml = `
     <div class="bottom-widgets-grid">
         <div class="card month-stats">
