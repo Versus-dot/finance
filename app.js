@@ -237,13 +237,13 @@ async function backupToYandexDisk(silent = false) {
 }
 
 // Скачивание файла с Яндекс.Диска
-async function restoreFromYandexDisk() {
+async function restoreFromYandexDisk(silent = false) {
     const token = S.settings.yandexToken;
     if (!token) {
-        toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
+        if(!silent) toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
         return;
     }
-    toast('⏳ Поиск файла...');
+    if(!silent) toast('⏳ Поиск файла...');
 
     const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`);
 
@@ -253,7 +253,7 @@ async function restoreFromYandexDisk() {
         });
 
         if (downloadUrlRes.status === 404) {
-            toast('❌ Файл не найден');
+            if(!silent) toast('❌ Файл не найден');
             return;
         }
         if (!downloadUrlRes.ok) throw new Error('Ошибка API');
@@ -264,7 +264,7 @@ async function restoreFromYandexDisk() {
         const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm'; 
         const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(directUrl)}`;
 
-        toast('⏳ Скачивание...');
+        if(!silent) toast('⏳ Скачивание...');
         const fileRes = await fetch(proxyUrl);
         if (!fileRes.ok) throw new Error('Ошибка прокси');
 
@@ -273,14 +273,16 @@ async function restoreFromYandexDisk() {
         try { fileData = JSON.parse(fileText); } 
         catch (e) { throw new Error('Файл поврежден'); }
 
-        if (confirm('Заменить текущие данные данными из облака?')) {
+        if (silent || confirm('Заменить текущие данные данными из облака?')) {
+            const currentToken = S.settings.yandexToken; // <-- СОХРАНЯЕМ ТОКЕН ПЕРЕД ЗАМЕНОЙ
             S = Object.assign(defaultState(), fileData);
+            S.settings.yandexToken = currentToken; // <-- ВОЗВРАЩАЕМ ТОКЕН ОБРАТНО
             save(); applySettings(); renderAll(); closeModal();
             toast('✅ Данные восстановлены');
         }
     } catch (error) {
         console.error('Yandex Restore Error:', error);
-        toast('❌ Ошибка: ' + error.message);
+        if(!silent) toast('❌ Ошибка: ' + error.message);
     }
 }
 
@@ -322,25 +324,22 @@ async function checkCloudSync() {
         if (!res.ok) return;
 
         const data = await res.json();
-        // Получаем время изменения файла в облаке
         const cloudModified = new Date(data.modified).getTime(); 
-        // Получаем время нашего последнего локального бэкапа
         const localLastBackup = S.settings.lastCloudBackup || 0;
 
         // Если облако новее нашего последнего бэкапа (с допуском 5 секунд)
         if (cloudModified > localLastBackup + 5000) {
             if (confirm(`☁️ Обнаружены более свежие данные в облаке (от ${new Date(cloudModified).toLocaleString('ru-RU')}).\n\nСкачать их?`)) {
-                restoreFromYandexDisk(); // Скачиваем, если согласились
+                restoreFromYandexDisk(true); // Скачиваем тихо (без второго окна)
             } else {
                 backupToYandexDisk(true); // Загружаем свои, если отказались
             }
         } else {
-            // Если облако не новее, проверяем, не пора ли сделать обычный ежедневный бэкап
             checkAutoBackup();
         }
     } catch (e) {
         console.error('Ошибка синхронизации:', e);
-        checkAutoBackup(); // Если прокси не ответил, делаем как обычно
+        checkAutoBackup(); 
     }
 }
 
