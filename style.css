@@ -7,9 +7,17 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .app-header h1{font-size:17px;margin:0;font-weight:700}
 .icon-btn{background:transparent;border:none;color:var(--text);font-size:20px;padding:8px;cursor:pointer;border-radius:8px}
 .page{display:none;padding:14px}.page.active{display:block}
-.total-bar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;padding:0 4px}
+.total-bar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;padding:0 4px}
 .total-val{font-size:26px;font-weight:800;margin-top:4px}
 .total-label{font-size:12px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px}
+
+/* НОВЫЕ СТИЛИ ДЛЯ ШАПКИ БАНКОВ */
+.header-separator{border-bottom:1px solid var(--border);margin-bottom:16px}
+.banks-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 4px}
+.banks-title{font-size:16px;font-weight:700}
+.btn-add-bank{background:transparent;color:var(--accent);border:none;font-size:24px;font-weight:700;cursor:pointer;padding:0 6px;line-height:1;transition:transform 0.1s}
+.btn-add-bank:active{transform:scale(0.9)}
+
 .banks-carousel{display:flex;gap:10px;overflow-x:auto;padding-bottom:12px;margin-bottom:10px;-webkit-overflow-scrolling:touch}
 .banks-carousel::-webkit-scrollbar{display:none}
 .bank-chip{flex-shrink:0;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:12px;min-width:130px;cursor:pointer;transition:0.2s;display:flex;flex-direction:column;gap:6px}
@@ -25,7 +33,6 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .account-row{display:flex;align-items:center;gap:10px;padding:12px 10px;cursor:pointer;transition:0.1s;border-bottom:1px solid var(--border);margin:0 6px;border-radius:8px;border-left:4px solid var(--bank-color);border-radius:0 8px 8px 0;margin-left:10px}
 .account-row:last-child{border-bottom:none}.account-row:active{background:rgba(255,255,255,0.05)}
 
-/* Новые красивые иконки в кружках */
 .acc-icon-wrap{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px}
 .acc-icon-wrap svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
