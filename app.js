@@ -306,12 +306,9 @@ async function checkCloudSync() {
     if (!token) return;
 
     try {
-        // Запрашиваем у Яндекса информацию о файле (когда он был изменен)
+        // Делаем ПРЯМОЙ запрос к API Яндекса (без прокси), чтобы узнать дату файла
         const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
-        const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
-        const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(targetUrl)}`;
-
-        const res = await fetch(proxyUrl, {
+        const res = await fetch(targetUrl, {
             headers: { 'Authorization': `OAuth ${token}` }
         });
 
@@ -330,9 +327,9 @@ async function checkCloudSync() {
         // Если облако новее нашего последнего бэкапа (с допуском 5 секунд)
         if (cloudModified > localLastBackup + 5000) {
             if (confirm(`☁️ Обнаружены более свежие данные в облаке (от ${new Date(cloudModified).toLocaleString('ru-RU')}).\n\nСкачать их?`)) {
-                restoreFromYandexDisk(true); // Скачиваем тихо (без второго окна)
+                restoreFromYandexDisk(true);
             } else {
-                backupToYandexDisk(true); // Загружаем свои, если отказались
+                backupToYandexDisk(true);
             }
         } else {
             checkAutoBackup();
