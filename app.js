@@ -47,17 +47,16 @@ function getBankIndicatorHtml(bank){if(!bank)return '';const bColor=bank.color||
 function classifyTransfer(f,t){const fA=getAcc(f),tA=getAcc(t);if(!fA||!tA)return 'ignore';const fT=isTarget(fA),tT=isTarget(tA);if(fT===tT)return 'ignore';if(!fT&&tT){if(SAVINGS_TYPES.includes(tA.type))return 'savings';if(INVEST_TYPES.includes(tA.type))return 'investment';return 'ignore';}if(fT&&!tT)return 'withdraw';return 'ignore';}
 function recalculateBalances(){S.accounts.forEach(a=>a.balance=a.initialBalance||0);S.transactions.forEach(t=>{if(t.type==='income'){const a=getAcc(t.accountId);if(a)a.balance+=t.amount;}else if(t.type==='expense'){const a=getAcc(t.accountId);if(a)a.balance-=t.amount;}else if(t.type==='transfer'){const f=getAcc(t.accountId);const to=getAcc(t.toAccountId);if(f)f.balance-=t.amount;if(to)to.balance+=t.amount;}else if(t.type==='debt'){const a=getAcc(t.accountId);if(t.debtType==='lent'||t.debtType==='repaid'){if(a)a.balance-=t.amount;}else if(t.debtType==='borrowed'||t.debtType==='returned'){if(a)a.balance+=t.amount;}}});}
 
-// НОВАЯ ЛОГИКА ПОДСЧЕТА (Баланс = Доступные средства, Долг = Лимит - Баланс)
 function computeTotals(){
     let totalCap=0,debt=0,creditLimit=0,cushion=0,deposits=0,brokerage=0,crypto=0,pds=0,free=0,cash=0;
     S.accounts.filter(a=>!a.archived).forEach(a=>{
-        const v=accValue(a); // v = текущий доступный остаток
+        const v=accValue(a); 
         if(a.type==='credit'){
             const limit = a.creditLimit || 0;
-            const currentDebt = Math.max(0, limit - v); // Долг
-            const overpay = Math.max(0, v - limit); // Переплата (наши деньги)
+            const currentDebt = Math.max(0, limit - v);
+            const overpay = Math.max(0, v - limit);
             debt += currentDebt;
-            totalCap += overpay; // В общий баланс идет только переплата
+            totalCap += overpay;
             creditLimit += limit;
         } else {
             totalCap += v;
@@ -130,7 +129,14 @@ function renderDashboard(){
             });
         });
         const bColor=b.color||'#888';
-        banksHtml+=`<div class="bank-chip ${dashFilterBank===b.id?'active':''}" onclick="setDashFilter('${b.id}')"><div class="bc-name"><span class="bank-dot" style="background:${bColor};width:8px;height:8px;margin-right:2px;"></span> ${esc(b.name)}</div><div class="bc-bal">${fmt(bankTotal)}</div>${bankDebt>0?`<div class="bc-debt" style="color:var(--red)">-${fmt(bankDebt)}</div>`:''}</div>`;
+        
+        // Добавляем шестеренку
+        banksHtml+=`<div class="bank-chip ${dashFilterBank===b.id?'active':''}" onclick="setDashFilter('${b.id}')" style="position:relative;">
+            <span style="position:absolute; top:8px; right:8px; color:var(--muted); font-size:14px; cursor:pointer; padding:2px; opacity:0.7; transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7" onclick="event.stopPropagation(); openBankModal('${b.id}')">⚙️</span>
+            <div class="bc-name" style="padding-right:24px;"><span class="bank-dot" style="background:${bColor};width:8px;height:8px;margin-right:2px;"></span> ${esc(b.name)}</div>
+            <div class="bc-bal">${fmt(bankTotal)}</div>
+            ${bankDebt>0?`<div class="bc-debt" style="color:var(--red)">-${fmt(bankDebt)}</div>`:''}
+        </div>`;
     });
     banksHtml+=`</div>`;
     
@@ -221,10 +227,8 @@ function renderAccountRow(a,bank){
         const debtAmount = Math.max(0, limit - v);
         const overpay = Math.max(0, v - limit);
         
-        // Добавляем лимит мелким серым шрифтом в meta
         meta += ` <span style="color:var(--muted);font-size:11px;font-weight:normal;">· Лимит: ${fmt(limit)}</span>`;
         
-        // Отображаем доступный остаток крупно
         balHtml=`<div class="acc-balance">${fmt(v)}</div>`;
         
         if(debtAmount > 0) {
