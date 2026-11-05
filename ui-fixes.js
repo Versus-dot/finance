@@ -1,5 +1,5 @@
 // ==========================================
-// Файл ui-fixes.js — дополнительные улучшения
+// Файл ui-fixes.js — дополнительные улучшения (ИСПРАВЛЕНО)
 // ==========================================
 
 // 1. Следим за обновлением главного экрана, чтобы менять иконку замка на SVG
@@ -10,22 +10,29 @@ const observer = new MutationObserver(() => {
     // Проверяем, включен ли сейчас режим редактирования
     const isEdit = (typeof S !== 'undefined' && S.ui && S.ui.bankEditMode);
     
+    const svgOpen = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+    const svgClose = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+
+    // Если замок открыт (синяя кнопка)
     if (isEdit) {
-        // Открытый замок (синяя кнопка)
-        lockBtn.className = 'btn-primary btn-small';
-        lockBtn.style.padding = '4px 8px';
-        lockBtn.style.display = 'flex';
-        lockBtn.style.alignItems = 'center';
-        lockBtn.style.justifyContent = 'center';
-        lockBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+        if (lockBtn.innerHTML !== svgOpen) { // Проверка, чтобы не было бесконечного цикла
+            lockBtn.className = 'btn-primary btn-small';
+            lockBtn.style.padding = '4px 8px';
+            lockBtn.style.display = 'flex';
+            lockBtn.style.alignItems = 'center';
+            lockBtn.style.justifyContent = 'center';
+            lockBtn.innerHTML = svgOpen;
+        }
     } else {
-        // Закрытый замок (серая кнопка)
-        lockBtn.className = 'btn-secondary btn-small';
-        lockBtn.style.padding = '4px 8px';
-        lockBtn.style.display = 'flex';
-        lockBtn.style.alignItems = 'center';
-        lockBtn.style.justifyContent = 'center';
-        lockBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+        // Если замок закрыт (серая кнопка)
+        if (lockBtn.innerHTML !== svgClose) { // Проверка, чтобы не было бесконечного цикла
+            lockBtn.className = 'btn-secondary btn-small';
+            lockBtn.style.padding = '4px 8px';
+            lockBtn.style.display = 'flex';
+            lockBtn.style.alignItems = 'center';
+            lockBtn.style.justifyContent = 'center';
+            lockBtn.innerHTML = svgClose;
+        }
     }
 });
 
@@ -47,7 +54,6 @@ document.addEventListener('mousedown', (e) => {
     const carousel = e.target.closest('.banks-carousel');
     if (!carousel) return;
     
-    // Если режим редактирования включен, скролл мышкой отключаем
     if (typeof S !== 'undefined' && S.ui && S.ui.bankEditMode) return;
     
     isDown = true;
@@ -73,7 +79,6 @@ document.addEventListener('mousemove', (e) => {
     carousel.scrollLeft = scrollLeft - walk;
 });
 
-// Защита от случайного клика по банку, если мы его тащили
 document.addEventListener('click', (e) => {
     if (moved && e.target.closest('.banks-carousel')) {
         e.preventDefault();
@@ -93,4 +98,4 @@ document.addEventListener('wheel', (e) => {
     }
 }, { passive: false });
 
-console.log('✅ UI Fixes (v44.1) загружены');
+console.log('✅ UI Fixes (v44.1) исправлены и загружены');
