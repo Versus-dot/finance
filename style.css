@@ -118,3 +118,9 @@ input[type="date"]{color-scheme:dark}:root[data-theme="light"] input[type="date"
 .toggle-slider::before{content:"";position:absolute;height:18px;width:18px;left:2px;top:2px;background:var(--muted);border-radius:50%;transition:transform .2s,background .2s}
 .toggle-switch input:checked + .toggle-slider{background:var(--accent);border-color:var(--accent)}
 .toggle-switch input:checked + .toggle-slider::before{transform:translateX(20px);background:#fff}
+/* Стили для скролла банков (v44.1) */
+.banks-carousel{display:flex;gap:10px;overflow-x:auto;padding-bottom:12px;margin-bottom:10px;-webkit-overflow-scrolling:touch;cursor:grab}
+.banks-carousel:active{cursor:grabbing}
+.banks-carousel::-webkit-scrollbar{height:4px}
+.banks-carousel::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.bank-chip{user-select:none;-webkit-user-drag:none;}
