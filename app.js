@@ -1,3 +1,4 @@
+// ===== app.js v44 | ЧАСТЬ 1/2 =====
 const KEY='financeApp_v25';
 const ACC_TYPES={debit:'Дебетовая карта',credit:'Кредитная карта',brokerage:'Брокерский',iis:'ИИС',pds:'ПДС',deposit:'Вклад',savings:'Накопительный',crypto_wallet:'Криптокошелек',crypto_exchange:'Криптобиржа',cash:'Наличные',invest_kopilka:'Инвесткопилка',finu_wallet:'Кошелёк Финуслуги'};
 const TERMS={indefinite:'Бессрочный','14d':'14 дней','3m':'3 мес','6m':'6 мес','12m':'1 год','24m':'2 года'};
@@ -8,25 +9,15 @@ const BANK_COLORS=['#2ecc71','#f5b945','#ff5c5c','#4d7fff','#a78bfa','#ff9f43','
 const KNOWN_BANKS={'сбер':'#2ecc71','sber':'#2ecc71','т-банк':'#f5b945','тинькофф':'#f5b945','tinkoff':'#f5b945','tbank':'#f5b945','альфа':'#ff5c5c','alfa':'#ff5c5c','втб':'#4d7fff','vtb':'#4d7fff','райф':'#f5b945','raif':'#f5b945','озон':'#a78bfa','ozon':'#a78bfa','яндекс':'#ff5c5c','yandex':'#ff5c5c','финуслуги':'#00d2d3','finu':'#00d2d3','мкб':'#4d7fff','дом.рф':'#2ecc71','бкс':'#4d7fff','уралсиб':'#ff5c5c','газпромбанк':'#4d7fff','россельхозбанк':'#2ecc71','открытие':'#00d2d3','росбанк':'#a78bfa','совкомбанк':'#f5b945','почта банк':'#ff5c5c','мтс банк':'#ff5c5c'};
 
 function getSVG(type){
-    const svgs = {
-        debit: '<svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>',
-        credit: '<svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>',
-        finu_wallet: '<svg viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>',
-        brokerage: '<svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
-        iis: '<svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
-        invest_kopilka: '<svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>',
-        deposit: '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
-        savings: '<svg viewBox="0 0 24 24"><path d="M19 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c0 1.2.4 2.4 1.1 3.3-.5.3-1.1.7-1.1.7v3h2v-2h2v2h4v-2h2v2h2v-3c.8-.6 1.5-1.4 1.9-2.3Z"/><path d="M16 9h.01"/></svg>',
-        crypto: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M10 10h4"/><path d="M10 14h4"/></svg>',
-        cash: '<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg>'
-    };
-    return svgs[type] || svgs.debit;
+    const svgs={debit:'<svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>',credit:'<svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>',finu_wallet:'<svg viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>',brokerage:'<svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',iis:'<svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',invest_kopilka:'<svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>',deposit:'<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',savings:'<svg viewBox="0 0 24 24"><path d="M19 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c0 1.2.4 2.4 1.1 3.3-.5.3-1.1.7-1.1.7v3h2v-2h2v2h4v-2h2v2h2v-3c.8-.6 1.5-1.4 1.9-2.3Z"/><path d="M16 9h.01"/></svg>',crypto:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M10 10h4"/><path d="M10 14h4"/></svg>',cash:'<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg>'};
+    return svgs[type]||svgs.debit;
 }
 
-function defaultState(){return{settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'stripe',pinCode:'',yandexToken:'',lastCloudBackup:null},ui:{collapsedBanks:[],showArchived:false,lastSnapshot:null,bankEditMode:false},categories:[{id:'c_sal',type:'income',name:'Зарплата',passive:false},{id:'c_adv',type:'income',name:'Аванс',passive:false},{id:'c_freelance',type:'income',name:'Фриланс',passive:false},{id:'c_gift',type:'income',name:'Подарки',passive:false},{id:'c_cashback',type:'income',name:'Кешбэк',passive:true},{id:'c_coupon',type:'income',name:'Купоны',passive:true},{id:'c_dividend',type:'income',name:'Дивиденды',passive:true},{id:'c_interest',type:'income',name:'Проценты по вкладам',passive:true},{id:'c_taxrefund',type:'income',name:'Возврат налога',passive:true},{id:'c_other_inc',type:'income',name:'Прочий доход',passive:false},{id:'c_food',type:'expense',name:'Еда',passive:false},{id:'c_transport',type:'expense',name:'Транспорт',passive:false},{id:'c_housing',type:'expense',name:'Жильё',passive:false},{id:'c_utilities',type:'expense',name:'Коммунальные',passive:false},{id:'c_health',type:'expense',name:'Здоровье',passive:false},{id:'c_fun',type:'expense',name:'Развлечения',passive:false},{id:'c_clothes',type:'expense',name:'Одежда',passive:false},{id:'c_phone',type:'expense',name:'Связь',passive:false},{id:'c_subs',type:'expense',name:'Подписки',passive:false},{id:'c_joint',type:'expense',name:'Совместные расходы',passive:false},{id:'c_services',type:'expense',name:'Оказание услуг',passive:false},{id:'c_taxes',type:'expense',name:'Налоги',passive:false},{id:'c_duty',type:'expense',name:'Госпошлина',passive:false},{id:'c_other_exp',type:'expense',name:'Прочее',passive:false}],banks:[{id:'b_main',name:'Основной банк',color:'#2ecc71',parentId:null,order:0},{id:'b_finu',name:'Финуслуги',color:'#00d2d3',parentId:null,order:1,isPlatform:true}],accounts:[],transactions:[],budgets:[],debts:[],counterparties:[],snapshots:[]};}
+function defaultState(){return{settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'stripe',pinCode:'',yandexToken:'',lastCloudBackup:null,finuslugiEnabled:false},ui:{collapsedBanks:[],showArchived:false,lastSnapshot:null,bankEditMode:false},categories:[{id:'c_sal',type:'income',name:'Зарплата',passive:false},{id:'c_adv',type:'income',name:'Аванс',passive:false},{id:'c_freelance',type:'income',name:'Фриланс',passive:false},{id:'c_gift',type:'income',name:'Подарки',passive:false},{id:'c_cashback',type:'income',name:'Кешбэк',passive:true},{id:'c_coupon',type:'income',name:'Купоны',passive:true},{id:'c_dividend',type:'income',name:'Дивиденды',passive:true},{id:'c_interest',type:'income',name:'Проценты по вкладам',passive:true},{id:'c_taxrefund',type:'income',name:'Возврат налога',passive:true},{id:'c_other_inc',type:'income',name:'Прочий доход',passive:false},{id:'c_food',type:'expense',name:'Еда',passive:false},{id:'c_transport',type:'expense',name:'Транспорт',passive:false},{id:'c_housing',type:'expense',name:'Жильё',passive:false},{id:'c_utilities',type:'expense',name:'Коммунальные',passive:false},{id:'c_health',type:'expense',name:'Здоровье',passive:false},{id:'c_fun',type:'expense',name:'Развлечения',passive:false},{id:'c_clothes',type:'expense',name:'Одежда',passive:false},{id:'c_phone',type:'expense',name:'Связь',passive:false},{id:'c_subs',type:'expense',name:'Подписки',passive:false},{id:'c_joint',type:'expense',name:'Совместные расходы',passive:false},{id:'c_services',type:'expense',name:'Оказание услуг',passive:false},{id:'c_taxes',type:'expense',name:'Налоги',passive:false},{id:'c_duty',type:'expense',name:'Госпошлина',passive:false},{id:'c_other_exp',type:'expense',name:'Прочее',passive:false}],banks:[{id:'b_main',name:'Основной банк',color:'#2ecc71',parentId:null,order:0},{id:'b_finu',name:'Финуслуги',color:'#00d2d3',parentId:null,order:1,isPlatform:true}],accounts:[],transactions:[],budgets:[],debts:[],counterparties:[],snapshots:[]};}
 let S=defaultState();
 let dashFilterBank='all';
 let activeTab='home';
+let _lastUserSaveTime=0;
 const $=id=>document.getElementById(id);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const today=()=>new Date().toISOString().slice(0,10);
@@ -35,8 +26,35 @@ const fmt=n=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maxi
 const fmtNum=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n||0);
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(m,actionFn,actionText){const t=$('toast');t.innerHTML=`<span>${m}</span>`+(actionFn?`<button id="toastAction">${actionText}</button>`:'');t.classList.add('show');if(actionFn)$('toastAction').onclick=()=>{actionFn();t.classList.remove('show');};clearTimeout(t._t);t._t=setTimeout(()=>{t.classList.remove('show');t.innerHTML='';},actionFn?5000:2000);}
-function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);S={...defaultState(),...p};if(!S.banks.length)S.banks=defaultState().banks;}else{const o=localStorage.getItem('financeApp_v24')||localStorage.getItem('financeApp_v23');if(o){const p=JSON.parse(o);S={...defaultState(),...p};S.settings.badgeStyle='stripe';}}}catch(e){console.error(e);}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Ошибка памяти');}}
+
+function isFinuslugiBank(bankId){
+    if(!bankId)return false;
+    if(bankId==='b_finu')return true;
+    const b=S.banks.find(x=>x.id===bankId);
+    if(!b)return false;
+    return b.id==='b_finu'||b.parentId==='b_finu';
+}
+function filterBanksForDisplay(banks){if(S.settings.finuslugiEnabled)return banks;return banks.filter(b=>!isFinuslugiBank(b.id));}
+function filterAccountsForDisplay(accounts){if(S.settings.finuslugiEnabled)return accounts;return accounts.filter(a=>!isFinuslugiBank(a.bankId));}
+
+function load(){
+    try{
+        const r=localStorage.getItem(KEY);
+        if(r){
+            const p=JSON.parse(r);
+            S={...defaultState(),...p};
+            if(!S.banks.length)S.banks=defaultState().banks;
+            if(S.settings.finuslugiEnabled===undefined){
+                const hasFinu=S.accounts.some(a=>isFinuslugiBank(a.bankId));
+                S.settings.finuslugiEnabled=hasFinu;
+            }
+        }else{
+            const o=localStorage.getItem('financeApp_v24')||localStorage.getItem('financeApp_v23');
+            if(o){const p=JSON.parse(o);S={...defaultState(),...p};S.settings.badgeStyle='stripe';}
+        }
+    }catch(e){console.error(e);}
+}
+function save(isUserAction=true){try{if(isUserAction)_lastUserSaveTime=Date.now();localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Ошибка памяти');}}
 function getBank(id){return S.banks.find(b=>b.id===id);}
 function getAcc(id){return S.accounts.find(a=>a.id===id);}
 function getCat(id){return S.categories.find(c=>c.id===id);}
@@ -50,16 +68,14 @@ function recalculateBalances(){S.accounts.forEach(a=>a.balance=a.initialBalance|
 function computeTotals(){
     let totalCap=0,debt=0,creditLimit=0,cushion=0,deposits=0,brokerage=0,crypto=0,pds=0,free=0,cash=0;
     S.accounts.filter(a=>!a.archived).forEach(a=>{
-        const v=accValue(a); 
+        const v=accValue(a);
         if(a.type==='credit'){
-            const limit = a.creditLimit || 0;
-            const currentDebt = Math.max(0, limit - v);
-            const overpay = Math.max(0, v - limit);
-            debt += currentDebt;
-            totalCap += overpay;
-            creditLimit += limit;
-        } else {
-            totalCap += v;
+            const limit=a.creditLimit||0;
+            debt+=Math.max(0,limit-v);
+            totalCap+=Math.max(0,v-limit);
+            creditLimit+=limit;
+        }else{
+            totalCap+=v;
             if(['deposit','savings','finu_wallet'].includes(a.type))deposits+=v;
             if(['brokerage','iis','invest_kopilka'].includes(a.type))brokerage+=v;
             if(a.type==='pds')pds+=v;
@@ -67,179 +83,78 @@ function computeTotals(){
             if(a.type==='cash')cash+=v;
             if(['debit','cash'].includes(a.type))free+=v;
         }
-        if(a.inCushion && !a.archived) cushion+=v;
+        if(a.inCushion&&!a.archived)cushion+=v;
     });
     return {totalCap,debt,creditLimit,cushion,deposits,brokerage,crypto,pds,free,cash};
 }
 
 function computeMonth(m){m=m||thisMonth();let income=0,expense=0,savings=0,investment=0,passive=0;S.transactions.filter(t=>t.date.startsWith(m)).forEach(t=>{if(t.type==='income'){income+=t.amount;const c=getCat(t.categoryId);if(c&&c.passive)passive+=t.amount;}else if(t.type==='expense'){expense+=t.amount;}else if(t.type==='transfer'){const k=t.savingsKind||classifyTransfer(t.accountId,t.toAccountId);if(k==='savings')savings+=t.amount;else if(k==='investment')investment+=t.amount;}});return{income,expense,savings,investment,passive,savedTotal:savings+investment,savingsRate:income>0?(savings+investment)/income*100:0};}
-function maybeSnapshot(){const now=new Date();const freq=S.settings.snapshotFreq;let shouldSnap=false;if(freq==='monthly'){const last=new Date(now.getFullYear(),now.getMonth()+1,0);if(now.getDate()===last.getDate())shouldSnap=true;}else if(freq==='weekly'){if(now.getDay()===0)shouldSnap=true;}else if(freq==='daily'){shouldSnap=true;}if(!shouldSnap)return;const dateStr=today();if(S.snapshots.some(s=>s.date===dateStr))return;const t=computeTotals();S.snapshots.push({date:dateStr,total:t.totalCap});save();}
+function maybeSnapshot(){const now=new Date();const freq=S.settings.snapshotFreq;let shouldSnap=false;if(freq==='monthly'){const last=new Date(now.getFullYear(),now.getMonth()+1,0);if(now.getDate()===last.getDate())shouldSnap=true;}else if(freq==='weekly'){if(now.getDay()===0)shouldSnap=true;}else if(freq==='daily'){shouldSnap=true;}if(!shouldSnap)return;const dateStr=today();if(S.snapshots.some(s=>s.date===dateStr))return;const t=computeTotals();S.snapshots.push({date:dateStr,total:t.totalCap});save(false);}
 
-function openDebtsFromDashboard() {
-    document.querySelector('.nav-tab[data-tab="transactions"]').click();
-    txFilter = 'debt';
-    renderTransactions();
-}
-
-function toggleBankEditMode() {
-    S.ui.bankEditMode = !S.ui.bankEditMode;
-    save();
-    renderDashboard();
-}
+function openDebtsFromDashboard(){setActiveTab('transactions');txFilter='debt';renderTransactions();}
+function toggleBankEditMode(){S.ui.bankEditMode=!S.ui.bankEditMode;save();renderDashboard();}
 
 function renderDashboard(){
     recalculateBalances();
     const t=computeTotals();
     const m=computeMonth();
     const el=$('page-home');
-    
-    let totalOwed = 0;
-    let totalOwe = 0;
-    const lentSums = {};
-    const borrowedSums = {};
+    let totalOwed=0,totalOwe=0;
+    const lentSums={},borrowedSums={};
     S.transactions.filter(tr=>tr.type==='debt').forEach(tr=>{
-        if(!tr.counterpartyId) return;
-        if(tr.debtType==='lent'){
-            lentSums[tr.counterpartyId] = (lentSums[tr.counterpartyId]||0) + tr.amount;
-        } else if(tr.debtType==='returned'){
-            lentSums[tr.counterpartyId] = (lentSums[tr.counterpartyId]||0) - tr.amount;
-        } else if(tr.debtType==='borrowed'){
-            borrowedSums[tr.counterpartyId] = (borrowedSums[tr.counterpartyId]||0) + tr.amount;
-        } else if(tr.debtType==='repaid'){
-            borrowedSums[tr.counterpartyId] = (borrowedSums[tr.counterpartyId]||0) - tr.amount;
-        }
+        if(!tr.counterpartyId)return;
+        if(tr.debtType==='lent')lentSums[tr.counterpartyId]=(lentSums[tr.counterpartyId]||0)+tr.amount;
+        else if(tr.debtType==='returned')lentSums[tr.counterpartyId]=(lentSums[tr.counterpartyId]||0)-tr.amount;
+        else if(tr.debtType==='borrowed')borrowedSums[tr.counterpartyId]=(borrowedSums[tr.counterpartyId]||0)+tr.amount;
+        else if(tr.debtType==='repaid')borrowedSums[tr.counterpartyId]=(borrowedSums[tr.counterpartyId]||0)-tr.amount;
     });
-    Object.values(lentSums).forEach(v=>{ if(v>0) totalOwed += v; });
-    Object.values(borrowedSums).forEach(v=>{ if(v>0) totalOwe += v; });
-
+    Object.values(lentSums).forEach(v=>{if(v>0)totalOwed+=v;});
+    Object.values(borrowedSums).forEach(v=>{if(v>0)totalOwe+=v;});
     let topBarHtml=`<div class="total-bar"><div><div class="total-label">Баланс</div><div class="total-val">${fmt(t.totalCap)}</div></div><div style="text-align:right;"><div class="total-label">Кредиты</div><div class="total-val neg">${t.debt>0?fmt(t.debt):'0 ₽'}</div></div></div><div class="header-separator"></div>`;
-    
-    // Блок с заголовком и кнопками (Замок + Добавить)
-    let lockIcon = S.ui.bankEditMode ? '🔓' : '🔒';
-    let banksHtml=`<div class="banks-header">
-        <div class="banks-title">Банки</div>
-        <div style="display:flex; gap:8px; align-items:center;">
-            <button class="btn-secondary btn-small" style="padding:2px 8px;border-radius:8px;font-size:16px;line-height:1;color:var(--text);" onclick="toggleBankEditMode()" title="Режим редактирования">${lockIcon}</button>
-            <button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openBankModal()">+</button>
-        </div>
-    </div>`;
-    
+    let lockIcon=S.ui.bankEditMode?'🔓':'🔒';
+    let banksHtml=`<div class="banks-header"><div class="banks-title">Банки</div><div style="display:flex;gap:8px;align-items:center;"><button class="btn-secondary btn-small" style="padding:2px 8px;border-radius:8px;font-size:16px;line-height:1;color:var(--text);" onclick="toggleBankEditMode()" title="Режим редактирования">${lockIcon}</button><button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openBankModal()">+</button></div></div>`;
     banksHtml+=`<div class="banks-carousel ${S.ui.bankEditMode?'edit-mode':''}">`;
-    // Карточка "Все банки" (не перетаскивается)
     banksHtml+=`<div class="bank-chip ${dashFilterBank==='all'?'active':''}" ${S.ui.bankEditMode?'':'onclick="setDashFilter(\'all\')"'}><div class="bc-name">🏦 Все банки</div><div class="bc-bal">${fmt(t.totalCap)}</div></div>`;
-    
-    const topBanks=S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0));
+    const topBanks=filterBanksForDisplay(S.banks.filter(b=>!b.parentId)).sort((a,b)=>(a.order||0)-(b.order||0));
     topBanks.forEach(b=>{
-        let bankTotal=0; let bankDebt=0;
+        let bankTotal=0,bankDebt=0;
         const accs=S.accounts.filter(a=>a.bankId===b.id&&!a.archived);
-        accs.forEach(a=>{
-            const v=accValue(a);
-            if(a.type==='credit'){
-                const limit = a.creditLimit || 0;
-                bankDebt += Math.max(0, limit - v);
-                bankTotal += Math.max(0, v - limit);
-            } else {
-                bankTotal += v;
-            }
-        });
-        const subBanks=S.banks.filter(sb=>sb.parentId===b.id);
-        subBanks.forEach(sb=>{
-            const subAccs=S.accounts.filter(a=>a.bankId===sb.id&&!a.archived);
-            subAccs.forEach(a=>{
-                const v=accValue(a);
-                if(a.type==='credit'){
-                    const limit = a.creditLimit || 0;
-                    bankDebt += Math.max(0, limit - v);
-                    bankTotal += Math.max(0, v - limit);
-                } else {
-                    bankTotal += v;
-                }
-            });
-        });
+        accs.forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit=a.creditLimit||0;bankDebt+=Math.max(0,limit-v);bankTotal+=Math.max(0,v-limit);}else{bankTotal+=v;}});
+        const subBanks=filterBanksForDisplay(S.banks.filter(sb=>sb.parentId===b.id));
+        subBanks.forEach(sb=>{S.accounts.filter(a=>a.bankId===sb.id&&!a.archived).forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit=a.creditLimit||0;bankDebt+=Math.max(0,limit-v);bankTotal+=Math.max(0,v-limit);}else{bankTotal+=v;}});});
         const bColor=b.color||'#888';
-        
-        // Если включен режим редактирования, добавляем класс draggable и шестеренку
-        const dragClass = S.ui.bankEditMode ? 'draggable' : '';
-        const clickAction = S.ui.bankEditMode ? '' : `onclick="setDashFilter('${b.id}')"`;
-        const gearHtml = S.ui.bankEditMode 
-            ? `<span style="position:absolute; top:8px; right:8px; color:var(--muted); font-size:14px; cursor:pointer; padding:2px; opacity:0.7; transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7" onclick="event.stopPropagation(); openBankModal('${b.id}')">⚙️</span>` 
-            : '';
-
-        banksHtml+=`<div class="bank-chip ${dragClass} ${dashFilterBank===b.id?'active':''}" ${clickAction} data-bank-id="${b.id}" style="position:relative;">
-            ${gearHtml}
-            <div class="bc-name" style="padding-right:${S.ui.bankEditMode?'20px':'0'};"><span class="bank-dot" style="background:${bColor};width:8px;height:8px;margin-right:2px;"></span> ${esc(b.name)}</div>
-            <div class="bc-bal">${fmt(bankTotal)}</div>
-            ${bankDebt>0?`<div class="bc-debt" style="color:var(--red)">-${fmt(bankDebt)}</div>`:''}
-        </div>`;
+        const dragClass=S.ui.bankEditMode?'draggable':'';
+        const clickAction=S.ui.bankEditMode?'':`onclick="setDashFilter('${b.id}')"`;
+        const gearHtml=S.ui.bankEditMode?`<span style="position:absolute;top:8px;right:8px;color:var(--muted);font-size:14px;cursor:pointer;padding:2px;opacity:0.7;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7" onclick="event.stopPropagation(); openBankModal('${b.id}')">⚙️</span>`:'';
+        banksHtml+=`<div class="bank-chip ${dragClass} ${dashFilterBank===b.id?'active':''}" ${clickAction} data-bank-id="${b.id}" style="position:relative;">${gearHtml}<div class="bc-name" style="padding-right:${S.ui.bankEditMode?'20px':'0'};"><span class="bank-dot" style="background:${bColor};width:8px;height:8px;margin-right:2px;"></span> ${esc(b.name)}</div><div class="bc-bal">${fmt(bankTotal)}</div>${bankDebt>0?`<div class="bc-debt" style="color:var(--red)">-${fmt(bankDebt)}</div>`:''}</div>`;
     });
     banksHtml+=`</div>`;
-    
     let groupsHtml=`<div class="header-separator"></div><div class="section-title">Карты и счета<button class="btn-primary btn-small" style="padding:2px 10px;border-radius:8px;font-size:16px;line-height:1;" onclick="openAccountModal(null,'${dashFilterBank==='all'?S.banks.find(b=>!b.parentId).id:dashFilterBank}')">+</button></div><div class="acc-grid-pc">`;
-    
-    const banksToRender=dashFilterBank==='all'?S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0)):[getBank(dashFilterBank)];
+    const banksToRender=dashFilterBank==='all'?filterBanksForDisplay(S.banks.filter(b=>!b.parentId)).sort((a,b)=>(a.order||0)-(b.order||0)):filterBanksForDisplay([getBank(dashFilterBank)]);
     banksToRender.forEach(b=>{
         if(!b)return;
-        const allGroupAccounts=[];
-        const directAccs=S.accounts.filter(a=>a.bankId===b.id&&!a.archived);
-        directAccs.forEach(a=>allGroupAccounts.push(a));
-        const subBanks=S.banks.filter(sb=>sb.parentId===b.id);
-        subBanks.forEach(sb=>{
-            const subAccs=S.accounts.filter(a=>a.bankId===sb.id&&!a.archived);
-            subAccs.forEach(a=>allGroupAccounts.push(a));
-        });
-        if(allGroupAccounts.length===0)return;
-        
+        const directAccs=filterAccountsForDisplay(S.accounts.filter(a=>a.bankId===b.id&&!a.archived));
+        const subBanks=filterBanksForDisplay(S.banks.filter(sb=>sb.parentId===b.id));
+        let allCount=directAccs.length;
+        subBanks.forEach(sb=>{allCount+=filterAccountsForDisplay(S.accounts.filter(a=>a.bankId===sb.id&&!a.archived)).length;});
+        if(allCount===0)return;
         let groupTotal=0;
-        allGroupAccounts.forEach(a=>{
-            const v=accValue(a);
-            if(a.type==='credit') {
-                const limit = a.creditLimit || 0;
-                groupTotal += Math.max(0, v - limit);
-            } else {
-                groupTotal += v;
-            }
-        });
-        
-        const isCollapsed = S.ui.collapsedBanks.includes(b.id);
+        directAccs.forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit=a.creditLimit||0;groupTotal+=Math.max(0,v-limit);}else{groupTotal+=v;}});
+        subBanks.forEach(sb=>{filterAccountsForDisplay(S.accounts.filter(a=>a.bankId===sb.id&&!a.archived)).forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit=a.creditLimit||0;groupTotal+=Math.max(0,v-limit);}else{groupTotal+=v;}});});
+        const isCollapsed=S.ui.collapsedBanks.includes(b.id);
         groupsHtml+=`<div class="bank-group" data-bank-id="${b.id}"><div class="bank-group-header" onclick="toggleDashBank('${b.id}')"><span style="display:flex;align-items:center;"><span class="drag-handle" style="cursor:grab;margin-right:6px;" onclick="event.stopPropagation()">⋮⋮</span><span style="width:10px;height:10px;border-radius:50%;background:${b.color||'#888'};margin-right:6px;"></span>${isCollapsed?'▶':'▼'} ${esc(b.name)}</span><span class="group-total-val">${fmt(groupTotal)}</span></div><div class="bank-group-list" data-bank-id="${b.id}" style="${isCollapsed?'display:none':''}">`;
         directAccs.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(a=>{groupsHtml+=renderAccountRow(a,b);});
         subBanks.forEach(sb=>{
-            const subAccs=S.accounts.filter(a=>a.bankId===sb.id&&!a.archived);
+            const subAccs=filterAccountsForDisplay(S.accounts.filter(a=>a.bankId===sb.id&&!a.archived));
             if(subAccs.length===0)return;
-            groupsHtml+=`<div style="padding: 6px 14px; font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">↳ ${esc(sb.name)}</div>`;
+            groupsHtml+=`<div style="padding:6px 14px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;">↳ ${esc(sb.name)}</div>`;
             subAccs.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(a=>{groupsHtml+=renderAccountRow(a,sb);});
         });
         groupsHtml+=`</div></div>`;
     });
     groupsHtml+=`</div>`;
-    
-    groupsHtml += `<div class="header-separator"></div>`;
-
-    let bottomWidgetsHtml = `
-    <div class="bottom-widgets-grid">
-        <div class="card month-stats">
-            <div style="font-weight:700;margin-bottom:10px">Этот месяц</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
-                <div>Доходы<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.income)}</div></div>
-                <div>Расходы<div class="neg" style="font-weight:700;font-size:15px">${fmt(m.expense)}</div></div>
-                <div>Отложено<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.savedTotal)}</div></div>
-                <div>Норма сбережений<div style="font-weight:700;font-size:15px">${m.savingsRate.toFixed(0)}%</div></div>
-            </div>
-        </div>
-
-        <div class="card" style="cursor:pointer; transition:transform 0.1s;" onclick="openDebtsFromDashboard()" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
-            <div style="font-weight:700;margin-bottom:10px">Долги</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <div style="font-size:13px;color:var(--muted);">Мне должны</div>
-                <div class="pos" style="font-weight:700;font-size:15px;">${fmt(totalOwed)}</div>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="font-size:13px;color:var(--muted);">Я должен</div>
-                <div class="neg" style="font-weight:700;font-size:15px;">${fmt(totalOwe)}</div>
-            </div>
-        </div>
-    </div>`;
-
+    groupsHtml+=`<div class="header-separator"></div>`;
+    let bottomWidgetsHtml=`<div class="bottom-widgets-grid"><div class="card month-stats"><div style="font-weight:700;margin-bottom:10px">Этот месяц</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px"><div>Доходы<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.income)}</div></div><div>Расходы<div class="neg" style="font-weight:700;font-size:15px">${fmt(m.expense)}</div></div><div>Отложено<div class="pos" style="font-weight:700;font-size:15px">${fmt(m.savedTotal)}</div></div><div>Норма сбережений<div style="font-weight:700;font-size:15px">${m.savingsRate.toFixed(0)}%</div></div></div></div><div class="card" style="cursor:pointer;transition:transform 0.1s;" onclick="openDebtsFromDashboard()" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'"><div style="font-weight:700;margin-bottom:10px">Долги</div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="font-size:13px;color:var(--muted);">Мне должны</div><div class="pos" style="font-weight:700;font-size:15px;">${fmt(totalOwed)}</div></div><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:13px;color:var(--muted);">Я должен</div><div class="neg" style="font-weight:700;font-size:15px;">${fmt(totalOwe)}</div></div></div></div>`;
     el.innerHTML=topBarHtml+banksHtml+groupsHtml+bottomWidgetsHtml;
     initDashSortable();
 }
@@ -247,87 +162,43 @@ function setDashFilter(bankId){dashFilterBank=bankId;renderDashboard();}
 function toggleDashBank(id){const i=S.ui.collapsedBanks.indexOf(id);if(i>=0)S.ui.collapsedBanks.splice(i,1);else S.ui.collapsedBanks.push(id);save();renderDashboard();}
 
 function renderAccountRow(a,bank){
-    const style=S.settings.badgeStyle==='stripe'?'style-stripe':'style-bg';
     const bColor=bank?bank.color:'#888';
     const iconSvg=getSVG(a.type);
     const bgColor=bColor+'25';
     let meta=ACC_TYPES[a.type]||a.type;
-    
     const v=accValue(a);
     let balHtml='';
-    
     if(a.type==='credit'){
-        const limit = a.creditLimit || 0;
-        const debtAmount = Math.max(0, limit - v);
-        const overpay = Math.max(0, v - limit);
-        
-        meta += ` <span style="color:var(--muted);font-size:11px;font-weight:normal;">· Лимит: ${fmt(limit)}</span>`;
-        
+        const limit=a.creditLimit||0;
+        const debtAmount=Math.max(0,limit-v);
+        const overpay=Math.max(0,v-limit);
+        meta+=` <span style="color:var(--muted);font-size:11px;font-weight:normal;">· Лимит: ${fmt(limit)}</span>`;
         balHtml=`<div class="acc-balance">${fmt(v)}</div>`;
-        
-        if(debtAmount > 0) {
-            balHtml+=`<div class="acc-debt" style="color:var(--red);font-weight:700;font-size:13px;">Задолженность: ${fmt(debtAmount)}</div>`;
-        } else if (overpay > 0) {
-            balHtml+=`<div class="acc-debt" style="color:var(--green);font-weight:700;font-size:13px;">Ваши деньги: +${fmt(overpay)}</div>`;
-        } else {
-            balHtml+=`<div class="acc-debt" style="color:var(--muted);font-size:13px;">Задолженность: 0 ₽</div>`;
+        if(debtAmount>0)balHtml+=`<div class="acc-debt" style="color:var(--red);font-weight:700;font-size:13px;">Задолженность: ${fmt(debtAmount)}</div>`;
+        else if(overpay>0)balHtml+=`<div class="acc-debt" style="color:var(--green);font-weight:700;font-size:13px;">Ваши деньги: +${fmt(overpay)}</div>`;
+        else balHtml+=`<div class="acc-debt" style="color:var(--muted);font-size:13px;">Задолженность: 0 ₽</div>`;
+    }else{
+        if(['deposit','savings','finu_wallet'].includes(a.type)&&a.rate){
+            meta+=` · ${a.rate}%`;
+            if(a.type==='finu_wallet'&&a.finuKind)meta+=` (${a.finuKind==='savings'?'накоп.':'прост.'})`;
         }
-    } else {
-        if(a.type==='deposit'||a.type==='savings'){if(a.rate)meta+=` · ${a.rate}%`;}
         balHtml=`<div class="acc-balance">${fmt(v)}</div>`;
     }
-
-    return `<div class="account-row" data-acc-id="${a.id}" style="--bank-color: ${bColor};" onclick="openAccountModal('${a.id}')"><div class="drag-handle" onclick="event.stopPropagation()">⋮⋮</div><div class="acc-icon-wrap" style="background:${bgColor}; color:${bColor};">${iconSvg}</div><div class="acc-info"><div class="acc-name">${esc(a.name)} ${a.inCushion?'⭐':''}</div><div class="acc-meta">${meta}</div></div><div>${balHtml}</div></div>`;
+    return `<div class="account-row" data-acc-id="${a.id}" style="--bank-color:${bColor};" onclick="openAccountModal('${a.id}')"><div class="drag-handle" onclick="event.stopPropagation()">⋮⋮</div><div class="acc-icon-wrap" style="background:${bgColor};color:${bColor};">${iconSvg}</div><div class="acc-info"><div class="acc-name">${esc(a.name)} ${a.inCushion?'⭐':''}</div><div class="acc-meta">${meta}</div></div><div>${balHtml}</div></div>`;
 }
 
 function initDashSortable(){
-    if(typeof Sortable==='undefined') return;
-
-    // Сортировка групп (Карты и счета)
+    if(typeof Sortable==='undefined')return;
     const groupsContainer=document.querySelector('.acc-grid-pc');
-    if(groupsContainer){
-        new Sortable(groupsContainer,{animation:150,handle:'.drag-handle',filter:'button, input, select',onEnd:function(){
-            const items=groupsContainer.querySelectorAll(':scope > .bank-group');
-            items.forEach((item,index)=>{const id=item.dataset.bankId;const b=getBank(id);if(b)b.order=index;});
-            save();
-        }});
-    }
-    
-    // Сортировка счетов внутри групп
-    document.querySelectorAll('.bank-group-list').forEach(container=>{
-        new Sortable(container,{animation:150,handle:'.drag-handle',group:{name:'accounts',pull:false,put:false},filter:'button, input, select',onEnd:function(evt){
-            const items=container.querySelectorAll(':scope > .account-row');
-            items.forEach((item,index)=>{const id=item.dataset.accId;const a=getAcc(id);if(a)a.order=index;});
-            save();
-        }});
-    });
-
-    // Сортировка самих банков в карусели (если включен режим редактирования)
-    const carouselContainer = document.querySelector('.banks-carousel');
-    if(carouselContainer && S.ui.bankEditMode) {
-        new Sortable(carouselContainer, {
-            animation: 150,
-            draggable: '.draggable', // Только карточки с классом draggable
-            filter: '.bank-chip:not(.draggable)', // Игнорируем карточку "Все банки"
-            onEnd: function() {
-                const chips = carouselContainer.querySelectorAll('.bank-chip.draggable');
-                chips.forEach((chip, index) => {
-                    const bId = chip.dataset.bankId;
-                    const bank = getBank(bId);
-                    if (bank) bank.order = index;
-                });
-                save();
-                // Перерисовывать не обязательно, так как DOM уже обновлен Sortable,
-                // но для надежности можно вызвать renderDashboard() с небольшой задержкой,
-                // хотя это может дергать анимацию. Оставим без вызова, так как порядок сохранен.
-            }
-        });
-    }
+    if(groupsContainer){new Sortable(groupsContainer,{animation:150,handle:'.drag-handle',filter:'button, input, select',onEnd:function(){const items=groupsContainer.querySelectorAll(':scope > .bank-group');items.forEach((item,index)=>{const id=item.dataset.bankId;const b=getBank(id);if(b)b.order=index;});save();}});}
+    document.querySelectorAll('.bank-group-list').forEach(container=>{new Sortable(container,{animation:150,handle:'.drag-handle',group:{name:'accounts',pull:false,put:false},filter:'button, input, select',onEnd:function(){const items=container.querySelectorAll(':scope > .account-row');items.forEach((item,index)=>{const id=item.dataset.accId;const a=getAcc(id);if(a)a.order=index;});save();}});});
+    const carouselContainer=document.querySelector('.banks-carousel');
+    if(carouselContainer&&S.ui.bankEditMode){new Sortable(carouselContainer,{animation:150,draggable:'.draggable',filter:'.bank-chip:not(.draggable)',onEnd:function(){const chips=carouselContainer.querySelectorAll('.bank-chip.draggable');chips.forEach((chip,index)=>{const bId=chip.dataset.bankId;const bank=getBank(bId);if(bank)bank.order=index;});save();}});}
 }
 
-function renderAccounts(){const el=$('page-accounts');const showArch=S.ui.showArchived;let html=`<button class="btn-primary btn-block" style="margin-bottom:12px" onclick="openBankModal()">+ Добавить банк</button>`;const topBanks=S.banks.filter(b=>!b.parentId).sort((a,b)=>(a.order||0)-(b.order||0));html+=`<div id="banksSortable">`;topBanks.forEach(b=>{const accs=S.accounts.filter(a=>a.bankId===b.id&&(showArch||!a.archived)).sort((a,b)=>(a.order||0)-(b.order||0));const subBanks=S.banks.filter(sb=>sb.parentId===b.id).sort((a,b)=>(a.order||0)-(b.order||0));let total=0;accs.forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit = a.creditLimit || 0;total+=Math.max(0, v - limit);}else{total+=v;}});subBanks.forEach(sb=>{S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit = a.creditLimit || 0;total+=Math.max(0, v - limit);}else{total+=v;}});});const collapsed=S.ui.collapsedBanks.includes(b.id);html+=`<div class="bank-section" data-bank-id="${b.id}"><div class="bank-header" onclick="toggleBankAccs('${b.id}')" style="cursor:pointer"><span style="display:flex;align-items:center;"><span class="drag-handle" style="cursor:grab;margin-right:8px;" onclick="event.stopPropagation()">⋮⋮</span><span style="width:12px;height:12px;border-radius:50%;background:${b.color||'#888'};margin-right:8px;"></span>${collapsed?'▶':'▼'} ${esc(b.name)}</span><span class="bank-total">${fmt(total)}</span></div><div class="bank-accounts-list" data-bank-id="${b.id}" style="${collapsed?'display:none':''}"><div class="account-list-wrapper">`;subBanks.forEach(sb=>{const sbAccs=S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived)).sort((a,b)=>(a.order||0)-(b.order||0));const sbCollapsed=S.ui.collapsedBanks.includes(sb.id);html+=`<div class="sub-bank-section" data-bank-id="${sb.id}" style="padding-left:14px;border-left:2px solid ${sb.color};margin-left:14px;margin-top:8px;"><div style="font-weight:600;font-size:13px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleBankAccs('${sb.id}')"><span><span class="drag-handle" style="cursor:grab;margin-right:4px;" onclick="event.stopPropagation()">⋮⋮</span>${sbCollapsed?'▶':'▼'} ${esc(sb.name)}</span><div style="display:flex;gap:4px;" onclick="event.stopPropagation()"><button class="btn-icon" onclick="openBankModal('${sb.id}')" title="Редактировать банк">✏️</button><button class="btn-icon" onclick="deleteBank('${sb.id}')" title="Удалить банк">🗑</button><button class="btn-icon" onclick="openAccountModal(null,'${sb.id}')" title="Добавить счёт">+ Счёт</button></div></div><div class="bank-accounts-list" data-bank-id="${sb.id}" style="${sbCollapsed?'display:none':''}">${sbAccs.map(a=>{return `<div data-acc-id="${a.id}">${renderAccountRow(a,sb)}</div>`;}).join('')}</div></div>`;});accs.forEach(a=>{html+=`<div data-acc-id="${a.id}">${renderAccountRow(a,b)}</div>`;});html+=`</div><div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;"><div style="display:flex;gap:8px;"><button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>${b.isPlatform?`<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>`:''}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="openBankModal('${b.id}')" title="Редактировать банк">✏️</button>${!b.isPlatform?`<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>`:''}</div></div></div></div>`;});html+=`</div>`;html+=`<button class="btn-secondary btn-block" style="margin-top:12px" onclick="S.ui.showArchived=!S.ui.showArchived;save();renderAccounts()">${showArch?'Скрыть архив':'Показать архив'}</button>`;el.innerHTML=html;initSortable();}
-function initSortable(){const banksContainer=document.getElementById('banksSortable');if(banksContainer&&typeof Sortable!=='undefined'){new Sortable(banksContainer,{animation:150,handle:'.drag-handle',filter:'button, input, select, .sub-bank-section',onEnd:function(evt){const items=banksContainer.querySelectorAll(':scope > .bank-section');items.forEach((item,index)=>{const id=item.dataset.bankId;const b=getBank(id);if(b)b.order=index;});save();renderAll();}});}document.querySelectorAll('.bank-accounts-list').forEach(container=>{new Sortable(container,{animation:150,group:{name:'accounts',pull:false,put:false},handle:'.drag-handle',filter:'button, input, select, .sub-bank-section',onEnd:function(evt){const items=container.querySelectorAll(':scope > [data-acc-id]');items.forEach((item,index)=>{const id=item.dataset.accId;const a=getAcc(id);if(a)a.order=index;});save();renderAll();}});});}
-function toggleBank(id){const i=S.ui.collapsedBanks.indexOf(id);if(i>=0)S.ui.collapsedBanks.splice(i,1);else S.ui.collapsedBanks.push(id);save();renderAll();}
+function renderAccounts(){const el=$('page-accounts');const showArch=S.ui.showArchived;let html=`<button class="btn-primary btn-block" style="margin-bottom:12px" onclick="openBankModal()">+ Добавить банк</button>`;const topBanks=filterBanksForDisplay(S.banks.filter(b=>!b.parentId)).sort((a,b)=>(a.order||0)-(b.order||0));html+=`<div id="banksSortable">`;topBanks.forEach(b=>{const accs=filterAccountsForDisplay(S.accounts.filter(a=>a.bankId===b.id&&(showArch||!a.archived))).sort((a,b)=>(a.order||0)-(b.order||0));const subBanks=filterBanksForDisplay(S.banks.filter(sb=>sb.parentId===b.id)).sort((a,b)=>(a.order||0)-(b.order||0));let total=0;accs.forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit=a.creditLimit||0;total+=Math.max(0,v-limit);}else{total+=v;}});subBanks.forEach(sb=>{filterAccountsForDisplay(S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived))).forEach(a=>{const v=accValue(a);if(a.type==='credit'){const limit=a.creditLimit||0;total+=Math.max(0,v-limit);}else{total+=v;}});});const collapsed=S.ui.collapsedBanks.includes(b.id);html+=`<div class="bank-section" data-bank-id="${b.id}"><div class="bank-header" onclick="toggleBankAccs('${b.id}')" style="cursor:pointer"><span style="display:flex;align-items:center;"><span class="drag-handle" style="cursor:grab;margin-right:8px;" onclick="event.stopPropagation()">⋮⋮</span><span style="width:12px;height:12px;border-radius:50%;background:${b.color||'#888'};margin-right:8px;"></span>${collapsed?'▶':'▼'} ${esc(b.name)}</span><span class="bank-total">${fmt(total)}</span></div><div class="bank-accounts-list" data-bank-id="${b.id}" style="${collapsed?'display:none':''}"><div class="account-list-wrapper">`;subBanks.forEach(sb=>{const sbAccs=filterAccountsForDisplay(S.accounts.filter(a=>a.bankId===sb.id&&(showArch||!a.archived))).sort((a,b)=>(a.order||0)-(b.order||0));const sbCollapsed=S.ui.collapsedBanks.includes(sb.id);html+=`<div class="sub-bank-section" data-bank-id="${sb.id}" style="padding-left:14px;border-left:2px solid ${sb.color};margin-left:14px;margin-top:8px;"><div style="font-weight:600;font-size:13px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleBankAccs('${sb.id}')"><span><span class="drag-handle" style="cursor:grab;margin-right:4px;" onclick="event.stopPropagation()">⋮⋮</span>${sbCollapsed?'▶':'▼'} ${esc(sb.name)}</span><div style="display:flex;gap:4px;" onclick="event.stopPropagation()"><button class="btn-icon" onclick="openBankModal('${sb.id}')" title="Редактировать банк">✏️</button><button class="btn-icon" onclick="deleteBank('${sb.id}')" title="Удалить банк">🗑</button><button class="btn-icon" onclick="openAccountModal(null,'${sb.id}')" title="Добавить счёт">+ Счёт</button></div></div><div class="bank-accounts-list" data-bank-id="${sb.id}" style="${sbCollapsed?'display:none':''}">${sbAccs.map(a=>`<div data-acc-id="${a.id}">${renderAccountRow(a,sb)}</div>`).join('')}</div></div>`;});accs.forEach(a=>{html+=`<div data-acc-id="${a.id}">${renderAccountRow(a,b)}</div>`;});html+=`</div><div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;"><div style="display:flex;gap:8px;"><button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>${b.isPlatform?`<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>`:''}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="openBankModal('${b.id}')" title="Редактировать банк">✏️</button>${!b.isPlatform?`<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>`:''}</div></div></div></div>`;});html+=`</div>`;html+=`<button class="btn-secondary btn-block" style="margin-top:12px" onclick="S.ui.showArchived=!S.ui.showArchived;save();renderAccounts()">${showArch?'Скрыть архив':'Показать архив'}</button>`;el.innerHTML=html;initSortable();}
+// ===== app.js v44 | ЧАСТЬ 2/2 =====
+function initSortable(){const banksContainer=document.getElementById('banksSortable');if(banksContainer&&typeof Sortable!=='undefined'){new Sortable(banksContainer,{animation:150,handle:'.drag-handle',filter:'button, input, select, .sub-bank-section',onEnd:function(){const items=banksContainer.querySelectorAll(':scope > .bank-section');items.forEach((item,index)=>{const id=item.dataset.bankId;const b=getBank(id);if(b)b.order=index;});save();renderAll();}});}document.querySelectorAll('.bank-accounts-list').forEach(container=>{new Sortable(container,{animation:150,group:{name:'accounts',pull:false,put:false},handle:'.drag-handle',filter:'button, input, select, .sub-bank-section',onEnd:function(){const items=container.querySelectorAll(':scope > [data-acc-id]');items.forEach((item,index)=>{const id=item.dataset.accId;const a=getAcc(id);if(a)a.order=index;});save();renderAll();}});});}
 function toggleBankAccs(id){const i=S.ui.collapsedBanks.indexOf(id);if(i>=0)S.ui.collapsedBanks.splice(i,1);else S.ui.collapsedBanks.push(id);save();renderAccounts();}
 $('fabBtn').onclick=()=>{if(activeTab==='transactions'){openTxModal();}else if(activeTab==='accounts'||activeTab==='home'){const bid=(dashFilterBank!=='all')?dashFilterBank:S.banks.find(b=>!b.parentId)?.id;if(bid)openAccountModal(null,bid);else toast('Сначала добавьте банк');}else{openTxModal();}};
 function deleteBank(id){const b=getBank(id);if(!b)return;if(!confirm(`Удалить "${b.name}" и все его счета (включая под-банки)?`))return;const toDel=[id,...S.banks.filter(x=>x.parentId===id).map(x=>x.id)];S.accounts=S.accounts.filter(a=>!toDel.includes(a.bankId));S.banks=S.banks.filter(x=>!toDel.includes(x.id));save();renderAll();closeModal();toast('Удалено');}
@@ -340,17 +211,74 @@ function openModal(html){$('modalContent').innerHTML=html;$('modalBackdrop').cla
 function closeModal(){$('modalBackdrop').classList.remove('active');}
 $('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};
 function toggleNewCpInput(val){const w=$('newCpWrapper');if(w)w.style.display=(val==='__new')?'block':'none';}
-function openTxModal(id){const tx=id?S.transactions.find(t=>t.id===id):null;const isEdit=!!tx;const accs=S.accounts.filter(a=>!a.archived);if(!accs.length){toast('Сначала создайте счёт');return;}const form=tx?{...tx}:{id:null,type:'expense',amount:'',date:today(),note:'',categoryId:S.categories.find(c=>c.type==='expense')?.id,accountId:accs[0]?.id,toAccountId:accs[1]?.id,savingsKind:null,debtType:'lent',counterpartyId:S.counterparties[0]?.id};openModal(`<div class="modal-header"><h2>${isEdit?'Редактировать':'Новая операция'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><form id="txForm"><div class="form-group"><label>Тип</label><select id="txType"><option value="expense" ${form.type==='expense'?'selected':''}>Расход</option><option value="income" ${form.type==='income'?'selected':''}>Доход</option><option value="transfer" ${form.type==='transfer'?'selected':''}>Перевод</option><option value="debt" ${form.type==='debt'?'selected':''}>Долг</option></select></div><div class="form-row"><div class="form-group"><label>Сумма</label><input id="txAmount" type="number" step="0.01" min="0.01" value="${form.amount||''}" required></div><div class="form-group"><label>Дата</label><input id="txDate" type="date" value="${form.date||today()}" required></div></div><div class="form-group" id="catGroup"><label>Категория</label><select id="txCategory"></select></div><div class="form-group" id="debtGroup" style="display:none"><label>Направление долга</label><select id="txDebtType"><option value="lent" ${form.debtType==='lent'?'selected':''}>Я дал в долг</option><option value="returned" ${form.debtType==='returned'?'selected':''}>Мне вернули</option><option value="borrowed" ${form.debtType==='borrowed'?'selected':''}>Я взял в долг</option><option value="repaid" ${form.debtType==='repaid'?'selected':''}>Я отдал долг</option></select><label style="margin-top:10px">Контрагент</label><select id="txCounterparty" onchange="toggleNewCpInput(this.value)">${S.counterparties.map(c=>`<option value="${c.id}" ${form.counterpartyId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}<option value="__new" ${!S.counterparties.length||form.counterpartyId==='__new'?'selected':''}>+ Новый контрагент</option></select><div id="newCpWrapper" style="display:none;margin-top:8px;"><input type="text" id="newCpName" placeholder="Имя нового контрагента"></div></div><div class="form-group"><label id="accLabel">Счёт</label><button type="button" class="custom-select-btn" onclick="openAccountPicker('txAccount','txAccountBadge')"><span id="txAccountName">Выберите счёт</span><span id="txAccountBadge"></span></button><input type="hidden" id="txAccount" value="${form.accountId||''}"></div><div class="form-group" id="toAccGroup" style="display:none"><label>На счёт</label><button type="button" class="custom-select-btn" onclick="openAccountPicker('txToAccount','txToAccountBadge')"><span id="txToAccountName">Выберите счёт</span><span id="txToAccountBadge"></span></button><input type="hidden" id="txToAccount" value="${form.toAccountId||''}"></div><div class="form-group" id="savKindGroup" style="display:none"><label>Классификация перевода</label><select id="txSavKind"><option value="">Авто</option><option value="savings">В накопления</option><option value="investment">В инвестиции</option><option value="withdraw">Снятие</option><option value="ignore">Не учитывать</option></select></div><div class="form-group"><label>Комментарий</label><input id="txNote" type="text" value="${esc(form.note||'')}"></div><button type="submit" class="btn-primary btn-block">${isEdit?'Сохранить':'Добавить'}</button>${isEdit?`<button type="button" class="btn-danger btn-block" style="margin-top:8px" onclick="deleteTx('${id}')">Удалить</button>`:''}</form>`);const typeSel=$('txType');const upd=()=>{const t=typeSel.value;$('catGroup').style.display=(t==='income'||t==='expense')?'':'none';$('toAccGroup').style.display=t==='transfer'?'':'none';$('savKindGroup').style.display=t==='transfer'?'':'none';$('debtGroup').style.display=t==='debt'?'':'none';$('accLabel').textContent=(t==='transfer'||t==='debt')?'Счёт (источник/получатель)':'Счёт';if(t==='debt'){toggleNewCpInput($('txCounterparty').value);}const cats=S.categories.filter(c=>c.type===t);$('txCategory').innerHTML=cats.map(c=>`<option value="${c.id}" ${form.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('');const selA=accs.find(a=>a.id===$('txAccount').value)||accs[0];if(selA){$('txAccount').value=selA.id;updateAccDisplay(selA.id,'txAccountName','txAccountBadge');}const selTo=accs.find(a=>a.id===$('txToAccount').value)||accs[1]||accs[0];if(selTo){$('txToAccount').value=selTo.id;updateAccDisplay(selTo.id,'txToAccountName','txToAccountBadge');}$('txSavKind').value=form.savingsKind||'';};typeSel.onchange=upd;upd();$('txForm').onsubmit=e=>{e.preventDefault();const t=typeSel.value,amt=parseFloat($('txAmount').value);if(!(amt>0)){toast('Сумма > 0');return;}const data={id:id||uid(),type:t,amount:amt,date:$('txDate').value,note:$('txNote').value.trim()};if(t==='transfer'){data.accountId=$('txAccount').value;data.toAccountId=$('txToAccount').value;data.savingsKind=$('txSavKind').value||null;if(data.accountId===data.toAccountId){toast('Разные счета');return;}}else if(t==='debt'){data.accountId=$('txAccount').value;data.debtType=$('txDebtType').value;let cpId=$('txCounterparty').value;if(cpId==='__new'){const newName=$('newCpName').value.trim();if(!newName){toast('Введите имя контрагента');return;}const newCp={id:uid(),name:newName};S.counterparties.push(newCp);cpId=newCp.id;}data.counterpartyId=cpId;}else{data.categoryId=$('txCategory').value;data.accountId=$('txAccount').value;}if(isEdit){S.transactions=S.transactions.filter(x=>x.id!==id);}S.transactions.push(data);save();renderAll();closeModal();toast(isEdit?'Сохранено':'Добавлено');};}
+function openTxModal(id){const tx=id?S.transactions.find(t=>t.id===id):null;const isEdit=!!tx;const accs=filterAccountsForDisplay(S.accounts.filter(a=>!a.archived));if(!accs.length){toast('Сначала создайте счёт');return;}const form=tx?{...tx}:{id:null,type:'expense',amount:'',date:today(),note:'',categoryId:S.categories.find(c=>c.type==='expense')?.id,accountId:accs[0]?.id,toAccountId:accs[1]?.id,savingsKind:null,debtType:'lent',counterpartyId:S.counterparties[0]?.id};openModal(`<div class="modal-header"><h2>${isEdit?'Редактировать':'Новая операция'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><form id="txForm"><div class="form-group"><label>Тип</label><select id="txType"><option value="expense" ${form.type==='expense'?'selected':''}>Расход</option><option value="income" ${form.type==='income'?'selected':''}>Доход</option><option value="transfer" ${form.type==='transfer'?'selected':''}>Перевод</option><option value="debt" ${form.type==='debt'?'selected':''}>Долг</option></select></div><div class="form-row"><div class="form-group"><label>Сумма</label><input id="txAmount" type="number" step="0.01" min="0.01" value="${form.amount||''}" required></div><div class="form-group"><label>Дата</label><input id="txDate" type="date" value="${form.date||today()}" required></div></div><div class="form-group" id="catGroup"><label>Категория</label><select id="txCategory"></select></div><div class="form-group" id="debtGroup" style="display:none"><label>Направление долга</label><select id="txDebtType"><option value="lent" ${form.debtType==='lent'?'selected':''}>Я дал в долг</option><option value="returned" ${form.debtType==='returned'?'selected':''}>Мне вернули</option><option value="borrowed" ${form.debtType==='borrowed'?'selected':''}>Я взял в долг</option><option value="repaid" ${form.debtType==='repaid'?'selected':''}>Я отдал долг</option></select><label style="margin-top:10px">Контрагент</label><select id="txCounterparty" onchange="toggleNewCpInput(this.value)">${S.counterparties.map(c=>`<option value="${c.id}" ${form.counterpartyId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}<option value="__new" ${!S.counterparties.length||form.counterpartyId==='__new'?'selected':''}>+ Новый контрагент</option></select><div id="newCpWrapper" style="display:none;margin-top:8px;"><input type="text" id="newCpName" placeholder="Имя нового контрагента"></div></div><div class="form-group"><label id="accLabel">Счёт</label><button type="button" class="custom-select-btn" onclick="openAccountPicker('txAccount','txAccountBadge')"><span id="txAccountName">Выберите счёт</span><span id="txAccountBadge"></span></button><input type="hidden" id="txAccount" value="${form.accountId||''}"></div><div class="form-group" id="toAccGroup" style="display:none"><label>На счёт</label><button type="button" class="custom-select-btn" onclick="openAccountPicker('txToAccount','txToAccountBadge')"><span id="txToAccountName">Выберите счёт</span><span id="txToAccountBadge"></span></button><input type="hidden" id="txToAccount" value="${form.toAccountId||''}"></div><div class="form-group" id="savKindGroup" style="display:none"><label>Классификация перевода</label><select id="txSavKind"><option value="">Авто</option><option value="savings">В накопления</option><option value="investment">В инвестиции</option><option value="withdraw">Снятие</option><option value="ignore">Не учитывать</option></select></div><div class="form-group"><label>Комментарий</label><input id="txNote" type="text" value="${esc(form.note||'')}"></div><button type="submit" class="btn-primary btn-block">${isEdit?'Сохранить':'Добавить'}</button>${isEdit?`<button type="button" class="btn-danger btn-block" style="margin-top:8px" onclick="deleteTx('${id}')">Удалить</button>`:''}</form>`);const typeSel=$('txType');const upd=()=>{const t=typeSel.value;$('catGroup').style.display=(t==='income'||t==='expense')?'':'none';$('toAccGroup').style.display=t==='transfer'?'':'none';$('savKindGroup').style.display=t==='transfer'?'':'none';$('debtGroup').style.display=t==='debt'?'':'none';$('accLabel').textContent=(t==='transfer'||t==='debt')?'Счёт (источник/получатель)':'Счёт';if(t==='debt'){toggleNewCpInput($('txCounterparty').value);}const cats=S.categories.filter(c=>c.type===t);$('txCategory').innerHTML=cats.map(c=>`<option value="${c.id}" ${form.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('');const selA=accs.find(a=>a.id===$('txAccount').value)||accs[0];if(selA){$('txAccount').value=selA.id;updateAccDisplay(selA.id,'txAccountName','txAccountBadge');}const selTo=accs.find(a=>a.id===$('txToAccount').value)||accs[1]||accs[0];if(selTo){$('txToAccount').value=selTo.id;updateAccDisplay(selTo.id,'txToAccountName','txToAccountBadge');}$('txSavKind').value=form.savingsKind||'';};typeSel.onchange=upd;upd();$('txForm').onsubmit=e=>{e.preventDefault();const t=typeSel.value,amt=parseFloat($('txAmount').value);if(!(amt>0)){toast('Сумма > 0');return;}const data={id:id||uid(),type:t,amount:amt,date:$('txDate').value,note:$('txNote').value.trim()};if(t==='transfer'){data.accountId=$('txAccount').value;data.toAccountId=$('txToAccount').value;data.savingsKind=$('txSavKind').value||null;if(data.accountId===data.toAccountId){toast('Разные счета');return;}}else if(t==='debt'){data.accountId=$('txAccount').value;data.debtType=$('txDebtType').value;let cpId=$('txCounterparty').value;if(cpId==='__new'){const newName=$('newCpName').value.trim();if(!newName){toast('Введите имя контрагента');return;}const newCp={id:uid(),name:newName};S.counterparties.push(newCp);cpId=newCp.id;}data.counterpartyId=cpId;}else{data.categoryId=$('txCategory').value;data.accountId=$('txAccount').value;}if(isEdit){S.transactions=S.transactions.filter(x=>x.id!==id);}S.transactions.push(data);save();renderAll();closeModal();toast(isEdit?'Сохранено':'Добавлено');};}
 function updateAccDisplay(accId,nameElId,badgeElId){const a=getAcc(accId);if(!a)return;const b=getBank(a.bankId);$(nameElId).textContent=a.name;$(badgeElId).innerHTML=getBankIndicatorHtml(b);}
-function openAccountPicker(targetInputId,targetBadgeId){const accs=S.accounts.filter(a=>!a.archived);const curId=$(targetInputId).value;let html=`<div class="modal-header"><h2>Выберите счёт</h2><button class="btn-icon" onclick="closePicker()">✕</button></div>`;const topBanks=S.banks.filter(b=>!b.parentId);topBanks.forEach(b=>{const bAccs=accs.filter(a=>a.bankId===b.id);const subBanks=S.banks.filter(sb=>sb.parentId===b.id);let hasAny=bAccs.length>0||subBanks.some(sb=>accs.some(a=>a.bankId===sb.id));if(!hasAny)return;html+=`<div style="font-size:12px;color:var(--muted);font-weight:700;margin:12px 0 4px;">${esc(b.name)}</div>`;subBanks.forEach(sb=>{const sbAccs=accs.filter(a=>a.bankId===sb.id);if(!sbAccs.length)return;html+=`<div style="font-size:11px;color:var(--muted);margin-left:10px;margin-bottom:4px;">↳ ${esc(sb.name)}</div>`;sbAccs.forEach(a=>{const isSel=a.id===curId?'background:var(--accent);color:#fff;':'';const bBadge=getBankIndicatorHtml(sb);html+=`<div class="acc-option" style="${isSel}" onclick="selectAcc('${targetInputId}','${targetBadgeId}','${a.id}')"><div class="info"><span>${esc(a.name)}</span>${bBadge}</div><div style="font-weight:700;">${fmt(accValue(a))}</div></div>`;});});bAccs.forEach(a=>{const isSel=a.id===curId?'background:var(--accent);color:#fff;':'';const bBadge=getBankIndicatorHtml(b);html+=`<div class="acc-option" style="${isSel}" onclick="selectAcc('${targetInputId}','${targetBadgeId}','${a.id}')"><div class="info"><span>${esc(a.name)}</span>${bBadge}</div><div style="font-weight:700;">${fmt(accValue(a))}</div></div>`;});});$('modalContent2').innerHTML=html;$('modalBackdrop2').classList.add('active');}
+function openAccountPicker(targetInputId,targetBadgeId){const accs=filterAccountsForDisplay(S.accounts.filter(a=>!a.archived));const curId=$(targetInputId).value;let html=`<div class="modal-header"><h2>Выберите счёт</h2><button class="btn-icon" onclick="closePicker()">✕</button></div>`;const topBanks=filterBanksForDisplay(S.banks.filter(b=>!b.parentId));topBanks.forEach(b=>{const bAccs=accs.filter(a=>a.bankId===b.id);const subBanks=filterBanksForDisplay(S.banks.filter(sb=>sb.parentId===b.id));let hasAny=bAccs.length>0||subBanks.some(sb=>accs.some(a=>a.bankId===sb.id));if(!hasAny)return;html+=`<div style="font-size:12px;color:var(--muted);font-weight:700;margin:12px 0 4px;">${esc(b.name)}</div>`;subBanks.forEach(sb=>{const sbAccs=accs.filter(a=>a.bankId===sb.id);if(!sbAccs.length)return;html+=`<div style="font-size:11px;color:var(--muted);margin-left:10px;margin-bottom:4px;">↳ ${esc(sb.name)}</div>`;sbAccs.forEach(a=>{const isSel=a.id===curId?'background:var(--accent);color:#fff;':'';const bBadge=getBankIndicatorHtml(sb);html+=`<div class="acc-option" style="${isSel}" onclick="selectAcc('${targetInputId}','${targetBadgeId}','${a.id}')"><div class="info"><span>${esc(a.name)}</span>${bBadge}</div><div style="font-weight:700;">${fmt(accValue(a))}</div></div>`;});});bAccs.forEach(a=>{const isSel=a.id===curId?'background:var(--accent);color:#fff;':'';const bBadge=getBankIndicatorHtml(b);html+=`<div class="acc-option" style="${isSel}" onclick="selectAcc('${targetInputId}','${targetBadgeId}','${a.id}')"><div class="info"><span>${esc(a.name)}</span>${bBadge}</div><div style="font-weight:700;">${fmt(accValue(a))}</div></div>`;});});$('modalContent2').innerHTML=html;$('modalBackdrop2').classList.add('active');}
 function closePicker(){$('modalBackdrop2').classList.remove('active');}
 $('modalBackdrop2').onclick=e=>{if(e.target===$('modalBackdrop2'))closePicker();};
 function selectAcc(targetInputId,targetBadgeId,accId){$(targetInputId).value=accId;const a=getAcc(accId);const b=getBank(a.bankId);$(targetInputId+'Name').textContent=a.name;$(targetBadgeId).innerHTML=getBankIndicatorHtml(b);closePicker();}
 function deleteTx(id){const tx=S.transactions.find(t=>t.id===id);if(!tx)return;const backup=JSON.parse(JSON.stringify(S.transactions));S.transactions=S.transactions.filter(t=>t.id!==id);save();renderAll();closeModal();toast('Операция удалена',()=>{S.transactions=backup;save();renderAll();},'Отменить');}
-function openReconcileModal(accId){const acc=getAcc(accId);const currentBal=accValue(acc);const isCredit=acc.type==='credit';openModal(`<div class="modal-header"><h2>Корректировка баланса</h2><button class="btn-icon" onclick="openAccountModal('${accId}')">✕</button></div><form id="reconcileForm"><div class="form-group"><label>Фактический баланс на сегодня (${isCredit?'доступно':'доступно'})</label><input id="recNewBal" type="number" step="0.01" value="${currentBal}" required></div><div class="form-group"><label>Как учесть разницу?</label><select id="recType"><option value="init">Просто исправить (не влиять на доходы/расходы)</option><option value="tx">Создать операцию (повлияет на статистику)</option></select></div><button type="submit" class="btn-primary btn-block">Применить</button></form>`);$('reconcileForm').onsubmit=(e)=>{e.preventDefault();const newBal=parseFloat($('recNewBal').value)||0;const diff=newBal-currentBal;const method=$('recType').value;if(diff===0){toast('Баланс совпадает');return;}if(method==='tx'){let txType=diff>0?'income':'expense';if(isCredit)txType=diff>0?'expense':'income';const txAmount=Math.abs(diff);const catId=txType==='income'?'c_other_inc':'c_other_exp';const note=`Корректировка баланса (${diff>0?'+':''}${diff})`;S.transactions.push({id:uid(),type:txType,amount:txAmount,date:today(),categoryId:catId,accountId:accId,note:note});}else{acc.initialBalance=(acc.initialBalance||0)+diff;}save();renderAll();openAccountModal(accId);toast('Баланс обновлен');};}
-function openAccountModal(id,bankId){const acc=id?getAcc(id):null;const isEdit=!!acc;const bid=bankId||acc?.bankId||S.banks.find(b=>!b.parentId)?.id;if(!bid){toast('Сначала банк');return;}const form=acc||{id:null,name:'',type:'debit',balance:'',initialBalance:'',currency:'RUB',rate:'',term:'indefinite',openedAt:'',viaFinuslugi:false,isTransit:false,inCushion:false,creditLimit:'',role:'none',hedgeFor:'',autoRenew:false,refillable:false,archived:false,gracePeriod:''};let bankOpts='';S.banks.forEach(b=>{if(b.parentId){bankOpts+=`<option value="${b.id}" ${bid===b.id?'selected':''}>↳ ${esc(getBank(b.parentId).name)} / ${esc(b.name)}</option>`;}else{bankOpts+=`<option value="${b.id}" ${bid===b.id?'selected':''}>${esc(b.name)}</option>`;}});openModal(`<div class="modal-header"><h2>${isEdit?'Счёт':'Новый счёт'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>${isEdit?`<div style="background:var(--card2);padding:12px;border-radius:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:12px;color:var(--muted);margin-bottom:4px;">${acc.type==='credit'?'Доступный остаток':'Текущий баланс'}</div><div style="font-weight:700;font-size:16px;color:var(--text);">${fmt(accValue(acc))}</div></div><button type="button" class="btn-secondary btn-small" onclick="openReconcileModal('${id}')">⚖️ Скорректировать</button></div>`:''}<form id="accForm"><div class="form-group"><label>Банк / Платформа</label><select id="accBank">${bankOpts}</select></div><div class="form-group"><label>Название счёта</label><input id="accName" value="${esc(form.name)}" placeholder="Например, Зарплатная карта" required></div><div class="form-group"><label>Тип</label><select id="accType">${Object.entries(ACC_TYPES).map(([k,v])=>`<option value="${k}" ${form.type===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label id="accBalanceLabel">Начальный баланс (₽)</label><input id="accBalance" type="number" step="0.01" value="${form.initialBalance!==undefined?form.initialBalance:form.balance}" required></div><div class="form-group"><label>Валюта</label><select id="accCurrency"><option value="RUB" ${form.currency==='RUB'?'selected':''}>₽</option><option value="USDT" ${form.currency==='USDT'?'selected':''}>USDT</option></select></div></div><div id="depositFields" style="display:none"><div class="form-row"><div class="form-group"><label>Ставка %</label><input id="accRate" type="number" step="0.01" value="${form.rate||''}"></div><div class="form-group"><label>Срок</label><select id="accTerm">${Object.entries(TERMS).map(([k,v])=>`<option value="${k}" ${form.term===k?'selected':''}>${v}</option>`).join('')}</select></div></div><div class="form-group"><label>Дата открытия</label><input id="accOpenedAt" type="date" value="${form.openedAt||''}"></div></div><div id="creditFields" style="display:none"><div class="form-row"><div class="form-group"><label>Кредитный лимит</label><input id="accCreditLimit" type="number" value="${form.creditLimit||''}"></div><div class="form-group"><label>Льготный период до</label><input id="accGracePeriod" type="date" value="${form.gracePeriod||''}"></div></div></div><div class="form-group"><label><input type="checkbox" id="accCushion" style="width:auto;margin-right:8px" ${form.inCushion?'checked':''}>⭐ В подушку безопасности</label></div><div class="form-group"><label><input type="checkbox" id="accTransit" style="width:auto;margin-right:8px" ${form.isTransit?'checked':''}>Транзитный (не считать накоплением)</label></div><button type="submit" class="btn-primary btn-block">${isEdit?'Сохранить':'Добавить'}</button>${isEdit?`<button type="button" class="btn-danger btn-block" style="margin-top:8px" onclick="deleteAccount('${id}')">Удалить</button>`:''}</form>`);const typeSel=$('accType');const upd=()=>{const t=typeSel.value;$('depositFields').style.display=['deposit','savings'].includes(t)?'':'none';$('creditFields').style.display=t==='credit'?'':'none';$('accBalanceLabel').textContent=t==='credit'?'Доступный остаток (₽)':'Начальный баланс (₽)';$('accBalance').classList.toggle('input-coral',false);};typeSel.onchange=upd;upd();$('accForm').onsubmit=e=>{e.preventDefault();const t=typeSel.value;const initBal=parseFloat($('accBalance').value)||0;const data={id:id||uid(),bankId:$('accBank').value,name:$('accName').value.trim(),type:t,initialBalance:initBal,currency:$('accCurrency').value,inCushion:$('accCushion').checked,isTransit:$('accTransit').checked,archived:false};if(['deposit','savings'].includes(t)){data.rate=parseFloat($('accRate').value)||null;data.term=$('accTerm').value;data.openedAt=$('accOpenedAt').value||null;}if(t==='credit'){data.creditLimit=parseFloat($('accCreditLimit').value)||0;data.gracePeriod=$('accGracePeriod').value||null;}if(isEdit){const i=S.accounts.findIndex(a=>a.id===id);S.accounts[i]={...S.accounts[i],...data};}else{data.order=S.accounts.filter(a=>a.bankId===data.bankId).length;S.accounts.push(data);}save();renderAll();closeModal();toast(isEdit?'Сохранено':'Добавлен');};}
+function openReconcileModal(accId){const acc=getAcc(accId);const currentBal=accValue(acc);const isCredit=acc.type==='credit';openModal(`<div class="modal-header"><h2>Корректировка баланса</h2><button class="btn-icon" onclick="openAccountModal('${accId}')">✕</button></div><form id="reconcileForm"><div class="form-group"><label>Фактический баланс на сегодня</label><input id="recNewBal" type="number" step="0.01" value="${currentBal}" required></div><div class="form-group"><label>Как учесть разницу?</label><select id="recType"><option value="init">Просто исправить (не влиять на доходы/расходы)</option><option value="tx">Создать операцию (повлияет на статистику)</option></select></div><button type="submit" class="btn-primary btn-block">Применить</button></form>`);$('reconcileForm').onsubmit=(e)=>{e.preventDefault();const newBal=parseFloat($('recNewBal').value)||0;const diff=newBal-currentBal;const method=$('recType').value;if(diff===0){toast('Баланс совпадает');return;}if(method==='tx'){let txType=diff>0?'income':'expense';if(isCredit)txType=diff>0?'expense':'income';const txAmount=Math.abs(diff);const catId=txType==='income'?'c_other_inc':'c_other_exp';const note=`Корректировка баланса (${diff>0?'+':''}${diff})`;S.transactions.push({id:uid(),type:txType,amount:txAmount,date:today(),categoryId:catId,accountId:accId,note:note});}else{acc.initialBalance=(acc.initialBalance||0)+diff;}save();renderAll();openAccountModal(accId);toast('Баланс обновлен');};}
+
+function openAccountModal(id,bankId){
+    const acc=id?getAcc(id):null;
+    const isEdit=!!acc;
+    const bid=bankId||acc?.bankId||S.banks.find(b=>!b.parentId)?.id;
+    if(!bid){toast('Сначала банк');return;}
+    const form=acc||{id:null,name:'',type:'debit',balance:'',initialBalance:'',currency:'RUB',rate:'',term:'indefinite',openedAt:'',viaFinuslugi:false,isTransit:false,inCushion:false,creditLimit:'',role:'none',hedgeFor:'',autoRenew:false,refillable:false,archived:false,gracePeriod:'',finuKind:'savings'};
+    let bankOpts='';
+    filterBanksForDisplay(S.banks).forEach(b=>{
+        if(b.parentId){bankOpts+=`<option value="${b.id}" ${bid===b.id?'selected':''}>↳ ${esc(getBank(b.parentId).name)} / ${esc(b.name)}</option>`;}
+        else{bankOpts+=`<option value="${b.id}" ${bid===b.id?'selected':''}>${esc(b.name)}</option>`;}
+    });
+    const accrueBtn=(isEdit&&(acc.type==='deposit'||acc.type==='savings'||acc.type==='finu_wallet'))
+        ?`<button type="button" class="btn-secondary btn-block" style="margin-bottom:8px" onclick="closeModal();openAccrueInterestModal('${id}')">📈 Начислить %</button>`
+        :'';
+    openModal(`<div class="modal-header"><h2>${isEdit?'Счёт':'Новый счёт'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>${isEdit?`<div style="background:var(--card2);padding:12px;border-radius:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:12px;color:var(--muted);margin-bottom:4px;">${acc.type==='credit'?'Доступный остаток':'Текущий баланс'}</div><div style="font-weight:700;font-size:16px;color:var(--text);">${fmt(accValue(acc))}</div></div><button type="button" class="btn-secondary btn-small" onclick="openReconcileModal('${id}')">⚖️ Скорректировать</button></div>${accrueBtn}`:''}<form id="accForm"><div class="form-group"><label>Банк / Платформа</label><select id="accBank">${bankOpts}</select></div><div class="form-group"><label>Название счёта</label><input id="accName" value="${esc(form.name)}" placeholder="Например, Зарплатная карта" required></div><div class="form-group"><label>Тип</label><select id="accType">${Object.entries(ACC_TYPES).map(([k,v])=>`<option value="${k}" ${form.type===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label id="accBalanceLabel">Начальный баланс (₽)</label><input id="accBalance" type="number" step="0.01" value="${form.initialBalance!==undefined?form.initialBalance:form.balance}" required></div><div class="form-group"><label>Валюта</label><select id="accCurrency"><option value="RUB" ${form.currency==='RUB'?'selected':''}>₽</option><option value="USDT" ${form.currency==='USDT'?'selected':''}>USDT</option></select></div></div><div id="depositFields" style="display:none"><div class="form-row"><div class="form-group"><label>Ставка %</label><input id="accRate" type="number" step="0.01" value="${form.rate||''}"></div><div class="form-group"><label>Срок</label><select id="accTerm">${Object.entries(TERMS).map(([k,v])=>`<option value="${k}" ${form.term===k?'selected':''}>${v}</option>`).join('')}</select></div></div><div class="form-group"><label>Дата открытия</label><input id="accOpenedAt" type="date" value="${form.openedAt||''}"></div></div><div id="finuKindFields" style="display:none"><div class="form-group"><label>Тип кошелька Финуслуги</label><select id="accFinuKind"><option value="savings" ${form.finuKind==='savings'?'selected':''}>Накопительный</option><option value="simple" ${form.finuKind==='simple'?'selected':''}>Простой</option></select></div></div><div id="creditFields" style="display:none"><div class="form-row"><div class="form-group"><label>Кредитный лимит</label><input id="accCreditLimit" type="number" value="${form.creditLimit||''}"></div><div class="form-group"><label>Льготный период до</label><input id="accGracePeriod" type="date" value="${form.gracePeriod||''}"></div></div></div><div class="form-group"><label><input type="checkbox" id="accCushion" style="width:auto;margin-right:8px" ${form.inCushion?'checked':''}>⭐ В подушку безопасности</label></div><div class="form-group"><label><input type="checkbox" id="accTransit" style="width:auto;margin-right:8px" ${form.isTransit?'checked':''}>Транзитный (не считать накоплением)</label></div><button type="submit" class="btn-primary btn-block">${isEdit?'Сохранить':'Добавить'}</button>${isEdit?`<button type="button" class="btn-danger btn-block" style="margin-top:8px" onclick="deleteAccount('${id}')">Удалить</button>`:''}</form>`);
+    const typeSel=$('accType');
+    const upd=()=>{
+        const t=typeSel.value;
+        $('depositFields').style.display=['deposit','savings'].includes(t)?'':'none';
+        $('finuKindFields').style.display=t==='finu_wallet'?'':'none';
+        $('creditFields').style.display=t==='credit'?'':'none';
+        $('accBalanceLabel').textContent=t==='credit'?'Доступный остаток (₽)':'Начальный баланс (₽)';
+    };
+    typeSel.onchange=upd;upd();
+    $('accForm').onsubmit=e=>{
+        e.preventDefault();
+        const t=typeSel.value;
+        const initBal=parseFloat($('accBalance').value)||0;
+        const data={id:id||uid(),bankId:$('accBank').value,name:$('accName').value.trim(),type:t,initialBalance:initBal,currency:$('accCurrency').value,inCushion:$('accCushion').checked,isTransit:$('accTransit').checked,archived:false};
+        if(['deposit','savings'].includes(t)){data.rate=parseFloat($('accRate').value)||null;data.term=$('accTerm').value;data.openedAt=$('accOpenedAt').value||null;}
+        if(t==='finu_wallet'){data.rate=parseFloat($('accRate').value)||null;data.finuKind=$('accFinuKind').value;}
+        if(t==='credit'){data.creditLimit=parseFloat($('accCreditLimit').value)||0;data.gracePeriod=$('accGracePeriod').value||null;}
+        if(isEdit){const i=S.accounts.findIndex(a=>a.id===id);S.accounts[i]={...S.accounts[i],...data};}
+        else{data.order=S.accounts.filter(a=>a.bankId===data.bankId).length;S.accounts.push(data);}
+        save();renderAll();closeModal();toast(isEdit?'Сохранено':'Добавлен');
+    };
+}
 function deleteAccount(id){const backup=JSON.parse(JSON.stringify(S.accounts));S.accounts=S.accounts.filter(a=>a.id!==id);save();renderAll();closeModal();toast('Счёт удален',()=>{S.accounts=backup;save();renderAll();},'Отменить');}
+
+function openAccrueInterestModal(accId){
+    const acc=getAcc(accId);
+    if(!acc)return;
+    const rate=parseFloat(acc.rate)||0;
+    if(!(rate>0)){toast('Сначала укажите ставку в счёте');return;}
+    const base=(acc.type==='finu_wallet'&&acc.finuKind==='simple')?(acc.initialBalance||0):(acc.balance||0);
+    const suggested=Math.round(base*rate/100/12*100)/100;
+    openModal(`<div class="modal-header"><h2>Начислить % — ${esc(acc.name)}</h2><button class="btn-icon" onclick="closeModal();openAccountModal('${accId}')">✕</button></div><div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Ставка: ${rate}%. База для расчёта: ${fmt(base)}. Формула: база × ставка / 100 / 12. Сумму можно поправить вручную.</div><form id="accrueForm"><div class="form-row"><div class="form-group"><label>Сумма процентов (₽)</label><input id="accrueAmount" type="number" step="0.01" min="0.01" value="${suggested}" required></div><div class="form-group"><label>Дата</label><input id="accrueDate" type="date" value="${today()}" required></div></div><button type="submit" class="btn-primary btn-block">Создать доход</button></form>`);
+    $('accrueForm').onsubmit=(e)=>{
+        e.preventDefault();
+        const amt=parseFloat($('accrueAmount').value);
+        if(!(amt>0)){toast('Сумма > 0');return;}
+        const catId=getCat('c_interest')?'c_interest':'c_other_inc';
+        S.transactions.push({id:uid(),type:'income',amount:amt,date:$('accrueDate').value,categoryId:catId,accountId:accId,note:'Начисление процентов'});
+        save();renderAll();closeModal();toast('Проценты начислены');
+    };
+}
+
 function openBankModal(id){const bank=id?getBank(id):null;const isEdit=!!bank;const currentColor=bank?bank.color:BANK_COLORS[0];const title=isEdit?'Редактировать банк':'Новый банк';openModal(`<div class="modal-header"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><form id="bankForm"><div class="form-group"><label>Название банка</label><input id="bankName" placeholder="Например, Т-Банк" value="${bank?esc(bank.name):''}" required oninput="autoColorBank(this.value)"></div><div class="form-group"><label>Цвет банка</label><div style="display:flex;gap:8px;flex-wrap:wrap;" id="colorPick">${BANK_COLORS.map(c=>`<div onclick="document.querySelectorAll('.color-opt').forEach(el=>el.style.border='none');this.style.border='2px solid #fff';window._selColor='${c}'" class="color-opt" data-color="${c}" style="width:30px;height:30px;border-radius:50%;background:${c};cursor:pointer; ${c===currentColor?'border:2px solid #fff':''}"></div>`).join('')}</div></div><button type="submit" class="btn-primary btn-block">${isEdit?'Сохранить':'Добавить'}</button>${isEdit&&!bank.isPlatform?`<button type="button" class="btn-danger btn-block" style="margin-top:8px" onclick="deleteBank('${id}')">Удалить банк</button>`:''}</form>`);window._selColor=currentColor;$('bankForm').onsubmit=e=>{e.preventDefault();const n=$('bankName').value.trim();if(!n)return;if(isEdit){bank.name=n;bank.color=window._selColor;}else{S.banks.push({id:uid(),name:n,color:window._selColor,parentId:null,order:S.banks.length});}save();renderAll();closeModal();toast(isEdit?'Банк обновлен':'Банк добавлен');};}
+
 function renderStats(){const el=$('page-stats');const m=computeMonth();const t=computeTotals();const cp=S.settings.cushionTarget>0?Math.min(100,t.cushion/S.settings.cushionTarget*100):0;let budgetHTML='';if(!S.budgets.length)budgetHTML='<div class="empty" style="padding:14px">Нет бюджетов</div>';else{S.budgets.forEach(b=>{const cat=getCat(b.categoryId);if(!cat)return;const spent=S.transactions.filter(t=>t.type==='expense'&&t.categoryId===b.categoryId&&t.date.startsWith(thisMonth())).reduce((s,t)=>s+t.amount,0);const pct=b.limit>0?Math.min(100,spent/b.limit*100):0;const cls=pct>100?'red':pct>80?'yellow':'green';budgetHTML+=`<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><strong>${esc(cat.name)}</strong><div><span>${fmt(spent)} / ${fmt(b.limit)}</span> <button class="btn-icon" onclick="openBudgetModal('${b.categoryId}')">✏️</button></div></div><div class="progress"><div class="progress-bar ${cls}" style="width:${pct}%"></div></div></div>`;});}let snapHTML='';if(S.snapshots.length){snapHTML=`<table style="width:100%;font-size:13px;text-align:left;border-collapse:collapse;"><tr style="border-bottom:1px solid var(--border)"><th>Дата</th><th>Капитал</th></tr>${S.snapshots.slice(-6).reverse().map(s=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">${s.date}</td><td>${fmt(s.total)}</td></tr>`).join('')}</table>`;}else{snapHTML='<div class="empty">Нет снимков</div>';}el.innerHTML=`<div class="stat-grid"><div class="stat-card wide"><div class="label">Итог за ${new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'})}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px"><div><div class="muted" style="font-size:11px">Доходы</div><div class="pos" style="font-weight:700">${fmt(m.income)}</div></div><div><div class="muted" style="font-size:11px">Расходы</div><div class="neg" style="font-weight:700">${fmt(m.expense)}</div></div><div><div class="muted" style="font-size:11px">В накопления</div><div style="font-weight:700">${fmt(m.savings)}</div></div><div><div class="muted" style="font-size:11px">В инвестиции</div><div style="font-weight:700">${fmt(m.investment)}</div></div></div></div><div class="stat-card"><div class="label">Свободный поток</div><div class="value pos">${fmt(m.passive)}</div></div><div class="stat-card"><div class="label">Норма сбережений</div><div class="value">${m.savingsRate.toFixed(0)}%</div></div></div><div class="card"><div style="font-weight:700;margin-bottom:8px">Доходы/расходы (12 мес)</div><div class="chart-container"><canvas id="chartBar"></canvas></div></div><div class="card"><div style="font-weight:700;margin-bottom:8px">Динамика капитала</div><div class="chart-container"><canvas id="chartCapital"></canvas></div></div><div class="card"><div style="font-weight:700;margin-bottom:8px">Отчёт (снимки)</div>${snapHTML}</div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><strong>Бюджеты</strong><button class="btn-small btn-secondary" onclick="openBudgetModal()">+</button></div>${budgetHTML}</div>`;renderCharts();}
 let c1,c3;
 function renderCharts(){const months=[];const cur=new Date();for(let i=11;i>=0;i--){const d=new Date(cur.getFullYear(),cur.getMonth()-i,1);months.push(d.toISOString().slice(0,7));}const inc=months.map(m=>S.transactions.filter(t=>t.type==='income'&&t.date.startsWith(m)).reduce((s,t)=>s+t.amount,0));const exp=months.map(m=>S.transactions.filter(t=>t.type==='expense'&&t.date.startsWith(m)).reduce((s,t)=>s+t.amount,0));const labels=months.map(m=>{const [y,mo]=m.split('-');return new Date(y,mo-1).toLocaleDateString('ru-RU',{month:'short'});});if(c1)c1.destroy();if($('chartBar'))c1=new Chart($('chartBar'),{type:'bar',data:{labels,datasets:[{label:'Доходы',data:inc,backgroundColor:'#2ecc71',borderRadius:4},{label:'Расходы',data:exp,backgroundColor:'#ff5c5c',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:10}}}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:9}}}}}});if(c3)c3.destroy();if($('chartCapital')){const snapLabels=S.snapshots.map(s=>s.date);const snapData=S.snapshots.map(s=>s.total);c3=new Chart($('chartCapital'),{type:'line',data:{labels:snapLabels,datasets:[{label:'Капитал',data:snapData,borderColor:'#4d7fff',backgroundColor:'rgba(77,127,255,0.15)',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:9}}}}}});}}
@@ -364,42 +292,25 @@ function deleteCategory(id){const c=getCat(id);if(S.transactions.some(t=>t.categ
 function openCounterparties(){const list=S.counterparties.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)"><span>${esc(c.name)}</span><button class="btn-icon" onclick="delCounterparty('${c.id}')">🗑</button></div>`).join('');openModal(`<div class="modal-header"><h2>Контрагенты (Долги)</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="display:flex;gap:8px;margin-bottom:12px;"><input id="newCpNameInput" type="text" placeholder="Имя контрагента" style="flex:1;"><button class="btn-primary" onclick="addCounterparty()">Добавить</button></div><div style="max-height:300px;overflow-y:auto;">${list||'<div class="empty">Нет контрагентов</div>'}</div>`);}
 function addCounterparty(){const n=$('newCpNameInput').value.trim();if(!n)return;S.counterparties.push({id:uid(),name:n});save();openCounterparties();}
 function delCounterparty(id){S.counterparties=S.counterparties.filter(c=>c.id!==id);save();openCounterparties();}
+
 function openSettings(){
     openModal(`<div class="modal-header"><h2>Настройки</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
-    
     <div class="form-group"><label>Название приложения</label><input id="setTitle" value="${esc(S.settings.appTitle)}"></div>
-    
     <div class="form-group"><label>PIN-код (4 цифры, пусто = отключен)</label><input id="setPin" type="text" maxlength="4" value="${S.settings.pinCode}"></div>
-    
-    <div class="form-group"><label>Частота снимков</label><select id="setSnap">
-        <option value="monthly" ${S.settings.snapshotFreq==='monthly'?'selected':''}>Раз в месяц</option>
-        <option value="weekly" ${S.settings.snapshotFreq==='weekly'?'selected':''}>Раз в неделю</option>
-        <option value="daily" ${S.settings.snapshotFreq==='daily'?'selected':''}>Раз в день</option>
-    </select></div>
-    
-    <div class="form-group"><label>Стиль оформления (Главная)</label><select id="setBadge">
-        <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полоски</option>
-        <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
-    </select></div>
-    
+    <div class="form-group"><label>Частота снимков</label><select id="setSnap"><option value="monthly" ${S.settings.snapshotFreq==='monthly'?'selected':''}>Раз в месяц</option><option value="weekly" ${S.settings.snapshotFreq==='weekly'?'selected':''}>Раз в неделю</option><option value="daily" ${S.settings.snapshotFreq==='daily'?'selected':''}>Раз в день</option></select></div>
+    <div class="form-group"><label>Стиль оформления (Главная)</label><select id="setBadge"><option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полоски</option><option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option></select></div>
+    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;background:var(--card2);padding:10px 12px;border-radius:10px;border:1px solid var(--border);">
+        <div><div style="font-size:14px;font-weight:600;">Модуль «Финуслуги»</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Счета и виджеты платформы</div></div>
+        <label class="toggle-switch"><input type="checkbox" id="setFinuslugi" ${S.settings.finuslugiEnabled?'checked':''}><span class="toggle-slider"></span></label>
+    </div>
     <hr style="border-color:var(--border); margin: 16px 0;">
     <div style="font-weight:700; margin-bottom:10px;">☁️ Облачный бэкап (Яндекс.Диск)</div>
-    
-    <div class="form-group">
-        <label>Токен доступа Яндекса</label>
-        <input id="setYandexToken" type="password" value="${esc(S.settings.yandexToken || '')}" placeholder="Вставьте ваш токен сюда">
-        <div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится только на этом устройстве.</div>
-        <div style="font-size:12px; color:var(--green); margin-top:6px; font-weight:bold;">
-            Последний бэкап: ${S.settings.lastCloudBackup ? new Date(S.settings.lastCloudBackup).toLocaleString('ru-RU') : 'Еще не делался'}
-        </div>
-    </div>
-
+    <div class="form-group"><label>Токен доступа Яндекса</label><input id="setYandexToken" type="password" value="${esc(S.settings.yandexToken||'')}" placeholder="Вставьте ваш токен сюда"><div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится только на этом устройстве.</div><div style="font-size:12px; color:var(--green); margin-top:6px; font-weight:bold;">Последний бэкап: ${S.settings.lastCloudBackup?new Date(S.settings.lastCloudBackup).toLocaleString('ru-RU'):'Еще не делался'}</div></div>
     <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
         <button class="btn-secondary btn-block" onclick="backupToYandexDisk()">☁️ Сохранить на Яндекс.Диск</button>
         <button class="btn-secondary btn-block" onclick="restoreFromYandexDisk()">⬇️ Восстановить с Яндекс.Диска</button>
     </div>
     <hr style="border-color:var(--border); margin: 16px 0;">
-    
     <button class="btn-primary btn-block" onclick="saveSettings()">Сохранить</button>
     <button class="btn-secondary btn-block" style="margin-top:8px" onclick="fetchUSDT()">Обновить курс USDT</button>`);
 }
@@ -409,217 +320,186 @@ function saveSettings(){
     S.settings.snapshotFreq=$('setSnap').value;
     S.settings.badgeStyle=$('setBadge').value;
     S.settings.yandexToken=$('setYandexToken').value.trim();
-    save();
-    renderAll();
-    closeModal();
-    toast('Настройки сохранены');
+    S.settings.finuslugiEnabled=!!$('setFinuslugi').checked;
+    save();renderAll();closeModal();toast('Настройки сохранены');
 }
 function applySettings(){$('appTitle').textContent=S.settings.appTitle;document.documentElement.setAttribute('data-theme',S.settings.theme);document.body.style.fontSize=S.settings.fontSize;}
 function resetAll(){if(!confirm('Удалить ВСЕ данные?'))return;localStorage.removeItem(KEY);location.reload();}
 function exportJSON(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`finance-backup-${today()}.json`;a.click();}
 function importJSON(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.transactions||!d.accounts)throw new Error('bad');if(confirm('Заменить данные?')){S=Object.assign(defaultState(),d);save();applySettings();renderAll();closeModal();toast('Восстановлено');}}catch(err){alert('Ошибка: '+err.message);}};r.readAsText(f);};inp.click();}
 async function fetchUSDT(){
-    try {
-        const targetUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=rub';
-        const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
-        const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(targetUrl)}`;
-
-        const r = await fetch(proxyUrl);
-        if (!r.ok) throw new Error('Ошибка сети');
-        
-        const d = await r.json();
-        if(d.tether && d.tether.rub){
-            S.settings.usdtRate.lastFetched = d.tether.rub;
-            S.settings.usdtRate.updatedAt = new Date().toISOString();
-            save();
-            toast('Курс: ' + fmtNum(d.tether.rub) + '₽');
-            renderAll();
+    try{
+        const targetUrl='https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=rub';
+        const PROXY_BASE='https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
+        const proxyUrl=`${PROXY_BASE}?url=${encodeURIComponent(targetUrl)}`;
+        const r=await fetch(proxyUrl);
+        if(!r.ok)throw new Error('Ошибка сети');
+        const d=await r.json();
+        if(d.tether&&d.tether.rub){
+            S.settings.usdtRate.lastFetched=d.tether.rub;
+            S.settings.usdtRate.updatedAt=new Date().toISOString();
+            save(false);toast('Курс: '+fmtNum(d.tether.rub)+'₽');renderAll();
         }
-    } catch(e) {
-        console.log('Курс USDT временно недоступен. Используется сохраненный.');
-    }
+    }catch(e){console.log('Курс USDT временно недоступен. Используется сохраненный.');}
 }
 function applyTheme(){document.documentElement.setAttribute('data-theme',S.settings.theme);$('themeBtn').textContent=S.settings.theme==='dark'?'🌙':'☀️';}
 $('themeBtn').onclick=()=>{S.settings.theme=S.settings.theme==='dark'?'light':'dark';save();applyTheme();};
-document.querySelectorAll('.nav-tab').forEach(t=>{t.onclick=()=>{activeTab=t.dataset.tab;document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('page-'+t.dataset.tab).classList.add('active');if(t.dataset.tab==='stats')renderStats();window.scrollTo(0,0);};});
-history.pushState(null,null,location.href);
-window.onpopstate=function(){history.pushState(null,null,location.href);if(confirm('Вы уверены, что хотите выйти?')){history.back();}};
+
+function setActiveTab(tab,fromPop=false){
+    activeTab=tab;
+    document.querySelectorAll('.nav-tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+    const p=$('page-'+tab);if(p)p.classList.add('active');
+    if(tab==='stats')renderStats();
+    if(tab==='transactions')renderTransactions();
+    if(tab==='accounts')renderAccounts();
+    if(tab==='home')renderDashboard();
+    window.scrollTo(0,0);
+    if(!fromPop){
+        try{history.pushState({tab},'',location.pathname+'#'+tab);}catch(e){}
+    }
+}
+document.querySelectorAll('.nav-tab').forEach(t=>{t.onclick=()=>setActiveTab(t.dataset.tab);});
+
+history.replaceState({tab:'home'},'',location.pathname+'#home');
+window.addEventListener('popstate',(e)=>{
+    if(document.querySelector('.modal-backdrop.active')){closeModal();closePicker();history.pushState({tab:activeTab},'',location.pathname+'#'+activeTab);return;}
+    const tab=(e.state&&e.state.tab)||'home';
+    if(tab==='home'&&activeTab==='home'&&!e.state){return;}
+    setActiveTab(tab,true);
+});
 $('menuBtn').onclick=openMenu;
+
 function renderAll(){applySettings();renderDashboard();renderAccounts();renderTransactions();renderStats();}
 load();applyTheme();applySettings();maybeSnapshot();renderAll();if(S.settings.usdtRate.mode==='auto')fetchUSDT();
 let startY=0;document.addEventListener('touchstart',e=>{startY=e.touches[0].pageY;},{passive:true});document.addEventListener('touchmove',e=>{if(document.querySelector('.modal-backdrop.active')){if(e.touches[0].pageY>startY&&window.scrollY===0)e.preventDefault();}},{passive:false});
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(registration => {
-                console.log('✅ Service Worker зарегистрирован успешно!', registration.scope);
-            })
-            .catch(error => {
-                console.error('❌ Ошибка регистрации Service Worker:', error);
-            });
+if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{
+        navigator.serviceWorker.register('./sw.js').then(r=>{console.log('✅ SW зарегистрирован',r.scope);}).catch(e=>{console.error('❌ Ошибка SW',e);});
     });
 }
 
-const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
-const YANDEX_BACKUP_FILENAME = 'finance-backup.json';
+// ===== Яндекс.Диск синхронизация (бесшовно) =====
+const YANDEX_API_URL='https://cloud-api.yandex.net/v1/disk';
+const YANDEX_BACKUP_FILENAME='finance-backup.json';
 
-async function backupToYandexDisk(silent = false) {
-    const token = S.settings.yandexToken;
-    if (!token) {
-        if (!silent) toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
-        return;
-    }
-    if (!silent) toast('⏳ Отправка на Яндекс.Диск...');
-    const fileContent = JSON.stringify(S, null, 2);
-    const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`); 
-    try {
-        const uploadUrlRes = await fetch(`${YANDEX_API_URL}/resources/upload?path=${filePath}&overwrite=true`, {
-            headers: { 'Authorization': `OAuth ${token}` }
-        });
-        if (!uploadUrlRes.ok) throw new Error('Ошибка API');
-        const uploadUrlData = await uploadUrlRes.json();
-        const uploadUrl = uploadUrlData.href;
-        const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileContent });
-        if (!uploadRes.ok) throw new Error('Ошибка при загрузке');
-        S.settings.lastCloudBackup = Date.now();
-        save(); 
-        if (!silent) toast('✅ Успешно сохранено на Яндекс.Диск');
-        else console.log('✅ Автоматический бэкап выполнен');
-    } catch (error) {
-        console.error('Yandex Backup Error:', error);
-        if (!silent) toast('❌ Ошибка при отправке');
-    }
+async function backupToYandexDisk(silent=false){
+    const token=S.settings.yandexToken;
+    if(!token){if(!silent)toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');return;}
+    if(!silent)toast('⏳ Отправка на Яндекс.Диск...');
+    const fileContent=JSON.stringify(S,null,2);
+    const filePath=encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`);
+    try{
+        const uploadUrlRes=await fetch(`${YANDEX_API_URL}/resources/upload?path=${filePath}&overwrite=true`,{headers:{'Authorization':`OAuth ${token}`}});
+        if(!uploadUrlRes.ok)throw new Error('Ошибка API');
+        const uploadUrlData=await uploadUrlRes.json();
+        const uploadRes=await fetch(uploadUrlData.href,{method:'PUT',body:fileContent});
+        if(!uploadRes.ok)throw new Error('Ошибка при загрузке');
+        S.settings.lastCloudBackup=Date.now();
+        save(false);
+        if(!silent)toast('✅ Успешно сохранено на Яндекс.Диск');else console.log('✅ Автобэкап выполнен');
+    }catch(error){console.error('Yandex Backup Error:',error);if(!silent)toast('❌ Ошибка при отправке');}
 }
 
-async function restoreFromYandexDisk(silent = false) {
-    const token = S.settings.yandexToken;
-    if (!token) {
-        if(!silent) toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');
-        return;
-    }
-    if(!silent) toast('⏳ Поиск файла...');
-    const filePath = encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`);
-    try {
-        const downloadUrlRes = await fetch(`${YANDEX_API_URL}/resources/download?path=${filePath}`, {
-            headers: { 'Authorization': `OAuth ${token}` }
-        });
-        if (downloadUrlRes.status === 404) {
-            if(!silent) toast('❌ Файл не найден');
-            return;
-        }
-        if (!downloadUrlRes.ok) throw new Error('Ошибка API');
-        const downloadUrlData = await downloadUrlRes.json();
-        const directUrl = downloadUrlData.href;
-        const PROXY_BASE = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm'; 
-        const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(directUrl)}`;
-        if(!silent) toast('⏳ Скачивание...');
-        const fileRes = await fetch(proxyUrl);
-        if (!fileRes.ok) throw new Error('Ошибка прокси');
-        const fileText = await fileRes.text();
+async function restoreFromYandexDisk(silent=false){
+    const token=S.settings.yandexToken;
+    if(!token){if(!silent)toast('❌ Укажите токен в Настройках и нажмите "Сохранить"');return;}
+    if(!silent)toast('⏳ Поиск файла...');
+    const filePath=encodeURIComponent(`/${YANDEX_BACKUP_FILENAME}`);
+    try{
+        const downloadUrlRes=await fetch(`${YANDEX_API_URL}/resources/download?path=${filePath}`,{headers:{'Authorization':`OAuth ${token}`}});
+        if(downloadUrlRes.status===404){if(!silent)toast('❌ Файл не найден');return;}
+        if(!downloadUrlRes.ok)throw new Error('Ошибка API');
+        const downloadUrlData=await downloadUrlRes.json();
+        const PROXY_BASE='https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
+        const proxyUrl=`${PROXY_BASE}?url=${encodeURIComponent(downloadUrlData.href)}`;
+        if(!silent)toast('⏳ Скачивание...');
+        const fileRes=await fetch(proxyUrl);
+        if(!fileRes.ok)throw new Error('Ошибка прокси');
+        const fileText=await fileRes.text();
         let fileData;
-        try { fileData = JSON.parse(fileText); } 
-        catch (e) { throw new Error('Файл поврежден'); }
-        
-        if (silent || confirm('Заменить текущие данные данными из облака?')) {
-            const currentToken = S.settings.yandexToken; 
-            S = Object.assign(defaultState(), fileData);
-            S.settings.yandexToken = currentToken; 
-            S.settings.lastCloudBackup = Date.now();
-            save(); applySettings(); renderAll(); closeModal();
+        try{fileData=JSON.parse(fileText);}catch(e){throw new Error('Файл поврежден');}
+        if(silent||confirm('Заменить текущие данные данными из облака?')){
+            const currentToken=S.settings.yandexToken;
+            S=Object.assign(defaultState(),fileData);
+            S.settings.yandexToken=currentToken;
+            S.settings.lastCloudBackup=Date.now();
+            save(false);applySettings();renderAll();closeModal();
             toast('✅ Данные восстановлены');
         }
-    } catch (error) {
-        console.error('Yandex Restore Error:', error);
-        if(!silent) toast('❌ Ошибка: ' + error.message);
-    }
+    }catch(error){console.error('Yandex Restore Error:',error);if(!silent)toast('❌ Ошибка: '+error.message);}
 }
 
-function checkAutoBackup() {
-    const token = S.settings.yandexToken;
-    if (!token) return;
-    const lastBackup = S.settings.lastCloudBackup || 0;
-    const oneDay = 24 * 60 * 60 * 1000; 
-    if (Date.now() - lastBackup > oneDay) {
-        console.log('Прошло больше 24 часов. Запускаем автосохранение...');
-        backupToYandexDisk(true); 
-    }
+function checkAutoBackup(){
+    const token=S.settings.yandexToken;
+    if(!token)return;
+    const lastBackup=S.settings.lastCloudBackup||0;
+    const oneDay=24*60*60*1000;
+    if(Date.now()-lastBackup>oneDay){console.log('24ч прошло — автобэкап');backupToYandexDisk(true);}
 }
 
-async function checkCloudSync() {
-    const token = S.settings.yandexToken;
-    if (!token) return;
-    try {
-        const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
-        const res = await fetch(targetUrl, {
-            headers: { 'Authorization': `OAuth ${token}` }
-        });
-        if (res.status === 404) {
-            backupToYandexDisk(true);
-            return;
-        }
-        if (!res.ok) return;
-        const data = await res.json();
-        const cloudModified = new Date(data.modified).getTime(); 
-        const localLastBackup = S.settings.lastCloudBackup || 0;
-        
-        if (cloudModified > localLastBackup + 5000) {
-            if (confirm(`☁️ Обнаружены более свежие данные в облаке (от ${new Date(cloudModified).toLocaleString('ru-RU')}).\n\nСкачать их?`)) {
-                restoreFromYandexDisk(true);
-            } else {
-                backupToYandexDisk(true);
+function hasLocalUnsavedChanges(){
+    const lastCloud=S.settings.lastCloudBackup||0;
+    return _lastUserSaveTime>lastCloud+1000;
+}
+
+async function checkCloudSync(){
+    const token=S.settings.yandexToken;
+    if(!token)return;
+    try{
+        const targetUrl=`https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
+        const res=await fetch(targetUrl,{headers:{'Authorization':`OAuth ${token}`}});
+        if(res.status===404){await backupToYandexDisk(true);return;}
+        if(!res.ok)return;
+        const data=await res.json();
+        const cloudModified=new Date(data.modified).getTime();
+        const localLastBackup=S.settings.lastCloudBackup||0;
+        const localDirty=hasLocalUnsavedChanges();
+        if(cloudModified>localLastBackup+5000){
+            if(localDirty){
+                console.log('Облако новее, но есть локальные правки — сохраняем локальные');
+                await backupToYandexDisk(true);
+            }else{
+                console.log('Облако новее, локально чисто — тихое восстановление');
+                await restoreFromYandexDisk(true);
             }
-        } else {
+        }else{
             checkAutoBackup();
         }
-    } catch (e) {
-        console.error('Ошибка синхронизации:', e);
-        checkAutoBackup(); 
-    }
+    }catch(e){console.error('Ошибка синхронизации:',e);checkAutoBackup();}
 }
 
-async function syncManual() {
-    const token = S.settings.yandexToken;
-    if (!token) {
-        toast('❌ Сначала укажите токен в настройках');
-        return;
-    }
-    
+async function syncManual(){
+    const token=S.settings.yandexToken;
+    if(!token){toast('❌ Сначала укажите токен в настройках');return;}
     toast('⏳ Проверка облака...');
-    
-    try {
-        const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
-        const res = await fetch(targetUrl, {
-            headers: { 'Authorization': `OAuth ${token}` }
-        });
-        
-        if (res.status === 404) {
-            await backupToYandexDisk(true);
-            toast('✅ Данные сохранены в облако');
-            return;
-        }
-        
-        if (!res.ok) throw new Error('Ошибка API');
-        
-        const data = await res.json();
-        const cloudModified = new Date(data.modified).getTime(); 
-        const localLastBackup = S.settings.lastCloudBackup || 0;
-        
-        if (cloudModified > localLastBackup + 1000) {
-            if (confirm(`☁️ В облаке есть более свежие данные.\n\nСкачать их?`)) {
-                await restoreFromYandexDisk(true);
-            } else {
-                await backupToYandexDisk(true);
-                toast('✅ Ваши данные загружены в облако');
-            }
-        } else {
-            await backupToYandexDisk(true);
-            toast('✅ Данные сохранены в облако');
-        }
-    } catch (e) {
-        console.error('Sync error:', e);
-        toast('❌ Ошибка синхронизации: ' + e.message);
-    }
+    try{
+        const targetUrl=`https://cloud-api.yandex.net/v1/disk/resources?path=/${YANDEX_BACKUP_FILENAME}`;
+        const res=await fetch(targetUrl,{headers:{'Authorization':`OAuth ${token}`}});
+        if(res.status===404){await backupToYandexDisk(true);toast('✅ Данные сохранены в облако');return;}
+        if(!res.ok)throw new Error('Ошибка API');
+        const data=await res.json();
+        const cloudModified=new Date(data.modified).getTime();
+        const localLastBackup=S.settings.lastCloudBackup||0;
+        if(cloudModified>localLastBackup+1000){
+            if(confirm(`☁️ В облаке есть более свежие данные.\n\nСкачать их?`)){await restoreFromYandexDisk(true);}
+            else{await backupToYandexDisk(true);toast('✅ Ваши данные загружены в облако');}
+        }else{await backupToYandexDisk(true);toast('✅ Данные сохранены в облако');}
+    }catch(e){console.error('Sync error:',e);toast('❌ Ошибка синхронизации: '+e.message);}
 }
 
-setTimeout(checkCloudSync, 3000);
+// Бесшовная синхронизация: автосейв при уходе/сворачивании
+function silentAutoSave(){
+    const token=S.settings.yandexToken;
+    if(!token)return;
+    if(!hasLocalUnsavedChanges())return;
+    backupToYandexDisk(true);
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')silentAutoSave();});
+window.addEventListener('pagehide',silentAutoSave);
+window.addEventListener('beforeunload',()=>{save(false);});
+
+// Отложенная проверка облака при старте (без confirm)
+setTimeout(checkCloudSync,3000);
+// ===== КОНЕЦ ФАЙЛА =====
