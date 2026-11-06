@@ -1,16 +1,11 @@
 // ==========================================
 // ВСЁ ДЛЯ v56 В ОДНОМ ФАЙЛЕ (v56.js)
 // ==========================================
+console.log("✅ Файл v56.js успешно загружен");
 
-// 1. СТИЛИ (Кнопки "+" и тема "Минимализм")
+// 1. СТИЛИ ДЛЯ ТЕМЫ "МИНИМАЛИЗМ" (кнопку + трогаем через JS ниже)
 const styleEl = document.createElement('style');
 styleEl.innerHTML = `
-    body:has(#page-accounts.active) #fabBtn { display: none !important; }
-    body:has(#page-transactions.active) #fabBtn {
-        width: 46px !important; height: 46px !important; font-size: 24px !important;
-        bottom: calc(70px + env(safe-area-inset-bottom)) !important;
-        right: 16px !important; box-shadow: 0 4px 10px rgba(77,127,255,0.3) !important;
-    }
     body.theme-minimal .account-row {
         border-left: none !important; background: var(--card2) !important;
         margin: 6px 10px !important; border-radius: 10px !important;
@@ -23,7 +18,45 @@ styleEl.innerHTML = `
 `;
 document.head.appendChild(styleEl);
 
-// 2. ТЕМА "МИНИМАЛИЗМ" (Настройки)
+// 2. УПРАВЛЕНИЕ КНОПКОЙ "+" ЧЕРЕЗ JS (Надежнее, чем CSS)
+function updateFabVisibility(tab) {
+    const fab = document.getElementById('fabBtn');
+    if (!fab) return;
+    
+    if (tab === 'home' || tab === 'accounts') {
+        // На Главной и Счетах скрываем полностью
+        fab.style.display = 'none';
+    } else if (tab === 'transactions') {
+        // На Операциях показываем, но делаем маленькой
+        fab.style.display = 'flex';
+        fab.style.width = '46px';
+        fab.style.height = '46px';
+        fab.style.fontSize = '24px';
+    } else {
+        // На Статистике (и других) возвращаем стандартный вид
+        fab.style.display = 'flex';
+        fab.style.width = '56px';
+        fab.style.height = '56px';
+        fab.style.fontSize = '28px';
+    }
+}
+
+// Перехватываем переключение вкладок (сработает поверх старого кода)
+const originalSetActiveTab = window.setActiveTab;
+window.setActiveTab = function(tab, fromPop) {
+    if (originalSetActiveTab) originalSetActiveTab(tab, fromPop);
+    updateFabVisibility(tab);
+};
+
+// Проверяем при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const activeBtn = document.querySelector('.nav-tab.active');
+        if (activeBtn) updateFabVisibility(activeBtn.dataset.tab);
+    }, 300);
+});
+
+// 3. ТЕМА "МИНИМАЛИЗМ" (Настройки)
 const originalOpenSettings = window.openSettings;
 window.openSettings = function() {
     originalOpenSettings();
@@ -56,7 +89,7 @@ setTimeout(() => {
     if (typeof S !== 'undefined' && S.settings.badgeStyle === 'minimal') document.body.classList.add('theme-minimal');
 }, 100);
 
-// 3. НОВОЕ МЕНЮ (Реструктуризация)
+// 4. НОВОЕ МЕНЮ (Реструктуризация)
 window.openMenu = function() {
     openModal(`
     <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
