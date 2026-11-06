@@ -2,9 +2,9 @@
 // ВСЁ ДЛЯ v56 В ОДНОМ ФАЙЛЕ (v56.js)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (финальная версия стилей)");
+    console.log("✅ Файл v56.js успешно загружен (финальные стили)");
 
-    // 1. СТИЛИ ДЛЯ ВСЕХ РЕЖИМОВ (Работают мгновенно)
+    // 1. СТИЛИ ДЛЯ ВСЕХ РЕЖИМОВ
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         /* Прячем плавающую кнопку, так как + добавлен локально */
@@ -19,7 +19,6 @@
             border-radius: 0 8px 8px 0 !important;
             border-bottom: 1px solid var(--border) !important;
         }
-        /* Кредитки с легким красным, дебетовые с зеленым */
         body.style-stripe .account-row:has(.acc-debt) {
             background: rgba(255, 92, 92, 0.05) !important; 
         }
@@ -30,13 +29,13 @@
         /* --- 2. РЕЖИМ "ЛЕГКИЙ ФОН" --- */
         body.style-bg .account-row {
             border-left: none !important;
-            background: rgba(46, 204, 113, 0.1) !important; /* Дебетовая */
+            background: rgba(46, 204, 113, 0.1) !important;
             margin: 6px 10px !important;
             border-radius: 10px !important;
             border: 1px solid rgba(46, 204, 113, 0.2) !important;
         }
         body.style-bg .account-row:has(.acc-debt) {
-            background: rgba(255, 92, 92, 0.1) !important; /* Кредитка */
+            background: rgba(255, 92, 92, 0.1) !important; 
             border-color: rgba(255, 92, 92, 0.3) !important;
         }
 
@@ -48,14 +47,22 @@
             border-radius: 10px !important;
             border: 1px solid var(--border) !important;
         }
-        /* Кредитку отличаем только красной обводкой */
-        body.style-minimal .account-row:has(.acc-debt) {
-            border-color: rgba(255, 92, 92, 0.5) !important; 
-        }
+        
         /* Убираем цвета с иконок карт */
         body.style-minimal .acc-icon-wrap {
             background: var(--card) !important;
             color: var(--muted) !important;
+            transition: all 0.2s ease;
+        }
+        /* Иконка дебетовой (светлая) */
+        body.style-minimal .account-row:not(:has(.acc-debt)) .acc-icon-wrap {
+            background: #2a3244 !important; /* Светлее фона карточки */
+            color: #8a94a6 !important;      /* Яркий контур */
+        }
+        /* Иконка кредитной (темная) */
+        body.style-minimal .account-row:has(.acc-debt) .acc-icon-wrap {
+            background: #151922 !important; /* Темнее фона карточки */
+            color: #5a6375 !important;      /* Тусклый контур */
         }
     `;
     document.head.appendChild(styleEl);
@@ -70,7 +77,7 @@
         else document.body.classList.add('style-stripe');
     }
 
-    // 3. ПЕРЕХВАТ НАСТРОЕК (добавляем 3-й вариант)
+    // 3. ПЕРЕХВАТ НАСТРОЕК
     const prevOpenSettings = window.openSettings;
     window.openSettings = function() {
         prevOpenSettings();
@@ -86,8 +93,8 @@
 
     const prevSaveSettings = window.saveSettings;
     window.saveSettings = function() {
-        prevSaveSettings(); // Здесь app.js перерисует карточки
-        applyBadgeStyle();  // А мы сразу накинем класс на body
+        prevSaveSettings();
+        applyBadgeStyle();
     };
     
     setTimeout(applyBadgeStyle, 100);
@@ -125,7 +132,7 @@
         }
     };
 
-    // 6. МЕНЮ
+    // 6. МЕНЮ (структура)
     window.openMenu = function() {
         openModal(`
         <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
