@@ -19,40 +19,48 @@
     `;
     document.head.appendChild(styleEl);
 
-    // 2. УПРАВЛЕНИЕ КНОПКОЙ "+" ЧЕРЕЗ JS
-    function updateFabVisibility(tab) {
+    // 2. ПОЛНОСТЬЮ СКРЫВАЕМ ПЛАВАЮЩУЮ КНОПКУ (FAB) НА ВСЕХ ВКЛАДКАХ
+    const hideFab = () => {
         const fab = document.getElementById('fabBtn');
-        if (!fab) return;
-        
-        if (tab === 'home' || tab === 'accounts') {
-            fab.style.display = 'none';
-        } else if (tab === 'transactions') {
-            fab.style.display = 'flex';
-            fab.style.width = '46px';
-            fab.style.height = '46px';
-            fab.style.fontSize = '24px';
-        } else {
-            fab.style.display = 'flex';
-            fab.style.width = '56px';
-            fab.style.height = '56px';
-            fab.style.fontSize = '28px';
-        }
-    }
-
+        if (fab) fab.style.display = 'none';
+    };
+    
+    // Перехватываем переключение вкладок, чтобы FAB не появлялась
     const prevSetActiveTab = window.setActiveTab;
     window.setActiveTab = function(tab, fromPop) {
         if (prevSetActiveTab) prevSetActiveTab(tab, fromPop);
-        updateFabVisibility(tab);
+        hideFab();
+    };
+    document.addEventListener('DOMContentLoaded', hideFab);
+    setTimeout(hideFab, 100);
+
+    // 3. ДОБАВЛЯЕМ ЛОКАЛЬНУЮ КНОПКУ "+" НА ВКЛАДКУ ОПЕРАЦИИ
+    const prevRenderTransactions = window.renderTransactions;
+    window.renderTransactions = function() {
+        if (prevRenderTransactions) prevRenderTransactions();
+        
+        const page = document.getElementById('page-transactions');
+        if (page && page.classList.contains('active')) {
+            const formRow = page.querySelector('.form-row');
+            // Если нашли строку с датами и там еще нет нашей кнопки — добавляем
+            if (formRow && !document.getElementById('inlineTxBtn')) {
+                formRow.style.display = 'flex';
+                formRow.style.gap = '8px';
+                formRow.style.alignItems = 'center';
+                
+                const btn = document.createElement('button');
+                btn.id = 'inlineTxBtn';
+                btn.className = 'btn-primary';
+                // Стиль точно как у кнопок "+" на Главной
+                btn.style = 'padding: 0; width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; font-size: 24px; display: flex; align-items: center; justify-content: center;';
+                btn.innerHTML = '+';
+                btn.onclick = () => { if(typeof openTxModal === 'function') openTxModal(); };
+                formRow.appendChild(btn);
+            }
+        }
     };
 
-    document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-            const activeBtn = document.querySelector('.nav-tab.active');
-            if (activeBtn) updateFabVisibility(activeBtn.dataset.tab);
-        }, 300);
-    });
-
-    // 3. ТЕМА "МИНИМАЛИЗМ" (Настройки)
+    // 4. ТЕМА "МИНИМАЛИЗМ" (Настройки)
     const prevOpenSettings = window.openSettings;
     window.openSettings = function() {
         prevOpenSettings();
@@ -85,7 +93,7 @@
         if (typeof S !== 'undefined' && S.settings.badgeStyle === 'minimal') document.body.classList.add('theme-minimal');
     }, 100);
 
-    // 4. НОВОЕ МЕНЮ
+    // 5. НОВОЕ МЕНЮ
     window.openMenu = function() {
         openModal(`
         <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
