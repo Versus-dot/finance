@@ -124,3 +124,42 @@ input[type="date"]{color-scheme:dark}:root[data-theme="light"] input[type="date"
 .banks-carousel::-webkit-scrollbar{height:4px}
 .banks-carousel::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .bank-chip{user-select:none;}
+/* === ИСПРАВЛЕНИЯ v55 === */
+
+/* 1. Фикс подергивания замка (фиксируем размер) */
+.banks-header button[title="Режим редактирования"] {
+    width: 36px;
+    height: 32px;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+/* 2. Скрываем большую кнопку '+' на Главной странице */
+body:has(#page-home.active) #fabBtn {
+    display: none !important;
+}
+
+/* 3. Адаптив для карточек на телефоне (чтобы текст и полоска не налезали) */
+@media (max-width: 600px) {
+    .account-row {
+        flex-wrap: wrap; /* Разрешаем переносить элементы на новую строку */
+    }
+    .account-row > div:last-child {
+        width: 100%; /* Блок с балансом занимает всю ширину */
+        margin-top: 8px;
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+    .acc-balance {
+        font-size: 18px;
+    }
+    /* Полоска хеджа на мобилке */
+    .account-row > div:last-child > div:last-child {
+        max-width: 100% !important;
+    }
+}
