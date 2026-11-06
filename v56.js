@@ -4,12 +4,11 @@
 (function() {
     console.log("✅ Файл v56.js успешно загружен (финальная версия стилей)");
 
-    // 1. СТИЛИ ДЛЯ ВСЕХ РЕЖИМОВ
+    // 1. СТИЛИ ДЛЯ ВСЕХ РЕЖИМОВ (Работают мгновенно)
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         /* Прячем плавающую кнопку, так как + добавлен локально */
         #fabBtn { display: none !important; }
-
         .account-row { transition: all 0.2s ease; }
 
         /* --- 1. РЕЖИМ "ЦВЕТНЫЕ ПОЛОСЫ" --- */
@@ -20,28 +19,25 @@
             border-radius: 0 8px 8px 0 !important;
             border-bottom: 1px solid var(--border) !important;
         }
-        body.style-stripe .account-row.type-credit {
-            background: rgba(255, 92, 92, 0.05) !important;
+        /* Кредитки с легким красным, дебетовые с зеленым */
+        body.style-stripe .account-row:has(.acc-debt) {
+            background: rgba(255, 92, 92, 0.05) !important; 
         }
-        body.style-stripe .account-row.type-debit {
-            background: rgba(46, 204, 113, 0.05) !important;
+        body.style-stripe .account-row:not(:has(.acc-debt)) {
+            background: rgba(46, 204, 113, 0.04) !important;
         }
 
         /* --- 2. РЕЖИМ "ЛЕГКИЙ ФОН" --- */
         body.style-bg .account-row {
             border-left: none !important;
-            background: var(--card2) !important;
+            background: rgba(46, 204, 113, 0.1) !important; /* Дебетовая */
             margin: 6px 10px !important;
             border-radius: 10px !important;
-            border: 1px solid var(--border) !important;
+            border: 1px solid rgba(46, 204, 113, 0.2) !important;
         }
-        body.style-bg .account-row.type-credit {
-            background: rgba(255, 92, 92, 0.12) !important;
+        body.style-bg .account-row:has(.acc-debt) {
+            background: rgba(255, 92, 92, 0.1) !important; /* Кредитка */
             border-color: rgba(255, 92, 92, 0.3) !important;
-        }
-        body.style-bg .account-row.type-debit {
-            background: rgba(46, 204, 113, 0.12) !important;
-            border-color: rgba(46, 204, 113, 0.3) !important;
         }
 
         /* --- 3. РЕЖИМ "МИНИМАЛИЗМ" --- */
@@ -52,37 +48,19 @@
             border-radius: 10px !important;
             border: 1px solid var(--border) !important;
         }
+        /* Кредитку отличаем только красной обводкой */
+        body.style-minimal .account-row:has(.acc-debt) {
+            border-color: rgba(255, 92, 92, 0.5) !important; 
+        }
         /* Убираем цвета с иконок карт */
         body.style-minimal .acc-icon-wrap {
             background: var(--card) !important;
             color: var(--muted) !important;
         }
-        /* Отличаем кредитку от дебетовой красной обводкой */
-        body.style-minimal .account-row.type-credit {
-            border-color: rgba(255, 92, 92, 0.4) !important;
-        }
-        /* Прячем цветные бейджи банков, оставляем только кружочки */
-        body.style-minimal .bank-stripe, 
-        body.style-minimal .bank-badge { display: none !important; }
     `;
     document.head.appendChild(styleEl);
 
-    // 2. АВТОМАТИЧЕСКОЕ РАСПОЗНАВАНИЕ КРЕДИТОК (Наблюдатель)
-    const observer = new MutationObserver(() => {
-        document.querySelectorAll('.account-row').forEach(row => {
-            // Если внутри карточки есть блок "Задолженность" — это кредитка
-            if (row.querySelector('.acc-debt')) {
-                row.classList.add('type-credit');
-                row.classList.remove('type-debit');
-            } else {
-                row.classList.add('type-debit');
-                row.classList.remove('type-credit');
-            }
-        });
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // 3. ПРИМЕНЕНИЕ КЛАССОВ К BODY
+    // 2. ПРИМЕНЕНИЕ КЛАССОВ К BODY
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
         const style = (typeof S !== 'undefined' && S.settings && S.settings.badgeStyle) ? S.settings.badgeStyle : 'stripe';
@@ -92,7 +70,7 @@
         else document.body.classList.add('style-stripe');
     }
 
-    // 4. ПЕРЕХВАТ НАСТРОЕК
+    // 3. ПЕРЕХВАТ НАСТРОЕК (добавляем 3-й вариант)
     const prevOpenSettings = window.openSettings;
     window.openSettings = function() {
         prevOpenSettings();
@@ -108,23 +86,23 @@
 
     const prevSaveSettings = window.saveSettings;
     window.saveSettings = function() {
-        prevSaveSettings();
-        applyBadgeStyle();
+        prevSaveSettings(); // Здесь app.js перерисует карточки
+        applyBadgeStyle();  // А мы сразу накинем класс на body
     };
     
     setTimeout(applyBadgeStyle, 100);
 
-    // 5. ХАК ДЛЯ МИНИМАЛИЗМА (Возвращаем кружочки)
+    // 4. ХАК ДЛЯ МИНИМАЛИЗМА (Возвращаем цветные кружочки банков)
     const prevGetBankIndicatorHtml = window.getBankIndicatorHtml;
     window.getBankIndicatorHtml = function(bank) {
         if (typeof S !== 'undefined' && S.settings && S.settings.badgeStyle === 'minimal') {
             if (!bank) return '';
-            return `<span class="bank-dot" style="background:${bank.color || '#888'}; margin-right: 6px;"></span>`;
+            return `<span class="bank-dot" style="background:${bank.color || '#888'}; margin-right: 6px; width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span>`;
         }
         return prevGetBankIndicatorHtml(bank);
     };
 
-    // 6. ВНЕДРЕНИЕ КНОПКИ "+" НА ОПЕРАЦИИ
+    // 5. ВНЕДРЕНИЕ КНОПКИ "+" НА ОПЕРАЦИИ
     const prevRenderTransactions = window.renderTransactions;
     window.renderTransactions = function() {
         if (prevRenderTransactions) prevRenderTransactions();
@@ -147,7 +125,7 @@
         }
     };
 
-    // 7. МЕНЮ
+    // 6. МЕНЮ
     window.openMenu = function() {
         openModal(`
         <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
