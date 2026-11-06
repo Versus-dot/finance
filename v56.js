@@ -4,45 +4,118 @@
 (function() {
     console.log("✅ Файл v56.js успешно загружен (исправленная версия)");
 
-    // 1. СТИЛИ ДЛЯ ТЕМЫ "МИНИМАЛИЗМ"
+    // 1. СТИЛИ ДЛЯ ВСЕХ РЕЖИМОВ
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
-        body.theme-minimal .account-row {
-            border-left: none !important; background: var(--card2) !important;
-            margin: 6px 10px !important; border-radius: 10px !important;
-            border-bottom: none !important; border: 1px solid var(--border) !important;
+        /* Скрываем плавающую кнопку везде, так как + добавлен локально на операции */
+        #fabBtn { display: none !important; }
+
+        .account-row {
+            transition: all 0.2s ease-in-out;
         }
-        body.theme-minimal .account-row[data-acc-type="credit"] { background: rgba(255, 92, 92, 0.08) !important; }
-        body.theme-minimal .account-row[data-acc-type="debit"] { background: rgba(46, 204, 113, 0.08) !important; }
-        body.theme-minimal .bank-chip { background: var(--card2) !important; border: 1px solid var(--border) !important; }
-        body.theme-minimal .bank-chip.active { border-color: var(--accent) !important; }
+
+        /* --- 1. РЕЖИМ "ЦВЕТНЫЕ ПОЛОСЫ" --- */
+        body.style-stripe .account-row {
+            border-left: 4px solid var(--bank-color) !important;
+            background: var(--card) !important;
+            margin: 0 6px 0 10px !important;
+            border-radius: 0 8px 8px 0 !important;
+            border-bottom: 1px solid var(--border) !important;
+        }
+        body.style-stripe .account-row[data-acc-type="credit"] {
+            background: rgba(255, 92, 92, 0.04) !important; /* Легкий красный оттенок */
+        }
+        body.style-stripe .account-row[data-acc-type="debit"] {
+            background: rgba(46, 204, 113, 0.04) !important; /* Легкий зеленый оттенок */
+        }
+
+        /* --- 2. РЕЖИМ "ЛЕГКИЙ ФОН" --- */
+        body.style-bg .account-row {
+            border-left: none !important;
+            background: var(--card2) !important;
+            margin: 6px 10px !important;
+            border-radius: 10px !important;
+            border: 1px solid var(--border) !important;
+        }
+        body.style-bg .account-row[data-acc-type="credit"] {
+            background: rgba(255, 92, 92, 0.1) !important;
+            border-color: rgba(255, 92, 92, 0.3) !important;
+        }
+        body.style-bg .account-row[data-acc-type="debit"] {
+            background: rgba(46, 204, 113, 0.1) !important;
+            border-color: rgba(46, 204, 113, 0.3) !important;
+        }
+
+        /* --- 3. РЕЖИМ "МИНИМАЛИЗМ" --- */
+        body.style-minimal .account-row {
+            border-left: none !important;
+            background: var(--card2) !important;
+            margin: 6px 10px !important;
+            border-radius: 10px !important;
+            border: 1px solid var(--border) !important;
+        }
+        /* Отличаем кредитку от дебетовой только легкой обводкой */
+        body.style-minimal .account-row[data-acc-type="credit"] {
+            border-color: rgba(255, 92, 92, 0.4) !important;
+        }
+        /* Прячем цветные плашки банков, оставляем только точки */
+        body.style-minimal .bank-stripe, 
+        body.style-minimal .bank-badge { 
+            display: none !important; 
+        }
     `;
     document.head.appendChild(styleEl);
 
-    // 2. ПОЛНОСТЬЮ СКРЫВАЕМ ПЛАВАЮЩУЮ КНОПКУ (FAB) НА ВСЕХ ВКЛАДКАХ
-    const hideFab = () => {
-        const fab = document.getElementById('fabBtn');
-        if (fab) fab.style.display = 'none';
+    // 2. ФУНКЦИЯ ПРИМЕНЕНИЯ КЛАССОВ
+    function applyBadgeStyle() {
+        document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
+        const style = (typeof S !== 'undefined' && S.settings && S.settings.badgeStyle) ? S.settings.badgeStyle : 'stripe';
+        
+        if (style === 'minimal') document.body.classList.add('style-minimal');
+        else if (style === 'bg') document.body.classList.add('style-bg');
+        else document.body.classList.add('style-stripe');
+    }
+
+    // 3. ПЕРЕХВАТ НАСТРОЕК
+    const prevOpenSettings = window.openSettings;
+    window.openSettings = function() {
+        prevOpenSettings();
+        const badgeSelect = document.getElementById('setBadge');
+        if (badgeSelect && !badgeSelect.querySelector('option[value="minimal"]')) {
+            // Убираем старые варианты, чтобы заменить их нашими
+            badgeSelect.innerHTML = `
+                <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option>
+                <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
+                <option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>
+            `;
+        }
+    };
+
+    const prevSaveSettings = window.saveSettings;
+    window.saveSettings = function() {
+        prevSaveSettings();
+        applyBadgeStyle();
     };
     
-    // Перехватываем переключение вкладок, чтобы FAB не появлялась
-    const prevSetActiveTab = window.setActiveTab;
-    window.setActiveTab = function(tab, fromPop) {
-        if (prevSetActiveTab) prevSetActiveTab(tab, fromPop);
-        hideFab();
-    };
-    document.addEventListener('DOMContentLoaded', hideFab);
-    setTimeout(hideFab, 100);
+    setTimeout(applyBadgeStyle, 100);
 
-    // 3. ДОБАВЛЯЕМ ЛОКАЛЬНУЮ КНОПКУ "+" НА ВКЛАДКУ ОПЕРАЦИИ
+    // 4. ХАК ДЛЯ МИНИМАЛИЗМА (заставляем кружочки рисоваться)
+    const prevGetBankIndicatorHtml = window.getBankIndicatorHtml;
+    window.getBankIndicatorHtml = function(bank) {
+        if (typeof S !== 'undefined' && S.settings && S.settings.badgeStyle === 'minimal') {
+            if (!bank) return '';
+            return `<span class="bank-dot" style="background:${bank.color || '#888'}; margin-right: 6px;"></span>`;
+        }
+        return prevGetBankIndicatorHtml(bank);
+    };
+
+    // 5. ВНЕДРЕНИЕ КНОПКИ "+" НА ОПЕРАЦИИ
     const prevRenderTransactions = window.renderTransactions;
     window.renderTransactions = function() {
         if (prevRenderTransactions) prevRenderTransactions();
-        
         const page = document.getElementById('page-transactions');
         if (page && page.classList.contains('active')) {
             const formRow = page.querySelector('.form-row');
-            // Если нашли строку с датами и там еще нет нашей кнопки — добавляем
             if (formRow && !document.getElementById('inlineTxBtn')) {
                 formRow.style.display = 'flex';
                 formRow.style.gap = '8px';
@@ -51,7 +124,6 @@
                 const btn = document.createElement('button');
                 btn.id = 'inlineTxBtn';
                 btn.className = 'btn-primary';
-                // Стиль точно как у кнопок "+" на Главной
                 btn.style = 'padding: 0; width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; font-size: 24px; display: flex; align-items: center; justify-content: center;';
                 btn.innerHTML = '+';
                 btn.onclick = () => { if(typeof openTxModal === 'function') openTxModal(); };
@@ -60,40 +132,7 @@
         }
     };
 
-    // 4. ТЕМА "МИНИМАЛИЗМ" (Настройки)
-    const prevOpenSettings = window.openSettings;
-    window.openSettings = function() {
-        prevOpenSettings();
-        const badgeSelect = document.getElementById('setBadge');
-        if (badgeSelect && !badgeSelect.querySelector('option[value="minimal"]')) {
-            const opt = document.createElement('option');
-            opt.value = 'minimal'; opt.textContent = 'Минимализм';
-            if (S.settings.badgeStyle === 'minimal') opt.selected = true;
-            badgeSelect.appendChild(opt);
-        }
-    };
-    const prevSaveSettings = window.saveSettings;
-    window.saveSettings = function() {
-        prevSaveSettings();
-        if (typeof S !== 'undefined' && S.settings.badgeStyle === 'minimal') {
-            document.body.classList.add('theme-minimal');
-        } else {
-            document.body.classList.remove('theme-minimal');
-        }
-    };
-    const prevRenderAccountRow = window.renderAccountRow;
-    window.renderAccountRow = function(a, bank) {
-        let html = prevRenderAccountRow(a, bank);
-        if (html.includes('class="account-row"')) {
-            html = html.replace('class="account-row"', `class="account-row" data-acc-type="${a.type}"`);
-        }
-        return html;
-    };
-    setTimeout(() => {
-        if (typeof S !== 'undefined' && S.settings.badgeStyle === 'minimal') document.body.classList.add('theme-minimal');
-    }, 100);
-
-    // 5. НОВОЕ МЕНЮ
+    // 6. ОСТАЛЬНОЕ МЕНЮ (Без изменений)
     window.openMenu = function() {
         openModal(`
         <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
