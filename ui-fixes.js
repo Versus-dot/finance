@@ -1,5 +1,5 @@
 // ==========================================
-// Безопасные UI-улучшения (v44.1)
+// Безопасные UI-улучшения (v44.2)
 // ==========================================
 
 // 1. Замена эмодзи-замка на четкую SVG-иконку
@@ -23,7 +23,7 @@ setInterval(() => {
         lockBtn.innerHTML = svgClose;
         lockBtn.dataset.svglock = 'close';
     }
-}, 500); // Проверяем каждые полсекунды (это безопасно, без нагрузки)
+}, 500);
 
 // 2. Скролл мышкой и колесиком для ленты банков
 let isDown = false;
@@ -34,7 +34,8 @@ let moved = false;
 document.addEventListener('mousedown', (e) => {
     const carousel = e.target.closest('.banks-carousel');
     if (!carousel) return;
-    if (typeof S !== 'undefined' && S.ui && S.ui.bankEditMode) return; // Отключаем скролл в режиме редактирования
+    // Если включен режим редактирования (замок открыт) — не мешаем перетаскиванию!
+    if (typeof S !== 'undefined' && S.ui && S.ui.bankEditMode) return; 
     
     isDown = true;
     moved = false;
@@ -49,7 +50,8 @@ document.addEventListener('mousemove', (e) => {
     if (!isDown) return;
     const carousel = e.target.closest('.banks-carousel');
     if (!carousel) return;
-    
+    if (typeof S !== 'undefined' && S.ui && S.ui.bankEditMode) return;
+
     const x = e.pageX - carousel.offsetLeft;
     const walk = (x - startX) * 1.5;
     
@@ -59,14 +61,7 @@ document.addEventListener('mousemove', (e) => {
     carousel.scrollLeft = scrollLeft - walk;
 });
 
-document.addEventListener('click', (e) => {
-    if (moved && e.target.closest('.banks-carousel')) {
-        e.preventDefault();
-        e.stopPropagation();
-        moved = false;
-    }
-}, true);
-
+// Колесико мыши
 document.addEventListener('wheel', (e) => {
     const carousel = e.target.closest('.banks-carousel');
     if (!carousel) return;
@@ -76,4 +71,4 @@ document.addEventListener('wheel', (e) => {
     }
 }, { passive: false });
 
-console.log('✅ UI Fixes (v44.1) безопасно загружены');
+console.log('✅ UI Fixes (v44.2) загружены');
