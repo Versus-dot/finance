@@ -1,5 +1,5 @@
 // ==========================================
-// Модуль хеджирования (v53) - hedge.js
+// Модуль хеджирования (v54) - hedge.js
 // ==========================================
 
 // Инициализация настройки (по умолчанию выключено)
@@ -59,7 +59,7 @@ window.openAccountModal = function(id, bankId) {
             <label>🛡 Хедж для кредитной карты</label>
             <select id="accHedgeFor">
                 <option value="">Не является хеджем</option>
-                ${S.accounts.filter(a => a.type === 'credit' && !a.archived).map(c => `<option value="${c.id}" ${acc && acc.hedgeFor === c.id ? 'selected' : ''}>${esc(c.name)} (Лимит: ${fmt(c.creditLimit || 0)})</option>`).join('')}
+                ${S.accounts.filter(a => a.type === 'credit' && !a.archived).map(c => `<option value="${c.id}" ${acc && acc.hedgeFor === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
             </select>
         `;
 
@@ -85,27 +85,34 @@ window.openAccountModal = function(id, bankId) {
                         if (newest) newest.hedgeFor = cardId || null;
                     }
                     if (typeof save === 'function') save(false);
-                    if (typeof renderAll === 'function') renderAll(); // Обновляем экран
+                    if (typeof renderAll === 'function') renderAll();
                 }
             });
         }
     }
 }
 
-// 3. Пересчет общего баланса (исключаем хедж до уровня лимита)
+// 3. Пересчет общего баланса (исключаем хедж и уменьшаем долг)
 const originalComputeTotals = window.computeTotals;
 window.computeTotals = function() {
     let totals = originalComputeTotals();
     if (typeof S !== 'undefined' && S.settings.hedgingEnabled) {
+        let totalCoveredDebt = 0; // Для вычитания из красной суммы долга
+        
         S.accounts.filter(a => a.hedgeFor && !a.archived).forEach(dep => {
             const card = S.accounts.find(c => c.id === dep.hedgeFor && c.type === 'credit' && !c.archived);
             if (card) {
                 const depVal = accValue(dep);
                 const limit = card.creditLimit || 0;
-                const covered = Math.min(depVal, limit);
-                totals.totalCap -= covered; // Вычитаем покрытую часть
+                const covered = Math.min(depVal, limit); // Сколько денег закрываем
+                
+                totals.totalCap -= covered; // Убираем из общего капитала
+                totalCoveredDebt += covered; // Накапливаем для вычета из долга
             }
         });
+        
+        // Уменьшаем общий долг на сумму хеджа (не уходя в минус)
+        totals.debt = Math.max(0, totals.debt - totalCoveredDebt);
     }
     return totals;
 }
@@ -119,13 +126,23 @@ window.renderAccountRow = function(a, bank) {
         if (hedges.length > 0) {
             const totalHedge = hedges.reduce((sum, h) => sum + accValue(h), 0);
             const limit = a.creditLimit || 0;
-            const pct = limit > 0 ? Math.min(100, (totalHedge / limit) * 100) : 0;
+            const currentBalance = accValue(a);
+            const currentDebt = Math.max(0, limit - currentBalance); // Фактический долг
+            
+            let pct = 100;
+            if (currentDebt > 0) {
+                pct = Math.min(100, (totalHedge / currentDebt) * 100);
+            } else if (totalHedge === 0) {
+                pct = 0;
+            }
+
             const color = pct >= 100 ? 'var(--green)' : 'var(--yellow)';
+            const textLeft = currentDebt > 0 ? `🛡 ${fmt(totalHedge)} / ${fmt(currentDebt)}` : `🛡 Хедж: ${fmt(totalHedge)}`;
             
             const barHtml = `
-                <div style="margin-top: 6px; width: 100%; max-width: 200px; margin-left: auto; text-align: right;">
+                <div style="margin-top: 6px; width: 100%; max-width: 220px; margin-left: auto; text-align: right;">
                     <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-bottom:2px;">
-                        <span>🛡 ${fmt(totalHedge)} / ${fmt(limit)}</span>
+                        <span>${textLeft}</span>
                         <span>${pct.toFixed(0)}%</span>
                     </div>
                     <div style="width:100%;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
@@ -139,4 +156,4 @@ window.renderAccountRow = function(a, bank) {
     return html;
 }
 
-console.log('✅ Модуль хеджирования (v53) загружен');
+console.log('✅ Модуль хеджирования (v54) обновлен');
