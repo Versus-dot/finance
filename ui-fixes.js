@@ -1,50 +1,31 @@
 // ==========================================
-// Файл ui-fixes.js — дополнительные улучшения (ИСПРАВЛЕНО)
+// Безопасные UI-улучшения (v44.1)
 // ==========================================
 
-// 1. Следим за обновлением главного экрана, чтобы менять иконку замка на SVG
-const observer = new MutationObserver(() => {
+// 1. Замена эмодзи-замка на четкую SVG-иконку
+setInterval(() => {
     const lockBtn = document.querySelector('.banks-header button[title="Режим редактирования"]');
     if (!lockBtn) return;
     
-    // Проверяем, включен ли сейчас режим редактирования
     const isEdit = (typeof S !== 'undefined' && S.ui && S.ui.bankEditMode);
     
     const svgOpen = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
     const svgClose = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
 
-    // Если замок открыт (синяя кнопка)
-    if (isEdit) {
-        if (lockBtn.innerHTML !== svgOpen) { // Проверка, чтобы не было бесконечного цикла
-            lockBtn.className = 'btn-primary btn-small';
-            lockBtn.style.padding = '4px 8px';
-            lockBtn.style.display = 'flex';
-            lockBtn.style.alignItems = 'center';
-            lockBtn.style.justifyContent = 'center';
-            lockBtn.innerHTML = svgOpen;
-        }
-    } else {
-        // Если замок закрыт (серая кнопка)
-        if (lockBtn.innerHTML !== svgClose) { // Проверка, чтобы не было бесконечного цикла
-            lockBtn.className = 'btn-secondary btn-small';
-            lockBtn.style.padding = '4px 8px';
-            lockBtn.style.display = 'flex';
-            lockBtn.style.alignItems = 'center';
-            lockBtn.style.justifyContent = 'center';
-            lockBtn.innerHTML = svgClose;
-        }
+    if (isEdit && lockBtn.dataset.svglock !== 'open') {
+        lockBtn.className = 'btn-primary btn-small';
+        lockBtn.style.cssText = 'padding:4px 8px;border-radius:8px;line-height:1;display:flex;align-items:center;justify-content:center;';
+        lockBtn.innerHTML = svgOpen;
+        lockBtn.dataset.svglock = 'open';
+    } else if (!isEdit && lockBtn.dataset.svglock !== 'close') {
+        lockBtn.className = 'btn-secondary btn-small';
+        lockBtn.style.cssText = 'padding:4px 8px;border-radius:8px;line-height:1;display:flex;align-items:center;justify-content:center;';
+        lockBtn.innerHTML = svgClose;
+        lockBtn.dataset.svglock = 'close';
     }
-});
+}, 500); // Проверяем каждые полсекунды (это безопасно, без нагрузки)
 
-// Запускаем слежку за блоком, где находятся банки
-document.addEventListener('DOMContentLoaded', () => {
-    const homePage = document.getElementById('page-home');
-    if (homePage) {
-        observer.observe(homePage, { childList: true, subtree: true });
-    }
-});
-
-// 2. Добавляем скролл мышкой для ленты банков
+// 2. Скролл мышкой и колесиком для ленты банков
 let isDown = false;
 let startX;
 let scrollLeft;
@@ -53,8 +34,7 @@ let moved = false;
 document.addEventListener('mousedown', (e) => {
     const carousel = e.target.closest('.banks-carousel');
     if (!carousel) return;
-    
-    if (typeof S !== 'undefined' && S.ui && S.ui.bankEditMode) return;
+    if (typeof S !== 'undefined' && S.ui && S.ui.bankEditMode) return; // Отключаем скролл в режиме редактирования
     
     isDown = true;
     moved = false;
@@ -87,15 +67,13 @@ document.addEventListener('click', (e) => {
     }
 }, true);
 
-// 3. Прокрутка колесиком мыши по горизонтали
 document.addEventListener('wheel', (e) => {
     const carousel = e.target.closest('.banks-carousel');
     if (!carousel) return;
-    
     if (e.deltaY !== 0) {
         e.preventDefault();
         carousel.scrollLeft += e.deltaY;
     }
 }, { passive: false });
 
-console.log('✅ UI Fixes (v44.1) исправлены и загружены');
+console.log('✅ UI Fixes (v44.1) безопасно загружены');
