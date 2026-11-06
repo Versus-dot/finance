@@ -123,4 +123,4 @@ input[type="date"]{color-scheme:dark}:root[data-theme="light"] input[type="date"
 .banks-carousel:active{cursor:grabbing}
 .banks-carousel::-webkit-scrollbar{height:4px}
 .banks-carousel::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-.bank-chip{user-select:none;-webkit-user-drag:none;}
+.bank-chip{user-select:none;}
