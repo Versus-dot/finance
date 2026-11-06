@@ -48,21 +48,19 @@
             border: 1px solid var(--border) !important;
         }
         
-        /* Убираем цвета с иконок карт */
+        /* Базовый стиль иконки */
         body.style-minimal .acc-icon-wrap {
-            background: var(--card) !important;
-            color: var(--muted) !important;
             transition: all 0.2s ease;
         }
-        /* Иконка дебетовой (светлая) */
+        /* Дебетовая: чуть светлее фона карточки */
         body.style-minimal .account-row:not(:has(.acc-debt)) .acc-icon-wrap {
-            background: #2a3244 !important; /* Светлее фона карточки */
-            color: #8a94a6 !important;      /* Яркий контур */
+            background: #2d3647 !important; 
+            color: #9aa5b8 !important;      
         }
-        /* Иконка кредитной (темная) */
+        /* Кредитная: чуть темнее фона карточки */
         body.style-minimal .account-row:has(.acc-debt) .acc-icon-wrap {
-            background: #151922 !important; /* Темнее фона карточки */
-            color: #5a6375 !important;      /* Тусклый контур */
+            background: #1f2532 !important; 
+            color: #6b778c !important;      
         }
     `;
     document.head.appendChild(styleEl);
