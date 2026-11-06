@@ -1,5 +1,5 @@
 // ==========================================
-// Умная синхронизация (v45) - sync-manager.js
+// Умная синхронизация (v45.1) - sync-manager.js
 // ==========================================
 
 let syncTimer;
@@ -12,20 +12,20 @@ function updateSyncStatus(status) {
     if (!btn) return;
     
     if (status === 'pending') {
-        btn.textContent = '☁️'; // Ждем паузу (1.5 сек)
+        btn.textContent = '☁️';
         btn.style.opacity = '0.5';
         btn.style.color = 'inherit';
     } else if (status === 'syncing') {
-        btn.textContent = '🔄'; // Идет отправка
+        btn.textContent = '🔄';
         btn.style.opacity = '1';
         btn.style.color = 'inherit';
     } else if (status === 'synced') {
-        btn.textContent = '✅'; // Успешно!
+        btn.textContent = '✅';
         btn.style.opacity = '1';
         btn.style.color = 'var(--green)';
         setTimeout(() => { btn.textContent = '🔄'; btn.style.color = 'inherit'; }, 2000);
     } else if (status === 'error') {
-        btn.textContent = '⚠️'; // Ошибка сети
+        btn.textContent = '⚠️';
         btn.style.opacity = '1';
         btn.style.color = 'var(--red)';
     }
@@ -36,7 +36,6 @@ if (typeof window.save === 'function') {
     const originalSave = window.save;
     window.save = function(...args) {
         originalSave.apply(this, args);
-        // Если это не системное сохранение (например, при загрузке), а твое действие:
         if (args[0] !== false && typeof S !== 'undefined' && S.settings && S.settings.yandexToken) {
             queueSmartSync();
         }
@@ -47,76 +46,78 @@ if (typeof window.save === 'function') {
 function queueSmartSync() {
     updateSyncStatus('pending');
     clearTimeout(syncTimer);
-    // Ждем 1.5 секунды тишины, прежде чем отправлять
     syncTimer = setTimeout(() => {
-        performSmartSync();
+        performSmartSync(false); // false = не ручная синхронизация
     }, 1500);
 }
 
-// 3. Отправляем на сервер
-async function performSmartSync() {
+// 3. Умная отправка/загрузка
+async function performSmartSync(isManual) {
     if (typeof S === 'undefined' || !S.settings.yandexToken) return;
-    
     updateSyncStatus('syncing');
-    const token = S.settings.yandexToken;
-    const filePath = encodeURIComponent('/finance-backup.json');
     
     try {
-        const res = await fetch(`https://cloud-api.yandex.net/v1/disk/resources/upload?path=${filePath}&overwrite=true`, {
-            headers: { 'Authorization': `OAuth ${token}` }
-        });
+        const token = S.settings.yandexToken;
+        const targetUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=/finance-backup.json`;
+        const res = await fetch(targetUrl, { headers: { 'Authorization': `OAuth ${token}` } });
         
+        if (res.status === 404) {
+            if(typeof backupToYandexDisk === 'function') await backupToYandexDisk(true);
+            updateSyncStatus('synced');
+            return;
+        }
         if (!res.ok) throw new Error('Ошибка API');
+        
         const data = await res.json();
+        const cloudModified = new Date(data.modified).getTime();
+        const localLastBackup = S.settings.lastCloudBackup || 0;
         
-        const uploadRes = await fetch(data.href, { 
-            method: 'PUT', 
-            body: JSON.stringify(S, null, 2) 
-        });
-        
-        if (!uploadRes.ok) throw new Error('Ошибка загрузки');
-        
-        S.settings.lastCloudBackup = Date.now();
-        localStorage.setItem('financeApp_v25', JSON.stringify(S));
+        // Если облако новее (с учетом погрешности 2 сек)
+        if (cloudModified > localLastBackup + 2000) {
+            // Если нажали вручную ИЛИ локальных изменений нет — скачиваем
+            if (isManual || (typeof hasLocalUnsavedChanges === 'function' && !hasLocalUnsavedChanges())) {
+                if(typeof restoreFromYandexDisk === 'function') await restoreFromYandexDisk(true);
+            } else {
+                // Есть локальные изменения — отправляем их
+                if(typeof backupToYandexDisk === 'function') await backupToYandexDisk(true);
+            }
+        } else {
+            // Локальные данные свежее — отправляем
+            if(typeof backupToYandexDisk === 'function') await backupToYandexDisk(true);
+        }
         
         updateSyncStatus('synced');
-        retryCount = 0; // Сбрасываем счетчик ошибок
-        
+        retryCount = 0;
     } catch (e) {
         console.error('Smart Sync Error:', e);
         handleSyncError();
     }
 }
 
-// 4. Если ошибка — пробуем еще раз (2с, 4с, 8с)
+// 4. Обработка ошибок (Retry)
 function handleSyncError() {
     if (retryCount < MAX_RETRIES) {
         retryCount++;
         const delay = Math.pow(2, retryCount) * 1000;
         updateSyncStatus('error');
-        console.log(`⚠️ Ошибка синхронизации. Повтор через ${delay/1000} сек...`);
-        
         clearTimeout(syncTimer);
         syncTimer = setTimeout(() => {
-            performSmartSync();
+            performSmartSync(false);
         }, delay);
     } else {
         updateSyncStatus('error');
-        console.log('❌ Не удалось синхронизировать после 3 попыток.');
     }
 }
 
-// 5. Переопределяем кнопку ручной синхронизации (чтобы она тоже работала умно)
-if (typeof window.syncManual === 'function') {
-    window.syncManual = async function() {
-        if (typeof S === 'undefined' || !S.settings.yandexToken) {
-            if(typeof toast === 'function') toast('❌ Укажите токен в настройках');
-            return;
-        }
-        if(typeof toast === 'function') toast('⏳ Синхронизация...');
-        retryCount = 0;
-        await performSmartSync();
+// 5. Переопределяем кнопку ручной синхронизации
+window.syncManual = async function() {
+    if (typeof S === 'undefined' || !S.settings.yandexToken) {
+        if(typeof toast === 'function') toast('❌ Укажите токен в настройках');
+        return;
     }
+    if(typeof toast === 'function') toast('⏳ Проверка облака...');
+    retryCount = 0;
+    await performSmartSync(true); // true = ручная синхронизация
 }
 
-console.log('✅ Умная синхронизация (v45) загружена');
+console.log('✅ Умная синхронизация (v45.1) загружена');
