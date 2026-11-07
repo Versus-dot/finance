@@ -1,10 +1,10 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v58 (Автосоздание счетов Т-Инвест)
+// ФИНАЛЬНЫЙ МОДУЛЬ v59 (Фикс исключения из баланса)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v58: Автосоздание)");
+    console.log("✅ Файл v56.js успешно загружен (v59)");
 
-    // ... (СТИЛИ И ФИКС СКРОЛЛА БЕЗ ИЗМЕНЕНИЙ) ...
+    // ... (СТИЛИ И ФИКС СКРОЛЛА) ...
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }
@@ -38,18 +38,12 @@
     document.head.appendChild(styleEl);
     document.addEventListener('touchmove', function(e) { if (e.target.closest('.modal')) e.stopPropagation(); }, { capture: true, passive: true });
 
-    // ==========================================
-    // 2. ЗАЩИТА ОТ СЛУЧАЙНОГО УДАЛЕНИЯ
-    // ==========================================
     const originalDeleteAccount = window.deleteAccount;
     window.deleteAccount = function(id) {
         const acc = getAcc(id); if (!acc) return;
         if (confirm(`Вы уверены, что хотите удалить счет "${acc.name}"?\n\nЭто действие нельзя отменить.`)) originalDeleteAccount(id);
     };
 
-    // ==========================================
-    // 3. ЭКРАН БЛОКИРОВКИ
-    // ==========================================
     let pinBuffer = '';
     let lastActiveTime = Date.now();
     function showLockScreen() {
@@ -92,9 +86,6 @@
     });
     setTimeout(checkLock, 500);
 
-    // ==========================================
-    // 4. НАСТРОЙКИ И БЕЗОПАСНОСТЬ
-    // ==========================================
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
         const style = (typeof S !== 'undefined' && S.settings && S.settings.badgeStyle) ? S.settings.badgeStyle : 'stripe';
@@ -137,9 +128,6 @@
         save(); toast('Настройки безопасности сохранены'); window.openMenu();
     };
 
-    // ==========================================
-    // 4.5. МАГИЯ СИНХРОНИЗАЦИИ (АВТОСОЗДАНИЕ)
-    // ==========================================
     window.syncTInvest = async function() {
         const token = document.getElementById('secTInvestToken').value.trim();
         if (!token) { toast('Сначала вставьте токен и нажмите Сохранить!'); return; }
@@ -148,108 +136,59 @@
         const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
         
         try {
-            const accRes = await fetch(PROXY, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: token, action: 'accounts' })
-            });
+            const accRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token, action: 'accounts' }) });
             const accData = await accRes.json();
             
-            if (!accData.accounts) {
-                toast('❌ Ошибка Т-Инвеста: ' + (accData.message || 'Нет доступа'));
-                return;
-            }
+            if (!accData.accounts) { toast('❌ Ошибка Т-Инвеста: ' + (accData.message || 'Нет доступа')); return; }
 
             let syncedCount = 0;
             let createdCount = 0;
             
-            // Ищем банк Т-Банк, чтобы привязать счета к нему
             let tBank = S.banks.find(b => b.name.toLowerCase().includes('т-банк') || b.name.toLowerCase().includes('тинькофф'));
-            if (!tBank) {
-                tBank = { id: uid(), name: 'Т-Банк', color: '#f5b945', parentId: null, order: S.banks.length };
-                S.banks.push(tBank);
-            }
+            if (!tBank) { tBank = { id: uid(), name: 'Т-Банк', color: '#f5b945', parentId: null, order: S.banks.length }; S.banks.push(tBank); }
 
             for (const apiAcc of accData.accounts) {
                 if (apiAcc.status !== 'ACCOUNT_STATUS_OPEN') continue;
 
                 toast(`⏳ Запрашиваем портфель (${apiAcc.name || 'Брокерский'})...`);
-                
-                const portRes = await fetch(PROXY, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: token, action: 'portfolio', accountId: apiAcc.id })
-                });
+                const portRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token, action: 'portfolio', accountId: apiAcc.id }) });
                 const portData = await portRes.json();
                 
                 if (portData.totalAmountPortfolio) {
                     const rub = parseFloat(portData.totalAmountPortfolio.units || 0) + (parseFloat(portData.totalAmountPortfolio.nano || 0) / 1000000000);
-                    
-                    // Ищем счет по ID из Т-Инвеста (мы будем сохранять его в поле tinvestId)
                     let localAcc = S.accounts.find(a => a.tinvestId === apiAcc.id);
                     
                     if (!localAcc) {
-                        // Если не нашли по ID, создаем новый счет!
                         const isIIS = apiAcc.type === 'ACCOUNT_TYPE_TINKOFF_IIS';
-                        localAcc = {
-                            id: uid(),
-                            bankId: tBank.id,
-                            name: apiAcc.name || (isIIS ? 'ИИС (Т-Инвест)' : 'Брокерский (Т-Инвест)'),
-                            type: isIIS ? 'iis' : 'brokerage',
-                            initialBalance: 0, // Ставим 0, транзакция ниже начислит баланс
-                            currency: 'RUB',
-                            inCushion: false,
-                            isTransit: false,
-                            archived: false,
-                            tinvestId: apiAcc.id, // Сохраняем ID для будущих синхронизаций
-                            order: S.accounts.length
-                        };
+                        localAcc = { id: uid(), bankId: tBank.id, name: apiAcc.name || (isIIS ? 'ИИС (Т-Инвест)' : 'Брокерский (Т-Инвест)'), type: isIIS ? 'iis' : 'brokerage', initialBalance: 0, currency: 'RUB', inCushion: false, isTransit: false, archived: false, tinvestId: apiAcc.id, order: S.accounts.length };
                         S.accounts.push(localAcc);
                         createdCount++;
                     }
 
-                    // Теперь обновляем баланс (создаем корректировку)
                     const currentBal = accValue(localAcc);
                     const diff = rub - currentBal;
                     
-                    if (Math.abs(diff) > 1) { // Если разница больше 1 рубля
-                        S.transactions.push({
-                            id: uid(),
-                            type: diff > 0 ? 'income' : 'expense',
-                            amount: Math.abs(diff),
-                            date: today(),
-                            categoryId: diff > 0 ? 'c_other_inc' : 'c_other_exp',
-                            accountId: localAcc.id,
-                            note: `Синхронизация с Т-Инвест`
-                        });
+                    if (Math.abs(diff) > 1) {
+                        S.transactions.push({ id: uid(), type: diff > 0 ? 'income' : 'expense', amount: Math.abs(diff), date: today(), categoryId: diff > 0 ? 'c_other_inc' : 'c_other_exp', accountId: localAcc.id, note: `Синхронизация с Т-Инвест` });
                         syncedCount++;
                     }
                 }
             }
-            
-            recalculateBalances();
-            save();
-            renderAll();
-            
-            if (createdCount > 0 || syncedCount > 0) {
-                toast(`✅ Успех! Создано: ${createdCount}, обновлено: ${syncedCount}`);
-            } else {
-                toast('Баланс уже актуален (разницы нет)');
-            }
-        } catch (e) {
-            console.error(e);
-            toast('❌ Ошибка синхронизации. Проверьте токен.');
-        }
+            recalculateBalances(); save(); renderAll();
+            if (createdCount > 0 || syncedCount > 0) toast(`✅ Успех! Создано: ${createdCount}, обновлено: ${syncedCount}`);
+            else toast('Баланс уже актуален (разницы нет)');
+        } catch (e) { console.error(e); toast('❌ Ошибка синхронизации. Проверьте токен.'); }
     };
 
-    // ==========================================
-    // 5. ОКНО СЧЕТА
-    // ==========================================
     const prevOpenAccountModal = window.openAccountModal;
     window.openAccountModal = function(id, bankId) {
         prevOpenAccountModal(id, bankId);
         const modal = document.getElementById('modalContent'); if (!modal) return;
         const acc = id ? getAcc(id) : null; const form = document.getElementById('accForm'); if (!form) return;
+        
+        // ФИКС: Сохраняем ID редактируемого счета прямо в форму
+        form.dataset.editId = id || ''; 
+
         const cushionLabel = form.querySelector('input[id="accCushion"]').closest('.form-group');
         const ignoreDiv = document.createElement('div'); ignoreDiv.className = 'form-group';
         ignoreDiv.innerHTML = `<label><input type="checkbox" id="accIgnoreBalance" style="width:auto;margin-right:8px" ${acc && acc.ignoreBalance ? 'checked' : ''}>👁️‍🗨️ Исключить из общего баланса</label>`;
@@ -279,23 +218,33 @@
             }
         }, 100);
     };
+
     const originalSave = window.save;
     window.save = function(...args) { originalSave.apply(this, args); applyBadgeStyle(); };
+    
+    // ФИКС: Теперь применяем галочку строго к тому счету, который редактировали
     document.addEventListener('submit', function(e) {
         if (e.target.id === 'accForm') {
             const ignoreCb = document.getElementById('accIgnoreBalance');
+            const editId = e.target.dataset.editId; // Берем ID из формы
             if (ignoreCb) {
                 setTimeout(() => {
-                    const accs = S.accounts;
-                    if (accs.length) { const last = accs[accs.length - 1]; if (!window._editingAccId) last.ignoreBalance = ignoreCb.checked; }
-                }, 10);
+                    if (editId) {
+                        // Если редактировали существующий счет
+                        const acc = S.accounts.find(a => a.id === editId);
+                        if (acc) acc.ignoreBalance = ignoreCb.checked;
+                    } else {
+                        // Если создавали новый счет (он уже в конце списка)
+                        const accs = S.accounts;
+                        if (accs.length) accs[accs.length - 1].ignoreBalance = ignoreCb.checked;
+                    }
+                    save();
+                    renderAll();
+                }, 50);
             }
         }
     });
 
-    // ==========================================
-    // 6. ПЕРЕРАСЧЕТ И ПРЕДОХРАНИТЕЛЬ
-    // ==========================================
     const originalComputeTotals = window.computeTotals;
     window.computeTotals = function() {
         let totals = originalComputeTotals();
@@ -319,9 +268,6 @@
         }
     }, 1000);
 
-    // ==========================================
-    // 7. МЕНЮ И КНОПКИ
-    // ==========================================
     const prevRenderTransactions = window.renderTransactions;
     window.renderTransactions = function() {
         if (prevRenderTransactions) prevRenderTransactions();
