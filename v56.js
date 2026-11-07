@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v76 (Рамки банков и счетов)
+// ФИНАЛЬНЫЙ МОДУЛЬ v77 (Яркая пульсация и чистая консоль)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js загружен (v76)");
+    console.log("✅ Файл v56.js загружен (v77)");
 
     // 🚫 ТИХАЯ ГЛУШИЛКА СТАРОГО КОДА
     const originalFetch = window.fetch;
@@ -15,6 +15,10 @@
         return originalFetch.apply(this, arguments);
     };
 
+    // Блокируем старый бэкап-менеджер
+    window.checkDailyBackup = async function() { 
+        console.log("⏸️ Старый ежедневный бэкап заблокирован (используем умную синхронизацию)"); 
+    };
     window.queueSmartSync = function() {}; 
     window.performSmartSync = function() {};
     window.checkCloudSync = function() {};
@@ -40,23 +44,38 @@
         .account-row.ignore-balance { opacity: 0.5; filter: grayscale(1); }
         .account-row.ignore-balance .acc-balance::after { content: ' 👁️‍🗨️'; font-size: 12px; }
         
-        /* НОВЫЕ СТИЛИ ДЛЯ ЛЬГОТНОГО ПЕРИОДА */
-        .account-row.grace-warning { box-shadow: inset 0 0 0 2px var(--yellow) !important; border-color: var(--yellow) !important; }
-        .account-row.grace-danger { box-shadow: inset 0 0 0 2px var(--red) !important; border-color: var(--red) !important; }
-        .account-row.grace-overdue { box-shadow: inset 0 0 0 2px var(--red) !important; border-color: var(--red) !important; animation: pulse-red 1.5s infinite; }
+        /* СТИЛИ ДЛЯ ЛЬГОТНОГО ПЕРИОДА */
+        .account-row.grace-warning { border-color: var(--yellow) !important; box-shadow: inset 0 0 0 2px var(--yellow) !important; }
+        .account-row.grace-danger { border-color: var(--red) !important; box-shadow: inset 0 0 0 2px var(--red) !important; }
         
-        @keyframes pulse-red {
-            0% { box-shadow: inset 0 0 0 2px var(--red); }
-            50% { box-shadow: inset 0 0 0 6px rgba(255, 92, 92, 0.5); }
-            100% { box-shadow: inset 0 0 0 2px var(--red); }
+        /* ЯРКАЯ ПУЛЬСАЦИЯ ДЛЯ КАРТОЧКИ */
+        .account-row.grace-overdue { 
+            border-color: var(--red) !important; 
+            animation: pulse-red-row 1.5s infinite; 
         }
+        @keyframes pulse-red-row {
+            0% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0.8), inset 0 0 0 2px var(--red); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 92, 92, 0), inset 0 0 0 2px var(--red); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0), inset 0 0 0 2px var(--red); }
+        }
+
         .grace-text { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
         .grace-text.warning { background: var(--yellow); color: #000; }
         .grace-text.danger, .grace-text.overdue { background: var(--red); color: #fff; }
 
         /* СТИЛИ ДЛЯ ВИДЖЕТА БАНКА */
-        .bank-chip.grace-bank-warning { box-shadow: 0 0 0 2px var(--red) !important; border-color: var(--red) !important; }
-        .bank-chip.grace-bank-overdue { box-shadow: 0 0 0 2px var(--red) !important; border-color: var(--red) !important; animation: pulse-red 1.5s infinite; }
+        .bank-chip.grace-bank-warning { border-color: var(--red) !important; box-shadow: inset 0 0 0 2px var(--red) !important; }
+        
+        /* ЯРКАЯ ПУЛЬСАЦИЯ ДЛЯ БАНКА */
+        .bank-chip.grace-bank-overdue { 
+            border-color: var(--red) !important; 
+            animation: pulse-red-bank 1.5s infinite; 
+        }
+        @keyframes pulse-red-bank {
+            0% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0.8), inset 0 0 0 2px var(--red); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 92, 92, 0), inset 0 0 0 2px var(--red); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0), inset 0 0 0 2px var(--red); }
+        }
 
         #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         #lockScreen .dots { display: flex; gap: 15px; margin: 30px 0; }
@@ -278,7 +297,7 @@
     };
 
     // ==========================================
-    // РАМКА ЛЬГОТНОГО ПЕРИОДА (Обновлено v76)
+    // РАМКА ЛЬГОТНОГО ПЕРИОДА
     // ==========================================
     const prevRenderAccountRow = window.renderAccountRow;
     window.renderAccountRow = function(a, bank) {
@@ -303,16 +322,16 @@
                 let textHtml = '';
                 
                 if (diffDays < 0) {
-                    graceClass = 'grace-overdue'; // Пульсирует
+                    graceClass = 'grace-overdue';
                     textHtml = `<span class="grace-text overdue">⏰ Просрочка ${Math.abs(diffDays)} дн.</span>`;
                 } else if (diffDays === 0) {
-                    graceClass = 'grace-overdue'; // Пульсирует сегодня
+                    graceClass = 'grace-overdue';
                     textHtml = `<span class="grace-text danger">⏰ Сегодня!</span>`;
                 } else if (diffDays <= 3) {
-                    graceClass = 'grace-danger'; // Просто красная
+                    graceClass = 'grace-danger';
                     textHtml = `<span class="grace-text danger">⏰ Осталось ${diffDays} дн.</span>`;
                 } else if (diffDays <= 7) {
-                    graceClass = 'grace-warning'; // Желтая
+                    graceClass = 'grace-warning';
                     textHtml = `<span class="grace-text warning">⏳ Осталось ${diffDays} дн.</span>`;
                 }
                 
@@ -326,7 +345,7 @@
     };
 
     // ==========================================
-    // ПОДСВЕТКА ВИДЖЕТОВ БАНКОВ (Новое v76)
+    // ПОДСВЕТКА ВИДЖЕТОВ БАНКОВ
     // ==========================================
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
@@ -346,12 +365,8 @@
                     const gp = new Date(a.gracePeriod); gp.setHours(0,0,0,0);
                     const diffDays = Math.ceil((gp - today) / (1000 * 60 * 60 * 24));
                     
-                    if (diffDays <= 3) { // 3 дня, 0, просрочка
-                        problemBanks.add(a.bankId);
-                    }
-                    if (diffDays <= 0) { // 0 или просрочка
-                        overdueBanks.add(a.bankId);
-                    }
+                    if (diffDays <= 3) problemBanks.add(a.bankId);
+                    if (diffDays <= 0) overdueBanks.add(a.bankId);
                 }
             }
         });
@@ -360,11 +375,8 @@
             const bankId = chip.dataset.bankId;
             chip.classList.remove('grace-bank-warning', 'grace-bank-overdue');
             if (bankId) {
-                if (overdueBanks.has(bankId)) {
-                    chip.classList.add('grace-bank-overdue');
-                } else if (problemBanks.has(bankId)) {
-                    chip.classList.add('grace-bank-warning');
-                }
+                if (overdueBanks.has(bankId)) chip.classList.add('grace-bank-overdue');
+                else if (problemBanks.has(bankId)) chip.classList.add('grace-bank-warning');
             }
         });
     };
