@@ -1,8 +1,18 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v69 (Убийца рассинхрона 2.0)
+// ФИНАЛЬНЫЙ МОДУЛЬ v70 (Глушилка старого кода)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v69)");
+    console.log("✅ Файл v56.js загружен (v70)");
+
+    // 🚫 ГЛУШИЛКА СТАРОГО КОДА (блокируем прямые запросы app.js к Yandex API)
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+        if (typeof url === 'string' && url.includes('cloud-api.yandex.net')) {
+            console.log("🚫 Заблокирован старый запрос к Yandex API");
+            return Promise.reject(new Error("Blocked by v56.js"));
+        }
+        return originalFetch.apply(this, arguments);
+    };
 
     window.queueSmartSync = function() {}; 
     window.performSmartSync = function() {};
@@ -291,7 +301,6 @@
     let syncTimeout;
     function scheduleSync() { clearTimeout(syncTimeout); syncTimeout = setTimeout(() => { syncSmart(false); }, 2000); }
 
-    // ФИКС SEND BEACON (text/plain чтобы не было CORS)
     function sendBeaconUpload() {
         const token = S.settings.yandexToken;
         if (!token) return;
@@ -301,7 +310,7 @@
         localSettings.forEach(k => delete cloudS.settings[k]);
 
         const payload = JSON.stringify({ action: 'yandex_upload', token: token, fileContent: JSON.stringify(cloudS) });
-        const blob = new Blob([payload], { type: 'text/plain' }); // ТЕКСТ ПЛЕЙН!
+        const blob = new Blob([payload], { type: 'text/plain' });
         navigator.sendBeacon('https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm', blob);
         console.log("📤 Данные отправлены через sendBeacon");
     }
@@ -407,7 +416,6 @@
             return Array.from(map.values());
         };
 
-        // МУТИРУЕМ СУЩЕСТВУЮЩИЙ ОБЪЕКТ S (Чтобы app.js увидел изменения)
         S.accounts = mergeArray(S.accounts, cloudData.accounts);
         S.transactions = mergeArray(S.transactions, cloudData.transactions);
         S.banks = mergeArray(S.banks, cloudData.banks);
