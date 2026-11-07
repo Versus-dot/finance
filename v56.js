@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v68 (Умный сканер изменений)
+// ФИНАЛЬНЫЙ МОДУЛЬ v69 (Убийца рассинхрона 2.0)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v68)");
+    console.log("✅ Файл v56.js успешно загружен (v69)");
 
     window.queueSmartSync = function() {}; 
     window.performSmartSync = function() {};
@@ -48,7 +48,6 @@
         if (!S.meta.deletedIds) S.meta.deletedIds = [];
     }
 
-    // ПЕРЕХВАТ УДАЛЕНИЙ
     const originalDeleteAccount = window.deleteAccount;
     window.deleteAccount = function(id) {
         const acc = getAcc(id); if (!acc) return;
@@ -246,9 +245,6 @@
         }, 100);
     };
 
-    // ==========================================
-    // УМНЫЙ СКАНЕР ИЗМЕНЕНИЙ (Убийца рассинхрона)
-    // ==========================================
     if (!window._prevState) window._prevState = JSON.parse(JSON.stringify(S));
 
     const originalSave = window.save;
@@ -268,7 +264,6 @@
             }
         }
 
-        // СРАВНИВАЕМ С ПРОШЛЫМ СОСТОЯНИЕМ И СТАВИМ СВЕЖУЮ МЕТКУ ВРЕМЕНИ
         ['accounts', 'transactions', 'banks', 'categories', 'budgets', 'debts'].forEach(key => {
             if (!S[key] || !window._prevState[key]) return;
             S[key].forEach(newItem => {
@@ -293,12 +288,10 @@
         if (isUserAction) scheduleSync();
     };
 
-    // ==========================================
-    // СИНХРОНИЗАЦИЯ
-    // ==========================================
     let syncTimeout;
     function scheduleSync() { clearTimeout(syncTimeout); syncTimeout = setTimeout(() => { syncSmart(false); }, 2000); }
 
+    // ФИКС SEND BEACON (text/plain чтобы не было CORS)
     function sendBeaconUpload() {
         const token = S.settings.yandexToken;
         if (!token) return;
@@ -308,7 +301,7 @@
         localSettings.forEach(k => delete cloudS.settings[k]);
 
         const payload = JSON.stringify({ action: 'yandex_upload', token: token, fileContent: JSON.stringify(cloudS) });
-        const blob = new Blob([payload], { type: 'application/json' });
+        const blob = new Blob([payload], { type: 'text/plain' }); // ТЕКСТ ПЛЕЙН!
         navigator.sendBeacon('https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm', blob);
         console.log("📤 Данные отправлены через sendBeacon");
     }
@@ -414,18 +407,16 @@
             return Array.from(map.values());
         };
 
-        const newS = { ...S, ...cloudData };
-        newS.accounts = mergeArray(S.accounts, cloudData.accounts);
-        newS.transactions = mergeArray(S.transactions, cloudData.transactions);
-        newS.banks = mergeArray(S.banks, cloudData.banks);
-        newS.categories = mergeArray(S.categories, cloudData.categories);
-        newS.budgets = mergeArray(S.budgets, cloudData.budgets);
-        newS.debts = mergeArray(S.debts, cloudData.debts);
-        newS.counterparties = mergeArray(S.counterparties, cloudData.counterparties);
-        
-        newS.meta = { deletedIds: allDeleted, _updatedAt: Date.now() };
-        newS.settings = { ...newS.settings, ...localSettings };
-        window.S = newS;
+        // МУТИРУЕМ СУЩЕСТВУЮЩИЙ ОБЪЕКТ S (Чтобы app.js увидел изменения)
+        S.accounts = mergeArray(S.accounts, cloudData.accounts);
+        S.transactions = mergeArray(S.transactions, cloudData.transactions);
+        S.banks = mergeArray(S.banks, cloudData.banks);
+        S.categories = mergeArray(S.categories, cloudData.categories);
+        S.budgets = mergeArray(S.budgets, cloudData.budgets);
+        S.debts = mergeArray(S.debts, cloudData.debts);
+        S.counterparties = mergeArray(S.counterparties, cloudData.counterparties);
+        S.meta = { deletedIds: allDeleted, _updatedAt: Date.now() };
+        S.settings = { ...S.settings, ...localSettings };
     }
 
     setTimeout(syncSmart, 1500); 
