@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v59 (Фикс исключения из баланса)
+// ФИНАЛЬНЫЙ МОДУЛЬ v60 (Железный фикс галочки)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v59)");
+    console.log("✅ Файл v56.js успешно загружен (v60)");
 
     // ... (СТИЛИ И ФИКС СКРОЛЛА) ...
     const styleEl = document.createElement('style');
@@ -186,8 +186,8 @@
         const modal = document.getElementById('modalContent'); if (!modal) return;
         const acc = id ? getAcc(id) : null; const form = document.getElementById('accForm'); if (!form) return;
         
-        // ФИКС: Сохраняем ID редактируемого счета прямо в форму
-        form.dataset.editId = id || ''; 
+        // Запоминаем ID счета, который редактируем
+        window._currentEditingAccId = id || null; 
 
         const cushionLabel = form.querySelector('input[id="accCushion"]').closest('.form-group');
         const ignoreDiv = document.createElement('div'); ignoreDiv.className = 'form-group';
@@ -219,31 +219,33 @@
         }, 100);
     };
 
+    // ==========================================
+    // ЖЕЛЕЗНЫЙ ФИКС: Перехват сохранения
+    // ==========================================
     const originalSave = window.save;
-    window.save = function(...args) { originalSave.apply(this, args); applyBadgeStyle(); };
-    
-    // ФИКС: Теперь применяем галочку строго к тому счету, который редактировали
-    document.addEventListener('submit', function(e) {
-        if (e.target.id === 'accForm') {
-            const ignoreCb = document.getElementById('accIgnoreBalance');
-            const editId = e.target.dataset.editId; // Берем ID из формы
-            if (ignoreCb) {
-                setTimeout(() => {
-                    if (editId) {
-                        // Если редактировали существующий счет
-                        const acc = S.accounts.find(a => a.id === editId);
-                        if (acc) acc.ignoreBalance = ignoreCb.checked;
-                    } else {
-                        // Если создавали новый счет (он уже в конце списка)
-                        const accs = S.accounts;
-                        if (accs.length) accs[accs.length - 1].ignoreBalance = ignoreCb.checked;
-                    }
-                    save();
-                    renderAll();
-                }, 50);
+    window.save = function(isUserAction = true) {
+        const accForm = document.getElementById('accForm');
+        const ignoreCb = document.getElementById('accIgnoreBalance');
+        
+        // Если мы сохраняем форму счета, обновляем галочку ДО записи в память
+        if (accForm && ignoreCb) {
+            const isIgnore = ignoreCb.checked;
+            if (window._currentEditingAccId) {
+                // Редактирование существующего
+                const acc = S.accounts.find(a => a.id === window._currentEditingAccId);
+                if (acc) acc.ignoreBalance = isIgnore;
+            } else {
+                // Создание нового (app.js только что его добавил в конец)
+                if (S.accounts.length > 0) {
+                    S.accounts[S.accounts.length - 1].ignoreBalance = isIgnore;
+                }
             }
         }
-    });
+        
+        // Вызываем оригинальное сохранение (запись в localStorage)
+        originalSave.call(this, isUserAction);
+        applyBadgeStyle();
+    };
 
     const originalComputeTotals = window.computeTotals;
     window.computeTotals = function() {
