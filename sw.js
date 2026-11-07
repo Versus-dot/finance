@@ -1,10 +1,11 @@
-const CACHE = 'finance-v78';
+const CACHE = 'finance-v78a';
 const ASSETS=[
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json'
+  './mod-sync.js' // <-- Добавили новую строчку
 ];
 
 self.addEventListener('install',e=>{
