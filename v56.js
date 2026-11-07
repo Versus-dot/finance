@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v73 (Защита от пустой базы)
+// ФИНАЛЬНЫЙ МОДУЛЬ v74 (Фикс синхронизации настроек)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js загружен (v73)");
+    console.log("✅ Файл v56.js загружен (v74)");
 
     // 🚫 ТИХАЯ ГЛУШИЛКА СТАРОГО КОДА
     const originalFetch = window.fetch;
@@ -310,7 +310,7 @@
         if (!token) return;
         
         const isLocalEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
-        if (isLocalEmpty) return; // ЗАЩИТА ОТ ПУСТОЙ БАЗЫ
+        if (isLocalEmpty) return; 
 
         const cloudS = JSON.parse(JSON.stringify(S));
         const localSettings = ['theme', 'badgeStyle', 'pinCode', 'yandexToken', 'tInvestToken', 'appTitle'];
@@ -347,7 +347,6 @@
 
             const isLocalEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
 
-            // ПРИНУДИТЕЛЬНОЕ СКАЧИВАНИЕ, ЕСЛИ ПРИЛОЖЕНИЕ ПУСТОЕ
             if (isLocalEmpty) {
                 if (isManual) toast('⬇️ Локальная база пуста. Скачиваем из облака...');
                 await downloadFromCloud(token, cloudModified);
@@ -416,7 +415,16 @@
     }
 
     function mergeData(cloudData) {
-        const localSettings = { ...S.settings };
+        // Сохраняем ТОЛЬКО визуальные локальные настройки
+        const localVisualSettings = {
+            theme: S.settings.theme,
+            badgeStyle: S.settings.badgeStyle,
+            pinCode: S.settings.pinCode,
+            yandexToken: S.settings.yandexToken,
+            tInvestToken: S.settings.tInvestToken,
+            appTitle: S.settings.appTitle
+        };
+
         if (!S.meta) S.meta = { deletedIds: [] };
         if (!cloudData.meta) cloudData.meta = { deletedIds: [] };
 
@@ -442,6 +450,7 @@
             return Array.from(map.values());
         };
 
+        // МУТИРУЕМ СУЩЕСТВУЮЩИЙ ОБЪЕКТ S
         S.accounts = mergeArray(S.accounts, cloudData.accounts);
         S.transactions = mergeArray(S.transactions, cloudData.transactions);
         S.banks = mergeArray(S.banks, cloudData.banks);
@@ -449,8 +458,10 @@
         S.budgets = mergeArray(S.budgets, cloudData.budgets);
         S.debts = mergeArray(S.debts, cloudData.debts);
         S.counterparties = mergeArray(S.counterparties, cloudData.counterparties);
+        
+        // Берем финансовые настройки из облака (хеджирование, Финуслуги), а визуальные - оставляем локальными
+        S.settings = { ...cloudData.settings, ...localVisualSettings };
         S.meta = { deletedIds: allDeleted, _updatedAt: Date.now() };
-        S.settings = { ...S.settings, ...localSettings };
     }
 
     setTimeout(syncSmart, 1500); 
