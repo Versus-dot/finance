@@ -1,4 +1,4 @@
-const CACHE = 'finance-v86';
+const CACHE = 'finance-v87';
 const ASSETS = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const ASSETS = [
   './mod-sync.js',
   './mod-security.js',
   './mod-ui.js',
+  './mod-integrations.js', // <--- ДОБАВИЛИ НОВЫЙ ФАЙЛ
   './v56.js'
 ];
 
@@ -35,8 +36,6 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  
-  // Кэшируем только свои локальные файлы (не запросы к API Яндекса и т.д.)
   if (url.origin !== location.origin) return;
 
   e.respondWith(
@@ -48,7 +47,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(e.request, copy));
         }
         return resp;
-      }).catch(() => caches.match('./index.html')); // Если сети нет, отдаем главную страницу
+      }).catch(() => caches.match('./index.html'));
     })
   );
 });
