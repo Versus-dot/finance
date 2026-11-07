@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v74 (Фикс синхронизации настроек)
+// ФИНАЛЬНЫЙ МОДУЛЬ v75 (Рамка льготного периода)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js загружен (v74)");
+    console.log("✅ Файл v56.js загружен (v75)");
 
     // 🚫 ТИХАЯ ГЛУШИЛКА СТАРОГО КОДА
     const originalFetch = window.fetch;
@@ -40,6 +40,19 @@
         .account-row.ignore-balance { opacity: 0.5; filter: grayscale(1); }
         .account-row.ignore-balance .acc-balance::after { content: ' 👁️‍🗨️'; font-size: 12px; }
         
+        /* НОВЫЕ СТИЛИ ДЛЯ ЛЬГОТНОГО ПЕРИОДА */
+        .account-row.grace-warning { box-shadow: inset 0 0 0 2px var(--yellow) !important; border-color: var(--yellow) !important; }
+        .account-row.grace-danger { box-shadow: inset 0 0 0 2px var(--red) !important; border-color: var(--red) !important; }
+        .account-row.grace-overdue { box-shadow: inset 0 0 0 2px var(--red) !important; border-color: var(--red) !important; animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red {
+            0% { box-shadow: inset 0 0 0 2px var(--red); }
+            50% { box-shadow: inset 0 0 0 5px var(--red); }
+            100% { box-shadow: inset 0 0 0 2px var(--red); }
+        }
+        .grace-text { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+        .grace-text.warning { background: var(--yellow); color: #000; }
+        .grace-text.danger, .grace-text.overdue { background: var(--red); color: #fff; }
+
         #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         #lockScreen .dots { display: flex; gap: 15px; margin: 30px 0; }
         #lockScreen .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); transition: all 0.2s; }
@@ -259,6 +272,58 @@
         }, 100);
     };
 
+    // ==========================================
+    // РАМКА ЛЬГОТНОГО ПЕРИОДА (Новое!)
+    // ==========================================
+    const prevRenderAccountRow = window.renderAccountRow;
+    window.renderAccountRow = function(a, bank) {
+        let html = prevRenderAccountRow(a, bank);
+        
+        // Добавляем data-атрибут для стилей (если еще нет)
+        if (html.includes('class="account-row"')) {
+            html = html.replace('class="account-row"', `class="account-row" data-acc-type="${a.type}"`);
+        }
+
+        // Логика льготного периода
+        if (a.type === 'credit' && a.gracePeriod && !a.archived) {
+            const limit = a.creditLimit || 0;
+            const val = accValue(a);
+            const debt = Math.max(0, limit - val);
+            
+            if (debt > 0) {
+                const today = new Date(); today.setHours(0,0,0,0);
+                const gp = new Date(a.gracePeriod); gp.setHours(0,0,0,0);
+                const diffTime = gp - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let graceClass = '';
+                let textHtml = '';
+                
+                if (diffDays < 0) {
+                    graceClass = 'grace-overdue';
+                    textHtml = `<span class="grace-text overdue">⏰ Просрочка ${Math.abs(diffDays)} дн.</span>`;
+                } else if (diffDays === 0) {
+                    graceClass = 'grace-danger';
+                    textHtml = `<span class="grace-text danger">⏰ Сегодня!</span>`;
+                } else if (diffDays <= 3) {
+                    graceClass = 'grace-danger';
+                    textHtml = `<span class="grace-text danger">⏰ Осталось ${diffDays} дн.</span>`;
+                } else if (diffDays <= 7) {
+                    graceClass = 'grace-warning';
+                    textHtml = `<span class="grace-text warning">⏳ Осталось ${diffDays} дн.</span>`;
+                }
+                
+                if (graceClass) {
+                    // Добавляем класс на карточку
+                    html = html.replace('class="account-row"', `class="account-row ${graceClass}"`);
+                    // Вставляем бейдж перед словом "Задолженность"
+                    html = html.replace('Задолженность:', `${textHtml} Задолженность:`);
+                }
+            }
+        }
+        return html;
+    };
+
     if (!window._prevState) window._prevState = JSON.parse(JSON.stringify(S));
 
     const originalSave = window.save;
@@ -415,7 +480,6 @@
     }
 
     function mergeData(cloudData) {
-        // Сохраняем ТОЛЬКО визуальные локальные настройки
         const localVisualSettings = {
             theme: S.settings.theme,
             badgeStyle: S.settings.badgeStyle,
@@ -450,7 +514,6 @@
             return Array.from(map.values());
         };
 
-        // МУТИРУЕМ СУЩЕСТВУЮЩИЙ ОБЪЕКТ S
         S.accounts = mergeArray(S.accounts, cloudData.accounts);
         S.transactions = mergeArray(S.transactions, cloudData.transactions);
         S.banks = mergeArray(S.banks, cloudData.banks);
@@ -459,7 +522,6 @@
         S.debts = mergeArray(S.debts, cloudData.debts);
         S.counterparties = mergeArray(S.counterparties, cloudData.counterparties);
         
-        // Берем финансовые настройки из облака (хеджирование, Финуслуги), а визуальные - оставляем локальными
         S.settings = { ...cloudData.settings, ...localVisualSettings };
         S.meta = { deletedIds: allDeleted, _updatedAt: Date.now() };
     }
