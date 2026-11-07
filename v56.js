@@ -1,10 +1,20 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v64 (Железный фикс баланса и синхронизации)
+// ФИНАЛЬНЫЙ МОДУЛЬ v66 (Убийца багов синхронизации)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v64)");
+    console.log("✅ Файл v56.js успешно загружен (v66: Жесткая синхронизация)");
 
-    // ... (СТИЛИ, ФИКС СКРОЛЛА, БЛОКИРОВКА, МЕНЮ - БЕЗ ИЗМЕНЕНИЙ) ...
+    // ==========================================
+    // 0. УБИВАЕМ СТАРЫЙ "ДИВЕРСАНТ" (sync-manager.js)
+    // ==========================================
+    window.queueSmartSync = function() {}; 
+    window.performSmartSync = function() {};
+    window.checkCloudSync = function() {};
+    window.silentAutoSave = function() {};
+
+    // ==========================================
+    // 1. СТИЛИ
+    // ==========================================
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }
@@ -21,6 +31,7 @@
         body.style-minimal .account-row:has(.acc-debt) .acc-icon-wrap { background: #1f2532 !important; color: #6b778c !important; }
         .account-row.ignore-balance { opacity: 0.5; filter: grayscale(1); }
         .account-row.ignore-balance .acc-balance::after { content: ' 👁️‍🗨️'; font-size: 12px; }
+        
         #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         #lockScreen .dots { display: flex; gap: 15px; margin: 30px 0; }
         #lockScreen .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); transition: all 0.2s; }
@@ -38,6 +49,36 @@
     document.head.appendChild(styleEl);
     document.addEventListener('touchmove', function(e) { if (e.target.closest('.modal')) e.stopPropagation(); }, { capture: true, passive: true });
 
+    // ИНИЦИАЛИЗАЦИЯ СПИСКА УДАЛЕННЫХ
+    if (typeof S !== 'undefined') {
+        if (!S.meta) S.meta = { deletedIds: [] };
+        if (!S.meta.deletedIds) S.meta.deletedIds = [];
+    }
+
+    // ПЕРЕХВАТ УДАЛЕНИЙ (Записываем в Tombstones)
+    const originalDeleteAccount = window.deleteAccount;
+    window.deleteAccount = function(id) {
+        const acc = getAcc(id); if (!acc) return;
+        if (confirm(`Вы уверены, что хотите удалить счет "${acc.name}"?\n\nЭто действие нельзя отменить.`)) {
+            S.meta.deletedIds.push(id);
+            originalDeleteAccount(id);
+        }
+    };
+    const originalDeleteBank = window.deleteBank;
+    window.deleteBank = function(id) {
+        if (!confirm(`Удалить банк и все его счета?`)) return;
+        S.meta.deletedIds.push(id);
+        originalDeleteBank(id);
+    };
+    const originalDeleteTx = window.deleteTx;
+    window.deleteTx = function(id) {
+        S.meta.deletedIds.push(id);
+        originalDeleteTx(id);
+    };
+
+    // ==========================================
+    // 2. БЛОКИРОВКА
+    // ==========================================
     let pinBuffer = '';
     let lastActiveTime = Date.now();
     function showLockScreen() {
@@ -80,6 +121,9 @@
     });
     setTimeout(checkLock, 500);
 
+    // ==========================================
+    // 3. НАСТРОЙКИ
+    // ==========================================
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
         const style = (typeof S !== 'undefined' && S.settings && S.settings.badgeStyle) ? S.settings.badgeStyle : 'stripe';
@@ -88,6 +132,7 @@
         else document.body.classList.add('style-stripe');
     }
     setTimeout(applyBadgeStyle, 100);
+    
     const prevOpenSettings = window.openSettings;
     window.openSettings = function() {
         prevOpenSettings();
@@ -120,7 +165,7 @@
         S.settings.yandexToken = document.getElementById('secYandexToken').value.trim();
         S.settings.tInvestToken = document.getElementById('secTInvestToken').value.trim();
         save(); toast('Настройки безопасности сохранены'); window.openMenu();
-        syncSmart(true); // Принудительная синхронизация после смены токенов
+        syncSmart(true); 
     };
 
     window.syncTInvest = async function() {
@@ -165,12 +210,12 @@
                     
                     if (Math.abs(diff) > 1) {
                         S.transactions.push({ id: uid(), type: diff > 0 ? 'income' : 'expense', amount: Math.abs(diff), date: today(), categoryId: diff > 0 ? 'c_other_inc' : 'c_other_exp', accountId: localAcc.id, note: `Синхронизация с Т-Инвест`, _updatedAt: Date.now() });
-                        localAcc._updatedAt = Date.now(); // Обновили счет
+                        localAcc._updatedAt = Date.now(); 
                         syncedCount++;
                     }
                 }
             }
-            recalculateBalances(); save(); renderAll(); syncSmart(true); // Синхронизируем после обновления Т-Инвеста
+            recalculateBalances(); save(); renderAll(); syncSmart(true); 
             if (createdCount > 0 || syncedCount > 0) toast(`✅ Успех! Создано: ${createdCount}, обновлено: ${syncedCount}`);
             else toast('Баланс уже актуален (разницы нет)');
         } catch (e) { console.error(e); toast('❌ Ошибка синхронизации. Проверьте токен.'); }
@@ -214,9 +259,6 @@
         }, 100);
     };
 
-    // ==========================================
-    // МАГИЯ: ОТСЛЕЖИВАНИЕ ИЗМЕНЕНИЙ (updatedAt)
-    // ==========================================
     const originalSave = window.save;
     window.save = function(isUserAction = true) {
         const accForm = document.getElementById('accForm');
@@ -235,7 +277,7 @@
             }
         }
 
-        // Помечаем измененные элементы временем (для операций и т.д.)
+        // Обновляем время изменения для всех элементов, у которых его нет
         ['accounts', 'transactions', 'budgets', 'debts', 'categories', 'banks'].forEach(key => {
             if (S[key]) S[key].forEach(item => { if (!item._updatedAt) item._updatedAt = Date.now(); });
         });
@@ -248,10 +290,31 @@
     };
 
     // ==========================================
-    // УМНАЯ СИНХРОНИЗАЦИЯ (MERGE)
+    // 4. СИНХРОНИЗАЦИЯ
     // ==========================================
     let syncTimeout;
     function scheduleSync() { clearTimeout(syncTimeout); syncTimeout = setTimeout(() => { syncSmart(false); }, 2000); }
+
+    // Отправка при закрытии (SendBeacon)
+    function sendBeaconUpload() {
+        const token = S.settings.yandexToken;
+        if (!token) return;
+        
+        const cloudS = JSON.parse(JSON.stringify(S));
+        const localSettings = ['theme', 'badgeStyle', 'pinCode', 'yandexToken', 'tInvestToken', 'appTitle'];
+        localSettings.forEach(k => delete cloudS.settings[k]);
+
+        // ВАЖНО: используем text/plain, чтобы браузер не делал preflight OPTIONS
+        const payload = JSON.stringify({ action: 'yandex_upload', token: token, fileContent: JSON.stringify(cloudS) });
+        
+        // Отправляем через прокси (sendBeacon не поддерживает кастомные заголовки)
+        navigator.sendBeacon('https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm', payload);
+        console.log("📤 Данные отправлены через sendBeacon");
+    }
+    window.addEventListener('pagehide', sendBeaconUpload);
+    document.addEventListener('visibilitychange', () => { 
+        if (document.visibilityState === 'hidden') sendBeaconUpload();
+    });
 
     window.syncSmart = async function(isManual = false) {
         const token = S.settings.yandexToken;
@@ -273,7 +336,7 @@
             const lastSync = parseInt(localStorage.getItem('financeApp_lastSync') || '0');
             const localChange = parseInt(localStorage.getItem('financeApp_localChange') || '0');
 
-            // Если облако новее наших локальных изменений -> СКАЧИВАЕМ
+            // Скачиваем, если облако новее
             if (cloudModified > localChange) {
                 if (isManual) toast('⬇️ Скачиваем новые данные...');
                 const downRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'yandex_download', token: token }) });
@@ -284,13 +347,13 @@
                 mergeData(cloudData);
                 
                 localStorage.setItem('financeApp_lastSync', cloudModified);
-                localStorage.setItem('financeApp_localChange', cloudModified); // Сбрасываем локальные изменения
+                localStorage.setItem('financeApp_localChange', cloudModified); 
                 save(false); renderAll();
                 if (isManual) toast('✅ Данные обновлены из облака');
                 return;
             }
 
-            // Если у нас есть изменения, которых нет в облаке -> ЗАГРУЖАЕМ
+            // Загружаем, если есть локальные изменения
             if (localChange > lastSync) {
                 await uploadToCloud(token);
                 if (isManual) toast('✅ Данные сохранены в облако');
@@ -327,21 +390,29 @@
 
     function mergeData(cloudData) {
         const localSettings = { ...S.settings };
+        if (!S.meta) S.meta = { deletedIds: [] };
+        if (!cloudData.meta) cloudData.meta = { deletedIds: [] };
+
+        // Объединяем списки удаленных
+        const allDeleted = [...new Set([...S.meta.deletedIds, ...cloudData.meta.deletedIds])];
         
         const mergeArray = (localArr, cloudArr) => {
             if (!localArr) return cloudArr || [];
             if (!cloudArr) return localArr;
             const map = new Map();
-            localArr.forEach(item => map.set(item.id, item));
+            // Сначала заполняем локальными, пропуская удаленные
+            localArr.forEach(item => { if(!allDeleted.includes(item.id)) map.set(item.id, item); });
             
+            // Затем накатываем облачные
             cloudArr.forEach(cItem => {
+                if(allDeleted.includes(cItem.id)) return; 
                 const lItem = map.get(cItem.id);
                 if (!lItem) {
                     map.set(cItem.id, cItem);
                 } else {
                     const lTime = lItem._updatedAt || 0;
                     const cTime = cItem._updatedAt || 0;
-                    if (cTime > lTime) map.set(cItem.id, cItem);
+                    if (cTime > lTime) map.set(cItem.id, cItem); // Побеждает свежий
                 }
             });
             return Array.from(map.values());
@@ -355,27 +426,15 @@
         newS.budgets = mergeArray(S.budgets, cloudData.budgets);
         newS.debts = mergeArray(S.debts, cloudData.debts);
         newS.counterparties = mergeArray(S.counterparties, cloudData.counterparties);
-
+        
+        newS.meta = { deletedIds: allDeleted, _updatedAt: Date.now() };
         newS.settings = { ...newS.settings, ...localSettings };
         window.S = newS;
     }
 
-    // Триггеры для синхронизации
-    setTimeout(syncSmart, 1500); // При загрузке
-    document.addEventListener('visibilitychange', () => { 
-        if (document.visibilityState === 'visible') {
-            syncSmart();
-        } else {
-            // При сворачивании отправляем данные, если есть изменения
-            if (parseInt(localStorage.getItem('financeApp_localChange') || '0') > parseInt(localStorage.getItem('financeApp_lastSync') || '0')) {
-                uploadToCloud(S.settings.yandexToken);
-            }
-        }
-    });
-    window.addEventListener('online', syncSmart);
+    setTimeout(syncSmart, 1500); 
     window.syncManual = function() { syncSmart(true); };
 
-    // ФИКС РАСЧЕТА БАЛАНСА (Исключаем из капитала и из долгов)
     const originalComputeTotals = window.computeTotals;
     window.computeTotals = function() {
         let totals = originalComputeTotals();
@@ -391,18 +450,18 @@
         return totals;
     };
     
-    // ==========================================
-    // ЖЕЛЕЗНЫЙ ФИКС: ПРИНУДИТЕЛЬНАЯ ПЕРЕРИСОВКА ПРИ ЗАГРУЗКЕ
-    // ==========================================
-    setTimeout(() => {
-        if (typeof renderAll === 'function') {
-            console.log("🔄 Принудительная перерисовка для применения баланса");
-            renderAll();
-        }
-    }, 100);
+    setTimeout(() => { if (typeof renderAll === 'function') renderAll(); }, 100);
 
-    // ... ОСТАЛЬНОЙ КОД (МЕНЮ, КНОПКИ, ПРЕДОХРАНИТЕЛЬ) ...
-    const originalBackup = window.backupToYandexDisk; window.backupToYandexDisk = async function(silent = false) { if (typeof S !== 'undefined') { const isEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0); const isReset = localStorage.getItem('financeApp_isReset') === 'true'; if (isEmpty && isReset) { if (!silent) toast('Отправка пустых данных заблокирована'); return; } } return originalBackup(silent); };
+    // ... ОСТАЛЬНОЙ UI КОД ...
+    const originalBackup = window.backupToYandexDisk; 
+    window.backupToYandexDisk = async function(silent = false) { 
+        if (typeof S !== 'undefined') { 
+            const isEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0); 
+            const isReset = localStorage.getItem('financeApp_isReset') === 'true'; 
+            if (isEmpty && isReset) { if (!silent) toast('Отправка пустых данных заблокирована'); return; } 
+        } 
+        return originalBackup(silent); 
+    };
     setTimeout(() => { if (localStorage.getItem('financeApp_isReset') === 'true') { const banner = document.createElement('div'); banner.id = 'restoreBanner'; banner.innerHTML = `<span>Данные очищены. Восстановить из облака?</span><button onclick="window.restoreFromYandexDisk()">Восстановить</button>`; const main = document.querySelector('main'); if (main) main.prepend(banner); } }, 1000);
     const prevRenderTransactions = window.renderTransactions; window.renderTransactions = function() { if (prevRenderTransactions) prevRenderTransactions(); const page = document.getElementById('page-transactions'); if (page && page.classList.contains('active')) { const formRow = page.querySelector('.form-row'); if (formRow && !document.getElementById('inlineTxBtn')) { formRow.style.display = 'flex'; formRow.style.gap = '8px'; formRow.style.alignItems = 'center'; const btn = document.createElement('button'); btn.id = 'inlineTxBtn'; btn.className = 'btn-primary'; btn.style = 'padding: 0; width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; font-size: 24px; display: flex; align-items: center; justify-content: center;'; btn.innerHTML = '+'; btn.onclick = () => { if(typeof openTxModal === 'function') openTxModal(); }; formRow.appendChild(btn); } } };
     window.openMenu = function() { openModal(`<div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="openSettings()"><span class="menu-icon">⚙️</span>Настройки</button><button class="menu-item" onclick="window.openSecuritySettings()"><span class="menu-icon">🔒</span>Безопасность</button><button class="menu-item" onclick="window.openCatAndDebtsMenu()"><span class="menu-icon">📂</span>Категории и Долги</button><button class="menu-item" onclick="window.openBackupMenu()"><span class="menu-icon">💾</span>Резервные копии</button><button class="menu-item warn" onclick="window.clearLocalData()"><span class="menu-icon">🗑</span>Очистить данные</button></div>`); };
