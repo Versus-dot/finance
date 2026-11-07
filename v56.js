@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v57.3 (Интеграция с Т-Инвест)
+// ФИНАЛЬНЫЙ МОДУЛЬ v58 (Автосоздание счетов Т-Инвест)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v57.3)");
+    console.log("✅ Файл v56.js успешно загружен (v58: Автосоздание)");
 
     // ... (СТИЛИ И ФИКС СКРОЛЛА БЕЗ ИЗМЕНЕНИЙ) ...
     const styleEl = document.createElement('style');
@@ -38,13 +38,18 @@
     document.head.appendChild(styleEl);
     document.addEventListener('touchmove', function(e) { if (e.target.closest('.modal')) e.stopPropagation(); }, { capture: true, passive: true });
 
-    // ... (УДАЛЕНИЕ И БЛОКИРОВКА БЕЗ ИЗМЕНЕНИЙ) ...
+    // ==========================================
+    // 2. ЗАЩИТА ОТ СЛУЧАЙНОГО УДАЛЕНИЯ
+    // ==========================================
     const originalDeleteAccount = window.deleteAccount;
     window.deleteAccount = function(id) {
         const acc = getAcc(id); if (!acc) return;
         if (confirm(`Вы уверены, что хотите удалить счет "${acc.name}"?\n\nЭто действие нельзя отменить.`)) originalDeleteAccount(id);
     };
 
+    // ==========================================
+    // 3. ЭКРАН БЛОКИРОВКИ
+    // ==========================================
     let pinBuffer = '';
     let lastActiveTime = Date.now();
     function showLockScreen() {
@@ -88,7 +93,7 @@
     setTimeout(checkLock, 500);
 
     // ==========================================
-    // 4. НАСТРОЙКИ И БЕЗОПАСНОСТЬ (+ Кнопка синхронизации)
+    // 4. НАСТРОЙКИ И БЕЗОПАСНОСТЬ
     // ==========================================
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
@@ -98,7 +103,6 @@
         else document.body.classList.add('style-stripe');
     }
     setTimeout(applyBadgeStyle, 100);
-
     const prevOpenSettings = window.openSettings;
     window.openSettings = function() {
         prevOpenSettings();
@@ -120,8 +124,6 @@
         <hr style="border-color:var(--border); margin: 16px 0;">
         <div style="font-weight:700; margin-bottom:10px;">📈 Синхронизация с Т-Инвестиции</div>
         <div class="form-group"><label>Токен доступа (Read-only)</label><input type="password" id="secTInvestToken" value="${S.settings.tInvestToken || ''}" placeholder="Вставьте токен"></div>
-        
-        <!-- Кнопка синхронизации -->
         <button class="btn-secondary btn-block" style="margin-bottom:8px" onclick="syncTInvest()">🔄 Запросить баланс из Т-Инвестиций</button>
         <button class="btn-primary btn-block" onclick="window.saveSecuritySettings()">Сохранить всё</button>`);
     };
@@ -136,7 +138,7 @@
     };
 
     // ==========================================
-    // 4.5. МАГИЯ СИНХРОНИЗАЦИИ С Т-ИНВЕСТ
+    // 4.5. МАГИЯ СИНХРОНИЗАЦИИ (АВТОСОЗДАНИЕ)
     // ==========================================
     window.syncTInvest = async function() {
         const token = document.getElementById('secTInvestToken').value.trim();
@@ -146,7 +148,6 @@
         const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
         
         try {
-            // 1. Получаем список счетов
             const accRes = await fetch(PROXY, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -160,13 +161,19 @@
             }
 
             let syncedCount = 0;
+            let createdCount = 0;
             
-            // 2. Проходимся по каждому счету
+            // Ищем банк Т-Банк, чтобы привязать счета к нему
+            let tBank = S.banks.find(b => b.name.toLowerCase().includes('т-банк') || b.name.toLowerCase().includes('тинькофф'));
+            if (!tBank) {
+                tBank = { id: uid(), name: 'Т-Банк', color: '#f5b945', parentId: null, order: S.banks.length };
+                S.banks.push(tBank);
+            }
+
             for (const apiAcc of accData.accounts) {
-                // Пропускаем закрытые или не брокерские счета (если нужно)
                 if (apiAcc.status !== 'ACCOUNT_STATUS_OPEN') continue;
 
-                toast(`⏳ Запрашиваем портфель (${apiAcc.name || apiAcc.id})...`);
+                toast(`⏳ Запрашиваем портфель (${apiAcc.name || 'Брокерский'})...`);
                 
                 const portRes = await fetch(PROXY, {
                     method: 'POST',
@@ -176,56 +183,62 @@
                 const portData = await portRes.json();
                 
                 if (portData.totalAmountPortfolio) {
-                    // Считаем общую стоимость портфеля в рублях
                     const rub = parseFloat(portData.totalAmountPortfolio.units || 0) + (parseFloat(portData.totalAmountPortfolio.nano || 0) / 1000000000);
                     
-                    // Ищем подходящий локальный счет (Брокерский или ИИС)
-                    // Ищем по названию. Например, если в Т-Инвесте он называется "ИИС", 
-                    // то мы ищем счет с типом 'iis' в приложении.
-                    let localAcc = S.accounts.find(a => (a.type === 'iis' || a.type === 'brokerage') && (a.name.includes(apiAcc.name) || apiAcc.name.includes(a.name)));
+                    // Ищем счет по ID из Т-Инвеста (мы будем сохранять его в поле tinvestId)
+                    let localAcc = S.accounts.find(a => a.tinvestId === apiAcc.id);
                     
-                    // Если не нашли по имени, берем первый попавшийся брокерский, если он один
                     if (!localAcc) {
-                        const brokAccs = S.accounts.filter(a => a.type === 'iis' || a.type === 'brokerage');
-                        if (brokAccs.length === 1) localAcc = brokAccs[0];
+                        // Если не нашли по ID, создаем новый счет!
+                        const isIIS = apiAcc.type === 'ACCOUNT_TYPE_TINKOFF_IIS';
+                        localAcc = {
+                            id: uid(),
+                            bankId: tBank.id,
+                            name: apiAcc.name || (isIIS ? 'ИИС (Т-Инвест)' : 'Брокерский (Т-Инвест)'),
+                            type: isIIS ? 'iis' : 'brokerage',
+                            initialBalance: 0, // Ставим 0, транзакция ниже начислит баланс
+                            currency: 'RUB',
+                            inCushion: false,
+                            isTransit: false,
+                            archived: false,
+                            tinvestId: apiAcc.id, // Сохраняем ID для будущих синхронизаций
+                            order: S.accounts.length
+                        };
+                        S.accounts.push(localAcc);
+                        createdCount++;
                     }
 
-                    if (localAcc) {
-                        const currentBal = accValue(localAcc);
-                        const diff = rub - currentBal;
-                        
-                        if (Math.abs(diff) > 1) { // Если разница больше 1 рубля
-                            // Создаем транзакцию-корректировку (чтобы не испортить статистику)
-                            S.transactions.push({
-                                id: uid(),
-                                type: diff > 0 ? 'income' : 'expense',
-                                amount: Math.abs(diff),
-                                date: today(),
-                                categoryId: diff > 0 ? 'c_other_inc' : 'c_other_exp',
-                                accountId: localAcc.id,
-                                note: `Синхронизация с Т-Инвест (${apiAcc.name})`
-                            });
-                            
-                            // Обновляем кэш балансов
-                            recalculateBalances();
-                            syncedCount++;
-                            console.log(`✅ Обновлен ${localAcc.name}: ${currentBal} -> ${rub}`);
-                        }
+                    // Теперь обновляем баланс (создаем корректировку)
+                    const currentBal = accValue(localAcc);
+                    const diff = rub - currentBal;
+                    
+                    if (Math.abs(diff) > 1) { // Если разница больше 1 рубля
+                        S.transactions.push({
+                            id: uid(),
+                            type: diff > 0 ? 'income' : 'expense',
+                            amount: Math.abs(diff),
+                            date: today(),
+                            categoryId: diff > 0 ? 'c_other_inc' : 'c_other_exp',
+                            accountId: localAcc.id,
+                            note: `Синхронизация с Т-Инвест`
+                        });
+                        syncedCount++;
                     }
                 }
             }
             
-            if (syncedCount > 0) {
-                save();
-                renderAll();
-                toast(`✅ Синхронизация успешна! Обновлено счетов: ${syncedCount}`);
+            recalculateBalances();
+            save();
+            renderAll();
+            
+            if (createdCount > 0 || syncedCount > 0) {
+                toast(`✅ Успех! Создано: ${createdCount}, обновлено: ${syncedCount}`);
             } else {
                 toast('Баланс уже актуален (разницы нет)');
             }
-
         } catch (e) {
             console.error(e);
-            toast('❌ Ошибка синхронизации');
+            toast('❌ Ошибка синхронизации. Проверьте токен.');
         }
     };
 
@@ -266,7 +279,6 @@
             }
         }, 100);
     };
-
     const originalSave = window.save;
     window.save = function(...args) { originalSave.apply(this, args); applyBadgeStyle(); };
     document.addEventListener('submit', function(e) {
@@ -325,7 +337,6 @@
             }
         }
     };
-
     window.openMenu = function() {
         openModal(`
         <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
@@ -338,7 +349,6 @@
         </div>`);
     };
     setTimeout(() => { const menuBtn = document.getElementById('menuBtn'); if (menuBtn) menuBtn.onclick = window.openMenu; }, 100);
-
     window.openCatAndDebtsMenu = function() {
         openModal(`<div class="modal-header"><h2>Категории и Долги</h2><button class="btn-icon" onclick="openMenu()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="openCategoryEditor()"><span class="menu-icon">📑</span>Редактор категорий</button><button class="menu-item" onclick="openCounterparties()"><span class="menu-icon">👥</span>Контрагенты (Долги)</button></div>`);
     };
