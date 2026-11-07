@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v57 (ВСЁ В ОДНОМ ФАЙЛЕ)
+// ФИНАЛЬНЫЙ МОДУЛЬ v57.1 (ФИКС МЕНЮ)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v57: Удаление + Т-Инвест)");
+    console.log("✅ Файл v56.js успешно загружен (v57.1)");
 
     // ==========================================
     // 0. ЖЕСТКИЙ ФИКС СКРОЛЛА
@@ -162,7 +162,7 @@
     setTimeout(checkLock, 500);
 
     // ==========================================
-    // 4. НАСТРОЙКИ И БЕЗОПАСНОСТЬ (Добавлен токен Т-Инвест)
+    // 4. НАСТРОЙКИ И БЕЗОПАСНОСТЬ (Т-Инвест)
     // ==========================================
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
@@ -220,7 +220,7 @@
     };
 
     // ==========================================
-    // 5. ОКНО СЧЕТА (Срок, Исключить, Хедж)
+    // 5. ОКНО СЧЕТА
     // ==========================================
     const prevOpenAccountModal = window.openAccountModal;
     window.openAccountModal = function(id, bankId) {
@@ -366,6 +366,13 @@
             <button class="menu-item warn" onclick="window.clearLocalData()"><span class="menu-icon">🗑</span>Очистить данные</button>
         </div>`);
     };
+
+    // ВОТ ОНО, ТО САМОЕ ИСПРАВЛЕНИЕ!
+    // Перепривязываем кнопку в шапке к новой функции меню
+    setTimeout(() => {
+        const menuBtn = document.getElementById('menuBtn');
+        if (menuBtn) menuBtn.onclick = window.openMenu;
+    }, 100);
 
     window.openCatAndDebtsMenu = function() {
         openModal(`
