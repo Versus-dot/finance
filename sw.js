@@ -1,4 +1,4 @@
-const CACHE = 'finance-v87';
+const CACHE = 'finance-v88';
 const ASSETS = [
   './',
   './index.html',
@@ -13,7 +13,8 @@ const ASSETS = [
   './mod-sync.js',
   './mod-security.js',
   './mod-ui.js',
-  './mod-integrations.js', // <--- ДОБАВИЛИ НОВЫЙ ФАЙЛ
+  './mod-integrations.js',
+  './mod-fixes.js',
   './v56.js'
 ];
 
