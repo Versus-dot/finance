@@ -65,7 +65,12 @@
     window.openSettings = function() {
         if (prevOpenSettingsForBadge) prevOpenSettingsForBadge();
         const badgeSelect = document.getElementById('setBadge');
-        if (badgeSelect) badgeSelect.innerHTML = `<option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option><option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option><option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>`;
+        // ВОТ ТУТ ДОЛЖНЫ БЫТЬ ВСЕ ТРИ ТЕМЫ
+        if (badgeSelect) badgeSelect.innerHTML = `
+            <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option>
+            <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
+            <option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>
+        `;
     };
     
     const prevSaveSettings = window.saveSettings;
