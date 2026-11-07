@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v78 (Без синхронизации, только UI, Безопасность и Фиксы)
+// ФИНАЛЬНЫЙ МОДУЛЬ v79 (Без синхронизации и Безопасности)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js загружен (v78)");
+    console.log("✅ Файл v56.js загружен (v79)");
 
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
@@ -31,7 +31,7 @@
     };
 
     // ==========================================
-    // СТИЛИ
+    // СТИЛИ (Темы, Пульсация льготного периода, Баннер)
     // ==========================================
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
@@ -83,17 +83,6 @@
             100% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0), inset 0 0 0 2px var(--red); }
         }
 
-        #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #lockScreen .dots { display: flex; gap: 15px; margin: 30px 0; }
-        #lockScreen .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); transition: all 0.2s; }
-        #lockScreen .dot.filled { background: var(--accent); border-color: var(--accent); }
-        #lockScreen .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        #lockScreen .num-btn { width: 70px; height: 70px; border-radius: 50%; background: var(--card2); color: var(--text); font-size: 24px; font-weight: 600; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        #lockScreen .num-btn:active { background: var(--accent); color: #fff; }
-        #lockScreen .forgot-btn { margin-top: 20px; color: var(--muted); background: none; border: none; text-decoration: underline; }
-        #lockScreen .error-msg { color: var(--red); font-size: 14px; margin-top: 10px; height: 20px; }
-        .shake { animation: shake 0.4s; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
         #restoreBanner { background: var(--yellow); color: #000; padding: 10px 15px; border-radius: 10px; margin: 10px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px; }
         #restoreBanner button { background: #000; color: #fff; padding: 5px 10px; border-radius: 5px; }
     `;
@@ -101,56 +90,7 @@
     document.addEventListener('touchmove', function(e) { if (e.target.closest('.modal')) e.stopPropagation(); }, { capture: true, passive: true });
 
     // ==========================================
-    // БЕЗОПАСНОСТЬ (PIN-КОД)
-    // ==========================================
-    let pinBuffer = '';
-    let lastActiveTime = Date.now();
-    
-    function showLockScreen() {
-        if (document.getElementById('lockScreen')) return;
-        const ls = document.createElement('div'); ls.id = 'lockScreen';
-        ls.innerHTML = `<div style="font-size: 40px; margin-bottom: 20px;">🔒</div><div style="font-size: 18px; font-weight: 600;">Введите PIN-код</div><div class="dots" id="pinDots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="error-msg" id="pinError"></div><div class="numpad" id="pinNumpad">${[1,2,3,4,5,6,7,8,9].map(n => `<button class="num-btn" data-val="${n}">${n}</button>`).join('')}<div></div><button class="num-btn" data-val="0">0</button><button class="num-btn" data-val="back">⌫</button></div><button class="forgot-btn" id="forgotPinBtn">Забыли PIN-код?</button>`;
-        document.body.appendChild(ls);
-        const dots = document.querySelectorAll('#pinDots .dot');
-        const errorEl = document.getElementById('pinError');
-        
-        function updateDots() { dots.forEach((dot, i) => dot.classList.toggle('filled', i < pinBuffer.length)); }
-        
-        document.getElementById('pinNumpad').onclick = (e) => {
-            const btn = e.target.closest('.num-btn'); if (!btn) return; const val = btn.dataset.val;
-            if (val === 'back') { pinBuffer = pinBuffer.slice(0, -1); updateDots(); } 
-            else {
-                if (pinBuffer.length < 4) { pinBuffer += val; updateDots(); }
-                if (pinBuffer.length === 4) {
-                    setTimeout(() => {
-                        if (pinBuffer === S.settings.pinCode) { ls.remove(); lastActiveTime = Date.now(); } 
-                        else { errorEl.textContent = 'Неверный PIN'; ls.classList.add('shake'); setTimeout(() => ls.classList.remove('shake'), 400); pinBuffer = ''; updateDots(); }
-                    }, 100);
-                }
-            }
-        };
-        document.getElementById('forgotPinBtn').onclick = () => {
-            if (confirm("Сбросить PIN? Данные будут удалены. Восстановить можно только из облака.")) {
-                if (confirm("ВНИМАНИЕ! Восстановление потребует ввода Облачного токена заново. Вы точно хотите стереть данные?")) {
-                    localStorage.setItem('financeApp_isReset', 'true'); localStorage.removeItem('financeApp_v25'); location.reload();
-                }
-            }
-        };
-    }
-    
-    function checkLock() {
-        if (typeof S !== 'undefined' && S.settings && S.settings.pinCode) {
-            const timePassed = Date.now() - lastActiveTime;
-            if (timePassed > 5 * 60 * 1000 || !sessionStorage.getItem('app_unlocked')) { showLockScreen(); sessionStorage.setItem('app_unlocked', 'true'); }
-        }
-    }
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') { lastActiveTime = Date.now(); } else if (document.visibilityState === 'visible') { checkLock(); }
-    });
-    setTimeout(checkLock, 500);
-
-    // ==========================================
-    // НАСТРОЙКИ И СТИЛИ
+    // НАСТРОЙКИ И СТИЛИ (Темы)
     // ==========================================
     window.applyBadgeStyle = function() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
@@ -161,11 +101,9 @@
     }
     setTimeout(applyBadgeStyle, 100);
     
-    const prevOpenSettings = window.openSettings;
+    const prevOpenSettingsForBadge = window.openSettings;
     window.openSettings = function() {
-        if (prevOpenSettings) prevOpenSettings();
-        const oldPin = document.getElementById('setPin'); if (oldPin) oldPin.closest('.form-group').style.display = 'none';
-        const oldToken = document.getElementById('setYandexToken'); if (oldToken) oldToken.closest('.form-group').style.display = 'none';
+        if (prevOpenSettingsForBadge) prevOpenSettingsForBadge();
         const badgeSelect = document.getElementById('setBadge');
         if (badgeSelect) badgeSelect.innerHTML = `<option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option><option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option><option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>`;
     };
@@ -174,32 +112,8 @@
     window.saveSettings = function() { if (prevSaveSettings) prevSaveSettings(); applyBadgeStyle(); };
 
     // ==========================================
-    // ОКНО БЕЗОПАСНОСТИ И Т-ИНВЕСТ
+    // ИНТЕГРАЦИЯ С Т-ИНВЕСТ
     // ==========================================
-    window.openSecuritySettings = function() {
-        openModal(`
-        <div class="modal-header"><h2>Безопасность</h2><button class="btn-icon" onclick="openMenu()">✕</button></div>
-        <div class="form-group"><label>PIN-код (4 цифры, пусто = отключен)</label><input type="text" id="secPin" maxlength="4" value="${S.settings.pinCode || ''}" placeholder="****"></div>
-        <hr style="border-color:var(--border); margin: 16px 0;">
-        <div style="font-weight:700; margin-bottom:10px;">💾 Токен облачного бэкапа</div>
-        <div class="form-group"><label>Токен доступа</label><input type="password" id="secYandexToken" value="${S.settings.yandexToken || ''}" placeholder="Вставьте токен"></div>
-        <hr style="border-color:var(--border); margin: 16px 0;">
-        <div style="font-weight:700; margin-bottom:10px;">📈 Синхронизация с Т-Инвестиции</div>
-        <div class="form-group"><label>Токен доступа (Read-only)</label><input type="password" id="secTInvestToken" value="${S.settings.tInvestToken || ''}" placeholder="Вставьте токен"></div>
-        <button class="btn-secondary btn-block" style="margin-bottom:8px" onclick="syncTInvest()">🔄 Запросить баланс из Т-Инвестиций</button>
-        <button class="btn-primary btn-block" onclick="window.saveSecuritySettings()">Сохранить всё</button>`);
-    };
-
-    window.saveSecuritySettings = function() {
-        const pin = document.getElementById('secPin').value.trim();
-        if (pin && !/^\d{4}$/.test(pin)) { toast('PIN должен состоять из 4 цифр'); return; }
-        S.settings.pinCode = pin;
-        S.settings.yandexToken = document.getElementById('secYandexToken').value.trim();
-        S.settings.tInvestToken = document.getElementById('secTInvestToken').value.trim();
-        save(); toast('Настройки безопасности сохранены'); window.openMenu();
-        if (typeof syncSmart === 'function') syncSmart(true); 
-    };
-
     window.syncTInvest = async function() {
         const token = document.getElementById('secTInvestToken').value.trim();
         if (!token) { toast('Сначала вставьте токен и нажмите Сохранить!'); return; }
