@@ -1,17 +1,15 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v72 (Тихая глушилка)
+// ФИНАЛЬНЫЙ МОДУЛЬ v73 (Защита от пустой базы)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js загружен (v72)");
+    console.log("✅ Файл v56.js загружен (v73)");
 
-    // 🚫 ТИХАЯ ГЛУШИЛКА
+    // 🚫 ТИХАЯ ГЛУШИЛКА СТАРОГО КОДА
     const originalFetch = window.fetch;
     window.fetch = function(url, options) {
         if (typeof url === 'string' && url.includes('cloud-api.yandex.net')) {
-            // Возвращаем фейковый ответ 404 (Файл не найден), чтобы app.js не ругался
             return Promise.resolve(new Response(JSON.stringify({ message: "Not Found" }), {
-                status: 404,
-                headers: { 'Content-Type': 'application/json' }
+                status: 404, headers: { 'Content-Type': 'application/json' }
             }));
         }
         return originalFetch.apply(this, arguments);
@@ -311,6 +309,9 @@
         const token = S.settings.yandexToken;
         if (!token) return;
         
+        const isLocalEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
+        if (isLocalEmpty) return; // ЗАЩИТА ОТ ПУСТОЙ БАЗЫ
+
         const cloudS = JSON.parse(JSON.stringify(S));
         const localSettings = ['theme', 'badgeStyle', 'pinCode', 'yandexToken', 'tInvestToken', 'appTitle'];
         localSettings.forEach(k => delete cloudS.settings[k]);
@@ -344,19 +345,18 @@
             const lastSync = parseInt(localStorage.getItem('financeApp_lastSync') || '0');
             const localChange = parseInt(localStorage.getItem('financeApp_localChange') || '0');
 
+            const isLocalEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
+
+            // ПРИНУДИТЕЛЬНОЕ СКАЧИВАНИЕ, ЕСЛИ ПРИЛОЖЕНИЕ ПУСТОЕ
+            if (isLocalEmpty) {
+                if (isManual) toast('⬇️ Локальная база пуста. Скачиваем из облака...');
+                await downloadFromCloud(token, cloudModified);
+                return;
+            }
+
             if (cloudModified > localChange) {
                 if (isManual) toast('⬇️ Скачиваем новые данные...');
-                const downRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'yandex_download', token: token }) });
-                const cloudText = await downRes.text();
-                let cloudData;
-                try { cloudData = JSON.parse(cloudText); } catch(e) { throw new Error('Битый файл в облаке'); }
-
-                mergeData(cloudData);
-                
-                localStorage.setItem('financeApp_lastSync', cloudModified);
-                localStorage.setItem('financeApp_localChange', cloudModified); 
-                save(false); renderAll();
-                if (isManual) toast('✅ Данные обновлены из облака');
+                await downloadFromCloud(token, cloudModified);
                 return;
             }
 
@@ -370,11 +370,32 @@
 
         } catch (e) {
             console.error('Sync error:', e);
-            if (isManual) toast('❌ Ошибка синхронизации');
+            if (isManual) toast('❌ Ошибка синхронизации: ' + e.message);
         }
     };
 
+    async function downloadFromCloud(token, cloudModified) {
+        const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
+        const downRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'yandex_download', token: token }) });
+        if (!downRes.ok) throw new Error('Ошибка скачивания');
+        const cloudText = await downRes.text();
+        let cloudData;
+        try { cloudData = JSON.parse(cloudText); } catch(e) { throw new Error('Битый файл в облаке'); }
+
+        mergeData(cloudData);
+        
+        localStorage.setItem('financeApp_lastSync', cloudModified);
+        localStorage.setItem('financeApp_localChange', cloudModified); 
+        save(false); renderAll();
+        if (isManual) toast('✅ Данные обновлены из облака');
+    }
+
     async function uploadToCloud(token) {
+        const isLocalEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
+        if (isLocalEmpty) {
+            throw new Error('Попытка загрузить пустую базу заблокирована');
+        }
+
         const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
         
         const cloudS = JSON.parse(JSON.stringify(S));
