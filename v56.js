@@ -1,10 +1,10 @@
 // ==========================================
-// МЕГА-МОДУЛЬ v63 (Умная синхронизация)
+// ФИНАЛЬНЫЙ МОДУЛЬ v64 (Железный фикс баланса и синхронизации)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v63: Умная синхронизация)");
+    console.log("✅ Файл v56.js успешно загружен (v64)");
 
-    // ... (СТИЛИ, ФИКС СКРОЛЛА, БЛОКИРОВКА, МЕНЮ, НАСТРОЙКИ - БЕЗ ИЗМЕНЕНИЙ) ...
+    // ... (СТИЛИ, ФИКС СКРОЛЛА, БЛОКИРОВКА, МЕНЮ - БЕЗ ИЗМЕНЕНИЙ) ...
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }
@@ -120,7 +120,7 @@
         S.settings.yandexToken = document.getElementById('secYandexToken').value.trim();
         S.settings.tInvestToken = document.getElementById('secTInvestToken').value.trim();
         save(); toast('Настройки безопасности сохранены'); window.openMenu();
-        syncSmart(); // Сразу синхронизируем после смены токенов
+        syncSmart(true); // Принудительная синхронизация после смены токенов
     };
 
     window.syncTInvest = async function() {
@@ -140,7 +140,7 @@
             let createdCount = 0;
             
             let tBank = S.banks.find(b => b.name.toLowerCase().includes('т-банк') || b.name.toLowerCase().includes('тинькофф'));
-            if (!tBank) { tBank = { id: uid(), name: 'Т-Банк', color: '#f5b945', parentId: null, order: S.banks.length }; S.banks.push(tBank); }
+            if (!tBank) { tBank = { id: uid(), name: 'Т-Банк', color: '#f5b945', parentId: null, order: S.banks.length, _updatedAt: Date.now() }; S.banks.push(tBank); }
 
             for (const apiAcc of accData.accounts) {
                 if (apiAcc.status !== 'ACCOUNT_STATUS_OPEN') continue;
@@ -170,7 +170,7 @@
                     }
                 }
             }
-            recalculateBalances(); save(); renderAll(); syncSmart(); // Синхронизируем после обновления Т-Инвеста
+            recalculateBalances(); save(); renderAll(); syncSmart(true); // Синхронизируем после обновления Т-Инвеста
             if (createdCount > 0 || syncedCount > 0) toast(`✅ Успех! Создано: ${createdCount}, обновлено: ${syncedCount}`);
             else toast('Баланс уже актуален (разницы нет)');
         } catch (e) { console.error(e); toast('❌ Ошибка синхронизации. Проверьте токен.'); }
@@ -236,16 +236,14 @@
         }
 
         // Помечаем измененные элементы временем (для операций и т.д.)
-        // Самый простой способ: при каждом save() обновляем время у всех элементов, где оно отсутствует.
         ['accounts', 'transactions', 'budgets', 'debts', 'categories', 'banks'].forEach(key => {
             if (S[key]) S[key].forEach(item => { if (!item._updatedAt) item._updatedAt = Date.now(); });
         });
 
         originalSave.call(this, isUserAction);
         applyBadgeStyle();
-        localStorage.setItem('financeApp_localChange', Date.now()); // Запоминаем, что были локальные изменения
+        localStorage.setItem('financeApp_localChange', Date.now()); 
         
-        // Если это действие пользователя, запускаем отложенную синхронизацию
         if (isUserAction) scheduleSync();
     };
 
@@ -253,7 +251,7 @@
     // УМНАЯ СИНХРОНИЗАЦИЯ (MERGE)
     // ==========================================
     let syncTimeout;
-    function scheduleSync() { clearTimeout(syncTimeout); syncTimeout = setTimeout(() => { syncSmart(); }, 3000); }
+    function scheduleSync() { clearTimeout(syncTimeout); syncTimeout = setTimeout(() => { syncSmart(false); }, 2000); }
 
     window.syncSmart = async function(isManual = false) {
         const token = S.settings.yandexToken;
@@ -263,11 +261,9 @@
         if (isManual) toast('⏳ Проверка облака...');
 
         try {
-            // 1. Узнаем, менялся ли файл в облаке
             const metaRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'yandex_meta', token: token }) });
             
             if (metaRes.status === 404) {
-                // В облаке пусто, загружаем наши данные
                 await uploadToCloud(token);
                 return;
             }
@@ -285,7 +281,6 @@
                 let cloudData;
                 try { cloudData = JSON.parse(cloudText); } catch(e) { throw new Error('Битый файл в облаке'); }
 
-                // МЕРДЖ (Слияние)
                 mergeData(cloudData);
                 
                 localStorage.setItem('financeApp_lastSync', cloudModified);
@@ -313,7 +308,6 @@
     async function uploadToCloud(token) {
         const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
         
-        // Отрезаем локальные настройки перед отправкой
         const cloudS = JSON.parse(JSON.stringify(S));
         const localSettings = ['theme', 'badgeStyle', 'pinCode', 'yandexToken', 'tInvestToken', 'appTitle'];
         localSettings.forEach(k => delete cloudS.settings[k]);
@@ -325,17 +319,15 @@
         
         if (res.ok) {
             localStorage.setItem('financeApp_lastSync', Date.now());
-            localStorage.setItem('financeApp_localChange', Date.now()); // Сбрасываем флаг
+            localStorage.setItem('financeApp_localChange', Date.now()); 
         } else {
             throw new Error('Ошибка загрузки');
         }
     }
 
     function mergeData(cloudData) {
-        // Сохраняем локальные настройки
         const localSettings = { ...S.settings };
         
-        // Функция слияния массивов по ID и времени
         const mergeArray = (localArr, cloudArr) => {
             if (!localArr) return cloudArr || [];
             if (!cloudArr) return localArr;
@@ -345,10 +337,8 @@
             cloudArr.forEach(cItem => {
                 const lItem = map.get(cItem.id);
                 if (!lItem) {
-                    // Нет локально -> добавляем
                     map.set(cItem.id, cItem);
                 } else {
-                    // Есть в обоих -> берем самый свежий
                     const lTime = lItem._updatedAt || 0;
                     const cTime = cItem._updatedAt || 0;
                     if (cTime > lTime) map.set(cItem.id, cItem);
@@ -366,17 +356,23 @@
         newS.debts = mergeArray(S.debts, cloudData.debts);
         newS.counterparties = mergeArray(S.counterparties, cloudData.counterparties);
 
-        // Возвращаем локальные настройки
         newS.settings = { ...newS.settings, ...localSettings };
         window.S = newS;
     }
 
     // Триггеры для синхронизации
     setTimeout(syncSmart, 1500); // При загрузке
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncSmart(); });
+    document.addEventListener('visibilitychange', () => { 
+        if (document.visibilityState === 'visible') {
+            syncSmart();
+        } else {
+            // При сворачивании отправляем данные, если есть изменения
+            if (parseInt(localStorage.getItem('financeApp_localChange') || '0') > parseInt(localStorage.getItem('financeApp_lastSync') || '0')) {
+                uploadToCloud(S.settings.yandexToken);
+            }
+        }
+    });
     window.addEventListener('online', syncSmart);
-    
-    // Перехватываем ручную кнопку синхронизации
     window.syncManual = function() { syncSmart(true); };
 
     // ФИКС РАСЧЕТА БАЛАНСА (Исключаем из капитала и из долгов)
@@ -395,8 +391,17 @@
         return totals;
     };
     
+    // ==========================================
+    // ЖЕЛЕЗНЫЙ ФИКС: ПРИНУДИТЕЛЬНАЯ ПЕРЕРИСОВКА ПРИ ЗАГРУЗКЕ
+    // ==========================================
+    setTimeout(() => {
+        if (typeof renderAll === 'function') {
+            console.log("🔄 Принудительная перерисовка для применения баланса");
+            renderAll();
+        }
+    }, 100);
+
     // ... ОСТАЛЬНОЙ КОД (МЕНЮ, КНОПКИ, ПРЕДОХРАНИТЕЛЬ) ...
-    // (он остается без изменений, просто копируется сюда)
     const originalBackup = window.backupToYandexDisk; window.backupToYandexDisk = async function(silent = false) { if (typeof S !== 'undefined') { const isEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0); const isReset = localStorage.getItem('financeApp_isReset') === 'true'; if (isEmpty && isReset) { if (!silent) toast('Отправка пустых данных заблокирована'); return; } } return originalBackup(silent); };
     setTimeout(() => { if (localStorage.getItem('financeApp_isReset') === 'true') { const banner = document.createElement('div'); banner.id = 'restoreBanner'; banner.innerHTML = `<span>Данные очищены. Восстановить из облака?</span><button onclick="window.restoreFromYandexDisk()">Восстановить</button>`; const main = document.querySelector('main'); if (main) main.prepend(banner); } }, 1000);
     const prevRenderTransactions = window.renderTransactions; window.renderTransactions = function() { if (prevRenderTransactions) prevRenderTransactions(); const page = document.getElementById('page-transactions'); if (page && page.classList.contains('active')) { const formRow = page.querySelector('.form-row'); if (formRow && !document.getElementById('inlineTxBtn')) { formRow.style.display = 'flex'; formRow.style.gap = '8px'; formRow.style.alignItems = 'center'; const btn = document.createElement('button'); btn.id = 'inlineTxBtn'; btn.className = 'btn-primary'; btn.style = 'padding: 0; width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; font-size: 24px; display: flex; align-items: center; justify-content: center;'; btn.innerHTML = '+'; btn.onclick = () => { if(typeof openTxModal === 'function') openTxModal(); }; formRow.appendChild(btn); } } };
