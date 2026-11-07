@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v75 (Рамка льготного периода)
+// ФИНАЛЬНЫЙ МОДУЛЬ v76 (Рамки банков и счетов)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js загружен (v75)");
+    console.log("✅ Файл v56.js загружен (v76)");
 
     // 🚫 ТИХАЯ ГЛУШИЛКА СТАРОГО КОДА
     const originalFetch = window.fetch;
@@ -44,14 +44,19 @@
         .account-row.grace-warning { box-shadow: inset 0 0 0 2px var(--yellow) !important; border-color: var(--yellow) !important; }
         .account-row.grace-danger { box-shadow: inset 0 0 0 2px var(--red) !important; border-color: var(--red) !important; }
         .account-row.grace-overdue { box-shadow: inset 0 0 0 2px var(--red) !important; border-color: var(--red) !important; animation: pulse-red 1.5s infinite; }
+        
         @keyframes pulse-red {
             0% { box-shadow: inset 0 0 0 2px var(--red); }
-            50% { box-shadow: inset 0 0 0 5px var(--red); }
+            50% { box-shadow: inset 0 0 0 6px rgba(255, 92, 92, 0.5); }
             100% { box-shadow: inset 0 0 0 2px var(--red); }
         }
         .grace-text { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
         .grace-text.warning { background: var(--yellow); color: #000; }
         .grace-text.danger, .grace-text.overdue { background: var(--red); color: #fff; }
+
+        /* СТИЛИ ДЛЯ ВИДЖЕТА БАНКА */
+        .bank-chip.grace-bank-warning { box-shadow: 0 0 0 2px var(--red) !important; border-color: var(--red) !important; }
+        .bank-chip.grace-bank-overdue { box-shadow: 0 0 0 2px var(--red) !important; border-color: var(--red) !important; animation: pulse-red 1.5s infinite; }
 
         #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         #lockScreen .dots { display: flex; gap: 15px; margin: 30px 0; }
@@ -273,18 +278,16 @@
     };
 
     // ==========================================
-    // РАМКА ЛЬГОТНОГО ПЕРИОДА (Новое!)
+    // РАМКА ЛЬГОТНОГО ПЕРИОДА (Обновлено v76)
     // ==========================================
     const prevRenderAccountRow = window.renderAccountRow;
     window.renderAccountRow = function(a, bank) {
         let html = prevRenderAccountRow(a, bank);
         
-        // Добавляем data-атрибут для стилей (если еще нет)
         if (html.includes('class="account-row"')) {
             html = html.replace('class="account-row"', `class="account-row" data-acc-type="${a.type}"`);
         }
 
-        // Логика льготного периода
         if (a.type === 'credit' && a.gracePeriod && !a.archived) {
             const limit = a.creditLimit || 0;
             const val = accValue(a);
@@ -300,28 +303,70 @@
                 let textHtml = '';
                 
                 if (diffDays < 0) {
-                    graceClass = 'grace-overdue';
+                    graceClass = 'grace-overdue'; // Пульсирует
                     textHtml = `<span class="grace-text overdue">⏰ Просрочка ${Math.abs(diffDays)} дн.</span>`;
                 } else if (diffDays === 0) {
-                    graceClass = 'grace-danger';
+                    graceClass = 'grace-overdue'; // Пульсирует сегодня
                     textHtml = `<span class="grace-text danger">⏰ Сегодня!</span>`;
                 } else if (diffDays <= 3) {
-                    graceClass = 'grace-danger';
+                    graceClass = 'grace-danger'; // Просто красная
                     textHtml = `<span class="grace-text danger">⏰ Осталось ${diffDays} дн.</span>`;
                 } else if (diffDays <= 7) {
-                    graceClass = 'grace-warning';
+                    graceClass = 'grace-warning'; // Желтая
                     textHtml = `<span class="grace-text warning">⏳ Осталось ${diffDays} дн.</span>`;
                 }
                 
                 if (graceClass) {
-                    // Добавляем класс на карточку
                     html = html.replace('class="account-row"', `class="account-row ${graceClass}"`);
-                    // Вставляем бейдж перед словом "Задолженность"
                     html = html.replace('Задолженность:', `${textHtml} Задолженность:`);
                 }
             }
         }
         return html;
+    };
+
+    // ==========================================
+    // ПОДСВЕТКА ВИДЖЕТОВ БАНКОВ (Новое v76)
+    // ==========================================
+    const prevRenderDashboard = window.renderDashboard;
+    window.renderDashboard = function() {
+        if (prevRenderDashboard) prevRenderDashboard();
+        
+        const today = new Date(); today.setHours(0,0,0,0);
+        const problemBanks = new Set();
+        const overdueBanks = new Set();
+        
+        S.accounts.forEach(a => {
+            if (a.type === 'credit' && a.gracePeriod && !a.archived) {
+                const limit = a.creditLimit || 0;
+                const val = accValue(a);
+                const debt = Math.max(0, limit - val);
+                
+                if (debt > 0) {
+                    const gp = new Date(a.gracePeriod); gp.setHours(0,0,0,0);
+                    const diffDays = Math.ceil((gp - today) / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays <= 3) { // 3 дня, 0, просрочка
+                        problemBanks.add(a.bankId);
+                    }
+                    if (diffDays <= 0) { // 0 или просрочка
+                        overdueBanks.add(a.bankId);
+                    }
+                }
+            }
+        });
+        
+        document.querySelectorAll('.bank-chip').forEach(chip => {
+            const bankId = chip.dataset.bankId;
+            chip.classList.remove('grace-bank-warning', 'grace-bank-overdue');
+            if (bankId) {
+                if (overdueBanks.has(bankId)) {
+                    chip.classList.add('grace-bank-overdue');
+                } else if (problemBanks.has(bankId)) {
+                    chip.classList.add('grace-bank-warning');
+                }
+            }
+        });
     };
 
     if (!window._prevState) window._prevState = JSON.parse(JSON.stringify(S));
