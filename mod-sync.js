@@ -128,6 +128,7 @@
             
             if (metaRes.status === 404) {
                 await uploadToCloud(token);
+                if (isManual && typeof toast === 'function') toast('✅ Данные отправлены в облако');
                 return;
             }
 
@@ -136,27 +137,32 @@
             const lastSync = parseInt(localStorage.getItem('financeApp_lastSync') || '0');
             const localChange = parseInt(localStorage.getItem('financeApp_localChange') || '0');
 
+            // ЕСЛИ НАЖАЛИ ВРУЧНУЮ — ВСЕГДА КАЧАЕМ, СЛИВАЕМ И ОТПРАВЛЯЕМ ОБРАТНО
+            if (isManual) {
+                if (typeof toast === 'function') toast('⬇️ Скачиваем и сливаем данные...');
+                await downloadFromCloud(token, cloudModified, isManual);
+                await uploadToCloud(token);
+                if (typeof toast === 'function') toast('✅ Синхронизация завершена');
+                return;
+            }
+
+            // АВТОМАТИЧЕСКАЯ СИНХРОНИЗАЦИЯ (если не нажимали кнопку)
             const isLocalEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
 
             if (isLocalEmpty) {
-                if (isManual && typeof toast === 'function') toast('⬇️ Локальная база пуста. Скачиваем из облака...');
                 await downloadFromCloud(token, cloudModified, isManual);
                 return;
             }
 
             if (cloudModified > localChange) {
-                if (isManual && typeof toast === 'function') toast('⬇️ Скачиваем новые данные...');
                 await downloadFromCloud(token, cloudModified, isManual);
                 return;
             }
 
             if (localChange > lastSync) {
                 await uploadToCloud(token);
-                if (isManual && typeof toast === 'function') toast('✅ Данные сохранены в облако');
                 return;
             }
-
-            if (isManual && typeof toast === 'function') toast('✨ Всё актуально');
 
         } catch (e) {
             console.error('Sync error:', e);
