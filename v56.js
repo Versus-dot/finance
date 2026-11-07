@@ -1,14 +1,18 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v71 (Всё в одном)
+// ФИНАЛЬНЫЙ МОДУЛЬ v72 (Тихая глушилка)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js загружен (v71)");
+    console.log("✅ Файл v56.js загружен (v72)");
 
-    // 🚫 ГЛУШИЛКА СТАРОГО КОДА (запрещает app.js делать прямые запросы к Yandex API)
+    // 🚫 ТИХАЯ ГЛУШИЛКА
     const originalFetch = window.fetch;
     window.fetch = function(url, options) {
         if (typeof url === 'string' && url.includes('cloud-api.yandex.net')) {
-            return Promise.reject(new Error("Blocked by v56.js"));
+            // Возвращаем фейковый ответ 404 (Файл не найден), чтобы app.js не ругался
+            return Promise.resolve(new Response(JSON.stringify({ message: "Not Found" }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            }));
         }
         return originalFetch.apply(this, arguments);
     };
@@ -55,15 +59,11 @@
     document.head.appendChild(styleEl);
     document.addEventListener('touchmove', function(e) { if (e.target.closest('.modal')) e.stopPropagation(); }, { capture: true, passive: true });
 
-    // ИНИЦИАЛИЗАЦИЯ СПИСКА УДАЛЕННЫХ (Tombstones)
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
         if (!S.meta.deletedIds) S.meta.deletedIds = [];
     }
 
-    // ==========================================
-    // ПЕРЕХВАТ УДАЛЕНИЙ
-    // ==========================================
     const originalDeleteAccount = window.deleteAccount;
     window.deleteAccount = function(id) {
         const acc = getAcc(id); if (!acc) return;
@@ -84,9 +84,6 @@
         originalDeleteTx(id);
     };
 
-    // ==========================================
-    // ЭКРАН БЛОКИРОВКИ
-    // ==========================================
     let pinBuffer = '';
     let lastActiveTime = Date.now();
     function showLockScreen() {
@@ -129,9 +126,6 @@
     });
     setTimeout(checkLock, 500);
 
-    // ==========================================
-    // НАСТРОЙКИ И БЕЗОПАСНОСТЬ
-    // ==========================================
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
         const style = (typeof S !== 'undefined' && S.settings && S.settings.badgeStyle) ? S.settings.badgeStyle : 'stripe';
@@ -176,9 +170,6 @@
         syncSmart(true); 
     };
 
-    // ==========================================
-    // Т-ИНВЕСТИЦИИ
-    // ==========================================
     window.syncTInvest = async function() {
         const token = document.getElementById('secTInvestToken').value.trim();
         if (!token) { toast('Сначала вставьте токен и нажмите Сохранить!'); return; }
@@ -232,9 +223,6 @@
         } catch (e) { console.error(e); toast('❌ Ошибка синхронизации. Проверьте токен.'); }
     };
 
-    // ==========================================
-    // ОКНО СЧЕТА (Срок, Исключить, Хедж)
-    // ==========================================
     const prevOpenAccountModal = window.openAccountModal;
     window.openAccountModal = function(id, bankId) {
         prevOpenAccountModal(id, bankId);
@@ -273,9 +261,6 @@
         }, 100);
     };
 
-    // ==========================================
-    // УМНЫЙ СКАНЕР ИЗМЕНЕНИЙ И СОХРАНЕНИЕ
-    // ==========================================
     if (!window._prevState) window._prevState = JSON.parse(JSON.stringify(S));
 
     const originalSave = window.save;
@@ -319,9 +304,6 @@
         if (isUserAction) scheduleSync();
     };
 
-    // ==========================================
-    // СИНХРОНИЗАЦИЯ
-    // ==========================================
     let syncTimeout;
     function scheduleSync() { clearTimeout(syncTimeout); syncTimeout = setTimeout(() => { syncSmart(false); }, 2000); }
 
@@ -336,7 +318,6 @@
         const payload = JSON.stringify({ action: 'yandex_upload', token: token, fileContent: JSON.stringify(cloudS) });
         const blob = new Blob([payload], { type: 'text/plain' });
         navigator.sendBeacon('https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm', blob);
-        console.log("📤 Данные отправлены через sendBeacon");
     }
     window.addEventListener('pagehide', sendBeaconUpload);
     document.addEventListener('visibilitychange', () => { 
@@ -451,37 +432,9 @@
         S.settings = { ...S.settings, ...localSettings };
     }
 
-    // ==========================================
-    // ФИКС КУРСА USDT
-    // ==========================================
-    window.fetchUSDT = async function() {
-        try {
-            const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
-            const r = await fetch(PROXY, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ action: 'usdt_rate' }) 
-            });
-            if (!r.ok) throw new Error('Ошибка сети');
-            const d = await r.json();
-            if (d.tether && d.tether.rub) {
-                S.settings.usdtRate.lastFetched = d.tether.rub;
-                S.settings.usdtRate.updatedAt = new Date().toISOString();
-                save(false);
-                toast('Курс USDT: ' + fmtNum(d.tether.rub) + '₽');
-                renderAll();
-            }
-        } catch(e) {
-            console.log('Курс USDT временно недоступен. Используется сохраненный.');
-        }
-    };
-
     setTimeout(syncSmart, 1500); 
     window.syncManual = function() { syncSmart(true); };
 
-    // ==========================================
-    // ПЕРЕРАСЧЕТ БАЛАНСА И UI
-    // ==========================================
     const originalComputeTotals = window.computeTotals;
     window.computeTotals = function() {
         let totals = originalComputeTotals();
