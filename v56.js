@@ -1,8 +1,15 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v61 (Автообновление баланса)
+// ФИНАЛЬНЫЙ МОДУЛЬ v62 (Отключение опасной авто-синхронизации + Фикс баланса)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v61)");
+    console.log("✅ Файл v56.js успешно загружен (v62)");
+
+    // ==========================================
+    // 0. ОТКЛЮЧАЕМ ОПАСНУЮ АВТО-СИНХРОНИЗАЦИЮ
+    // ==========================================
+    // Это предотвратит затирание галочек из облака при загрузке
+    window.checkCloudSync = function() { console.log("⏸️ Авто-синхронизация отключена для безопасности"); };
+    window.silentAutoSave = function() { console.log("⏸️ Авто-сохранение отключено"); };
 
     // ... (СТИЛИ И ФИКС СКРОЛЛА) ...
     const styleEl = document.createElement('style');
@@ -239,12 +246,38 @@
         applyBadgeStyle();
     };
 
+    // ФИКС РАСЧЕТА БАЛАНСА (Исключаем из капитала и из долгов)
     const originalComputeTotals = window.computeTotals;
     window.computeTotals = function() {
         let totals = originalComputeTotals();
-        if (typeof S !== 'undefined') { let ignoredSum = 0; S.accounts.filter(a => a.ignoreBalance && !a.archived).forEach(a => { ignoredSum += accValue(a); }); totals.totalCap -= ignoredSum; }
+        if (typeof S !== 'undefined') {
+            let ignoredSum = 0;
+            let ignoredDebt = 0;
+            S.accounts.filter(a => a.ignoreBalance && !a.archived).forEach(a => { 
+                const v = accValue(a);
+                if (a.type === 'credit') {
+                    const limit = a.creditLimit || 0;
+                    ignoredSum += Math.max(0, v - limit);
+                    ignoredDebt += Math.max(0, limit - v);
+                } else {
+                    ignoredSum += v; 
+                }
+            });
+            totals.totalCap -= ignoredSum;
+            totals.debt = Math.max(0, totals.debt - ignoredDebt);
+        }
         return totals;
     };
+
+    // ПРИНУДИТЕЛЬНАЯ ПЕРЕРИСОВКА ПРИ ЗАГРУЗКЕ
+    // Ждем 500мс, пока app.js всё загрузит, и перерисовываем с нашим балансом
+    setTimeout(() => {
+        if (typeof renderAll === 'function') {
+            console.log("🔄 Принудительная перерисовка для применения ignoreBalance");
+            renderAll();
+        }
+    }, 500);
+
     const originalBackup = window.backupToYandexDisk;
     window.backupToYandexDisk = async function(silent = false) {
         if (typeof S !== 'undefined') {
@@ -301,16 +334,4 @@
             localStorage.setItem('financeApp_isReset', 'true'); localStorage.removeItem('financeApp_v25'); location.reload();
         }
     };
-
-    // ==========================================
-    // 9. ФИКС: ПРИНУДИТЕЛЬНАЯ ПЕРЕРИСОВКА ПОСЛЕ ЗАГРУЗКИ
-    // ==========================================
-    // Ждем 200мс, пока app.js всё отрисует, и перерисовываем заново с нашим балансом
-    setTimeout(() => {
-        if (typeof renderAll === 'function') {
-            console.log("🔄 Перерисовка для применения ignoreBalance");
-            renderAll();
-        }
-    }, 200);
-
 })();
