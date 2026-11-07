@@ -2,20 +2,28 @@
 // ФИНАЛЬНЫЙ МОДУЛЬ v56 (ВСЁ В ОДНОМ ФАЙЛЕ)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (Финальная сборка)");
+    console.log("✅ Файл v56.js успешно загружен (Финальная сборка + Фикс скролла)");
 
     // ==========================================
-    // 1. ГЛОБАЛЬНЫЕ СТИЛИ (Скролл, Минимализм, Экран блокировки)
+    // 0. ЖЕСТКИЙ ФИКС СКРОЛЛА (Перехват фазы погружения)
+    // ==========================================
+    document.addEventListener('touchmove', function(e) {
+        // Если палец двигается внутри модального окна (.modal)
+        if (e.target.closest('.modal')) {
+            // Останавливаем распространение события, чтобы app.js не вызвал preventDefault
+            e.stopPropagation(); 
+        }
+    }, { capture: true, passive: true });
+
+    // ==========================================
+    // 1. ГЛОБАЛЬНЫЕ СТИЛИ
     // ==========================================
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         /* --- ФИКС СКРОЛЛА В МОДАЛКАХ --- */
-        .modal {
+        .modal, #modalBackdrop2 {
             overscroll-behavior: contain !important;
             -webkit-overflow-scrolling: touch;
-        }
-        body.modal-open {
-            overflow: hidden !important;
         }
 
         /* --- ПРЯЧЕМ ПЛАВАЮЩУЮ КНОПКУ --- */
@@ -23,7 +31,6 @@
         .account-row { transition: all 0.2s ease; }
 
         /* --- СТИЛИ ТЕМ --- */
-        /* 1. Цветные полосы */
         body.style-stripe .account-row {
             border-left: 4px solid var(--bank-color) !important;
             background: var(--card) !important;
@@ -34,7 +41,6 @@
         body.style-stripe .account-row:has(.acc-debt) { background: rgba(255, 92, 92, 0.05) !important; }
         body.style-stripe .account-row:not(:has(.acc-debt)) { background: rgba(46, 204, 113, 0.04) !important; }
 
-        /* 2. Легкий фон */
         body.style-bg .account-row {
             border-left: none !important;
             background: rgba(46, 204, 113, 0.1) !important;
@@ -47,7 +53,6 @@
             border-color: rgba(255, 92, 92, 0.3) !important;
         }
 
-        /* 3. Минимализм */
         body.style-minimal .account-row {
             border-left: none !important;
             background: var(--card2) !important;
@@ -59,7 +64,6 @@
         body.style-minimal .account-row:not(:has(.acc-debt)) .acc-icon-wrap { background: #2d3647 !important; color: #9aa5b8 !important; }
         body.style-minimal .account-row:has(.acc-debt) .acc-icon-wrap { background: #1f2532 !important; color: #6b778c !important; }
 
-        /* Визуальная пометка "Не в балансе" */
         .account-row.ignore-balance { opacity: 0.5; filter: grayscale(1); }
         .account-row.ignore-balance .acc-balance::after { content: ' 👁️‍🗨️'; font-size: 12px; }
 
@@ -91,7 +95,6 @@
             75% { transform: translateX(10px); }
         }
 
-        /* Баннер восстановления */
         #restoreBanner {
             background: var(--yellow); color: #000; padding: 10px 15px; border-radius: 10px;
             margin: 10px; display: flex; justify-content: space-between; align-items: center;
@@ -102,7 +105,7 @@
     document.head.appendChild(styleEl);
 
     // ==========================================
-    // 2. ЭКРАН БЛОКИРОВКИ И БЕЗОПАСНОСТЬ
+    // 2. ЭКРАН БЛОКИРОВКИ
     // ==========================================
     let pinBuffer = '';
     let lastActiveTime = Date.now();
@@ -153,7 +156,6 @@
                         if (pinBuffer === S.settings.pinCode) {
                             ls.remove();
                             lastActiveTime = Date.now();
-                            document.body.classList.remove('modal-open'); // освобождаем скролл
                         } else {
                             errorEl.textContent = 'Неверный PIN';
                             ls.classList.add('shake');
@@ -180,7 +182,6 @@
     function checkLock() {
         if (typeof S !== 'undefined' && S.settings && S.settings.pinCode) {
             const timePassed = Date.now() - lastActiveTime;
-            // Если прошло больше 5 минут (300000 мс) или приложение открыто впервые
             if (timePassed > 5 * 60 * 1000 || !sessionStorage.getItem('app_unlocked')) {
                 showLockScreen();
                 sessionStorage.setItem('app_unlocked', 'true');
@@ -196,12 +197,7 @@
         }
     });
 
-    // Запускаем проверку при загрузке
-    setTimeout(() => {
-        checkLock();
-        // Блокируем скролл body, если открыт экран блокировки
-        if (document.getElementById('lockScreen')) document.body.classList.add('modal-open');
-    }, 500);
+    setTimeout(checkLock, 500);
 
     // ==========================================
     // 3. ФИКС СОРТИРОВКИ СЧЕТОВ
@@ -212,7 +208,7 @@
         if (typeof Sortable === 'undefined') return;
         
         document.querySelectorAll('.account-list-wrapper').forEach(container => {
-            if (container.dataset.sortableInit) return; // Предотвращаем дублирование
+            if (container.dataset.sortableInit) return;
             container.dataset.sortableInit = 'true';
             new Sortable(container, {
                 animation: 150,
@@ -234,7 +230,7 @@
     };
 
     // ==========================================
-    // 4. НАСТРОЙКИ (Минимализм, Смена PIN, Email)
+    // 4. НАСТРОЙКИ
     // ==========================================
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
@@ -284,7 +280,7 @@
     };
 
     // ==========================================
-    // 5. ОКНО СЧЕТА (Срок в днях, Исключить из баланса, Хедж)
+    // 5. ОКНО СЧЕТА
     // ==========================================
     const prevOpenAccountModal = window.openAccountModal;
     window.openAccountModal = function(id, bankId) {
@@ -296,14 +292,12 @@
         const form = document.getElementById('accForm');
         if (!form) return;
 
-        // А) ДОБАВЛЯЕМ "УЧИТЫВАТЬ В БАЛАНСЕ"
         const cushionLabel = form.querySelector('input[id="accCushion"]').closest('.form-group');
         const ignoreDiv = document.createElement('div');
         ignoreDiv.className = 'form-group';
         ignoreDiv.innerHTML = `<label><input type="checkbox" id="accIgnoreBalance" style="width:auto;margin-right:8px" ${acc && acc.ignoreBalance ? 'checked' : ''}>👁️‍🗨️ Исключить из общего баланса</label>`;
         cushionLabel.after(ignoreDiv);
 
-        // Б) СРОК В ДНЯХ
         const termSelect = document.getElementById('accTerm');
         if (termSelect) {
             termSelect.insertAdjacentHTML('beforeend', `<option value="custom">Свой срок (в днях)</option>`);
@@ -313,7 +307,6 @@
             customDiv.innerHTML = `<label>Количество дней</label><input type="number" id="accTermDays" placeholder="Например, 181" min="1">`;
             termSelect.closest('.form-group').after(customDiv);
 
-            // Восстановление значения, если это кастомный срок
             if (acc && acc.term && acc.term.endsWith('d')) {
                 termSelect.value = 'custom';
                 customDiv.style.display = 'block';
@@ -324,7 +317,6 @@
                 customDiv.style.display = this.value === 'custom' ? 'block' : 'none';
             };
 
-            // При отправке формы подменяем значение селекта
             form.addEventListener('submit', function(e) {
                 if (termSelect.value === 'custom') {
                     const days = document.getElementById('accTermDays').value;
@@ -334,10 +326,9 @@
                         termSelect.innerHTML += `<option value="${val}" selected>${days} дн.</option>`;
                     }
                 }
-            }, true); // Используем capture phase, чтобы сработало до app.js
+            }, true);
         }
 
-        // В) ХЕДЖ (Формат [Банк] Имя)
         setTimeout(() => {
             const hedgeSelect = document.getElementById('accHedgeFor');
             if (hedgeSelect) {
@@ -353,33 +344,24 @@
         }, 100);
     };
 
-    // Перехват сохранения формы счета для записи ignoreBalance
     const originalSave = window.save;
     window.save = function(...args) {
         originalSave.apply(this, args);
         applyBadgeStyle();
     };
 
-    // Сохраняем ignoreBalance в объект (вклиниваемся в момент изменения)
     document.addEventListener('change', function(e) {
         if (e.target.id === 'accIgnoreBalance') {
             const form = e.target.closest('#accForm');
-            if (form) {
-                form.dataset.ignoreBalance = e.target.checked ? 'true' : 'false';
-            }
+            if (form) form.dataset.ignoreBalance = e.target.checked ? 'true' : 'false';
         }
     });
 
-    // Перехватываем submit формы счета (чтобы записать ignoreBalance)
     document.addEventListener('submit', function(e) {
         if (e.target.id === 'accForm') {
             const ignoreCb = document.getElementById('accIgnoreBalance');
             if (ignoreCb) {
-                // Находим ID текущего счета (либо редактируем, либо новый)
-                const urlId = document.querySelector('#modalContent h2').textContent.includes('Счёт') ? document.querySelector('[onclick*="deleteAccount"]')?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
-                // Проще перехватить функцию сохранения счета, но сделаем костыль через таймаут:
                 setTimeout(() => {
-                    // app.js уже сохранил счет, последний элемент — наш
                     const accs = S.accounts;
                     if (accs.length) {
                         const last = accs[accs.length - 1];
@@ -391,7 +373,7 @@
     });
 
     // ==========================================
-    // 6. ПЕРЕРАСЧЕТ БАЛАНСА (Исключаем ignoreBalance)
+    // 6. ПЕРЕРАСЧЕТ БАЛАНСА
     // ==========================================
     const originalComputeTotals = window.computeTotals;
     window.computeTotals = function() {
@@ -401,14 +383,13 @@
             S.accounts.filter(a => a.ignoreBalance && !a.archived).forEach(a => {
                 ignoredSum += accValue(a);
             });
-            // Вычитаем из общего капитала, но не из долгов
             totals.totalCap -= ignoredSum;
         }
         return totals;
     };
 
     // ==========================================
-    // 7. ПРЕДОХРАНИТЕЛЬ ОТ ПУСТОГО БЭКАПА
+    // 7. ПРЕДОХРАНИТЕЛЬ
     // ==========================================
     const originalBackup = window.backupToYandexDisk;
     window.backupToYandexDisk = async function(silent = false) {
@@ -424,7 +405,6 @@
         return originalBackup(silent);
     };
 
-    // Проверка флага сброса при запуске
     setTimeout(() => {
         if (localStorage.getItem('financeApp_isReset') === 'true') {
             const banner = document.createElement('div');
@@ -439,7 +419,7 @@
     }, 1000);
 
     // ==========================================
-    // 8. ОСТАЛЬНОЕ (Кнопка + на операциях, Меню)
+    // 8. ОСТАЛЬНОЕ
     // ==========================================
     const prevRenderTransactions = window.renderTransactions;
     window.renderTransactions = function() {
@@ -490,7 +470,6 @@
         </div>`);
     };
 
-    // Двойное подтверждение сброса
     window.clearLocalData = function() {
         if (!confirm('Вы уверены, что хотите удалить все локальные данные? Приложение вернется в исходное состояние.')) return;
         if (confirm('ВНИМАНИЕ! Это действие необратимо. Ваши данные будут удалены с этого устройства. Восстановить их можно будет ТОЛЬКО если вы введете свой Облачный токен заново. Вы точно хотите стереть всё?')) {
