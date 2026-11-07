@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v60 (Железный фикс галочки)
+// ФИНАЛЬНЫЙ МОДУЛЬ v61 (Автообновление баланса)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v60)");
+    console.log("✅ Файл v56.js успешно загружен (v61)");
 
     // ... (СТИЛИ И ФИКС СКРОЛЛА) ...
     const styleEl = document.createElement('style');
@@ -186,7 +186,6 @@
         const modal = document.getElementById('modalContent'); if (!modal) return;
         const acc = id ? getAcc(id) : null; const form = document.getElementById('accForm'); if (!form) return;
         
-        // Запоминаем ID счета, который редактируем
         window._currentEditingAccId = id || null; 
 
         const cushionLabel = form.querySelector('input[id="accCushion"]').closest('.form-group');
@@ -219,30 +218,23 @@
         }, 100);
     };
 
-    // ==========================================
-    // ЖЕЛЕЗНЫЙ ФИКС: Перехват сохранения
-    // ==========================================
     const originalSave = window.save;
     window.save = function(isUserAction = true) {
         const accForm = document.getElementById('accForm');
         const ignoreCb = document.getElementById('accIgnoreBalance');
         
-        // Если мы сохраняем форму счета, обновляем галочку ДО записи в память
         if (accForm && ignoreCb) {
             const isIgnore = ignoreCb.checked;
             if (window._currentEditingAccId) {
-                // Редактирование существующего
                 const acc = S.accounts.find(a => a.id === window._currentEditingAccId);
                 if (acc) acc.ignoreBalance = isIgnore;
             } else {
-                // Создание нового (app.js только что его добавил в конец)
                 if (S.accounts.length > 0) {
                     S.accounts[S.accounts.length - 1].ignoreBalance = isIgnore;
                 }
             }
         }
         
-        // Вызываем оригинальное сохранение (запись в localStorage)
         originalSave.call(this, isUserAction);
         applyBadgeStyle();
     };
@@ -309,4 +301,16 @@
             localStorage.setItem('financeApp_isReset', 'true'); localStorage.removeItem('financeApp_v25'); location.reload();
         }
     };
+
+    // ==========================================
+    // 9. ФИКС: ПРИНУДИТЕЛЬНАЯ ПЕРЕРИСОВКА ПОСЛЕ ЗАГРУЗКИ
+    // ==========================================
+    // Ждем 200мс, пока app.js всё отрисует, и перерисовываем заново с нашим балансом
+    setTimeout(() => {
+        if (typeof renderAll === 'function') {
+            console.log("🔄 Перерисовка для применения ignoreBalance");
+            renderAll();
+        }
+    }, 200);
+
 })();
