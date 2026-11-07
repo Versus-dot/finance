@@ -1,16 +1,14 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v56 (ВСЁ В ОДНОМ ФАЙЛЕ)
+// ФИНАЛЬНЫЙ МОДУЛЬ v57 (ВСЁ В ОДНОМ ФАЙЛЕ)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (Финальная сборка + Фикс скролла)");
+    console.log("✅ Файл v56.js успешно загружен (v57: Удаление + Т-Инвест)");
 
     // ==========================================
-    // 0. ЖЕСТКИЙ ФИКС СКРОЛЛА (Перехват фазы погружения)
+    // 0. ЖЕСТКИЙ ФИКС СКРОЛЛА
     // ==========================================
     document.addEventListener('touchmove', function(e) {
-        // Если палец двигается внутри модального окна (.modal)
         if (e.target.closest('.modal')) {
-            // Останавливаем распространение события, чтобы app.js не вызвал preventDefault
             e.stopPropagation(); 
         }
     }, { capture: true, passive: true });
@@ -20,17 +18,11 @@
     // ==========================================
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
-        /* --- ФИКС СКРОЛЛА В МОДАЛКАХ --- */
-        .modal, #modalBackdrop2 {
-            overscroll-behavior: contain !important;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        /* --- ПРЯЧЕМ ПЛАВАЮЩУЮ КНОПКУ --- */
+        .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }
         #fabBtn { display: none !important; }
         .account-row { transition: all 0.2s ease; }
 
-        /* --- СТИЛИ ТЕМ --- */
+        /* СТИЛИ ТЕМ */
         body.style-stripe .account-row {
             border-left: 4px solid var(--bank-color) !important;
             background: var(--card) !important;
@@ -67,45 +59,37 @@
         .account-row.ignore-balance { opacity: 0.5; filter: grayscale(1); }
         .account-row.ignore-balance .acc-balance::after { content: ' 👁️‍🗨️'; font-size: 12px; }
 
-        /* --- ЭКРАН БЛОКИРОВКИ --- */
-        #lockScreen {
-            position: fixed; inset: 0; background: var(--bg); z-index: 99999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-family: inherit;
-        }
+        /* ЭКРАН БЛОКИРОВКИ */
+        #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         #lockScreen .dots { display: flex; gap: 15px; margin: 30px 0; }
-        #lockScreen .dot {
-            width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted);
-            transition: all 0.2s;
-        }
+        #lockScreen .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); transition: all 0.2s; }
         #lockScreen .dot.filled { background: var(--accent); border-color: var(--accent); }
         #lockScreen .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        #lockScreen .num-btn {
-            width: 70px; height: 70px; border-radius: 50%; background: var(--card2);
-            color: var(--text); font-size: 24px; font-weight: 600; border: none; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-        }
+        #lockScreen .num-btn { width: 70px; height: 70px; border-radius: 50%; background: var(--card2); color: var(--text); font-size: 24px; font-weight: 600; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         #lockScreen .num-btn:active { background: var(--accent); color: #fff; }
         #lockScreen .forgot-btn { margin-top: 20px; color: var(--muted); background: none; border: none; text-decoration: underline; }
         #lockScreen .error-msg { color: var(--red); font-size: 14px; margin-top: 10px; height: 20px; }
         .shake { animation: shake 0.4s; }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
-        }
-
-        #restoreBanner {
-            background: var(--yellow); color: #000; padding: 10px 15px; border-radius: 10px;
-            margin: 10px; display: flex; justify-content: space-between; align-items: center;
-            font-weight: 600; font-size: 13px;
-        }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        #restoreBanner { background: var(--yellow); color: #000; padding: 10px 15px; border-radius: 10px; margin: 10px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px; }
         #restoreBanner button { background: #000; color: #fff; padding: 5px 10px; border-radius: 5px; }
     `;
     document.head.appendChild(styleEl);
 
     // ==========================================
-    // 2. ЭКРАН БЛОКИРОВКИ
+    // 2. ЗАЩИТА ОТ СЛУЧАЙНОГО УДАЛЕНИЯ
+    // ==========================================
+    const originalDeleteAccount = window.deleteAccount;
+    window.deleteAccount = function(id) {
+        const acc = getAcc(id);
+        if (!acc) return;
+        if (confirm(`Вы уверены, что хотите удалить счет "${acc.name}"?\n\nЭто действие нельзя отменить.`)) {
+            originalDeleteAccount(id);
+        }
+    };
+
+    // ==========================================
+    // 3. ЭКРАН БЛОКИРОВКИ
     // ==========================================
     let pinBuffer = '';
     let lastActiveTime = Date.now();
@@ -117,57 +101,40 @@
         ls.innerHTML = `
             <div style="font-size: 40px; margin-bottom: 20px;">🔒</div>
             <div style="font-size: 18px; font-weight: 600;">Введите PIN-код</div>
-            <div class="dots" id="pinDots">
-                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            </div>
+            <div class="dots" id="pinDots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
             <div class="error-msg" id="pinError"></div>
             <div class="numpad" id="pinNumpad">
                 ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="num-btn" data-val="${n}">${n}</button>`).join('')}
-                <div></div>
-                <button class="num-btn" data-val="0">0</button>
-                <button class="num-btn" data-val="back">⌫</button>
+                <div></div><button class="num-btn" data-val="0">0</button><button class="num-btn" data-val="back">⌫</button>
             </div>
             <button class="forgot-btn" id="forgotPinBtn">Забыли PIN-код?</button>
         `;
         document.body.appendChild(ls);
-
         const dots = document.querySelectorAll('#pinDots .dot');
         const errorEl = document.getElementById('pinError');
 
-        function updateDots() {
-            dots.forEach((dot, i) => dot.classList.toggle('filled', i < pinBuffer.length));
-        }
+        function updateDots() { dots.forEach((dot, i) => dot.classList.toggle('filled', i < pinBuffer.length)); }
 
         document.getElementById('pinNumpad').onclick = (e) => {
             const btn = e.target.closest('.num-btn');
             if (!btn) return;
             const val = btn.dataset.val;
-
-            if (val === 'back') {
-                pinBuffer = pinBuffer.slice(0, -1);
-                updateDots();
-            } else {
-                if (pinBuffer.length < 4) {
-                    pinBuffer += val;
-                    updateDots();
-                }
+            if (val === 'back') { pinBuffer = pinBuffer.slice(0, -1); updateDots(); } 
+            else {
+                if (pinBuffer.length < 4) { pinBuffer += val; updateDots(); }
                 if (pinBuffer.length === 4) {
                     setTimeout(() => {
-                        if (pinBuffer === S.settings.pinCode) {
-                            ls.remove();
-                            lastActiveTime = Date.now();
-                        } else {
+                        if (pinBuffer === S.settings.pinCode) { ls.remove(); lastActiveTime = Date.now(); } 
+                        else {
                             errorEl.textContent = 'Неверный PIN';
                             ls.classList.add('shake');
                             setTimeout(() => ls.classList.remove('shake'), 400);
-                            pinBuffer = '';
-                            updateDots();
+                            pinBuffer = ''; updateDots();
                         }
                     }, 100);
                 }
             }
         };
-
         document.getElementById('forgotPinBtn').onclick = () => {
             if (confirm("Сбросить PIN? Данные будут удалены. Восстановить можно только из облака.")) {
                 if (confirm("ВНИМАНИЕ! Восстановление потребует ввода Облачного токена заново. Вы точно хотите стереть данные?")) {
@@ -188,49 +155,14 @@
             }
         }
     }
-
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') {
-            lastActiveTime = Date.now();
-        } else if (document.visibilityState === 'visible') {
-            checkLock();
-        }
+        if (document.visibilityState === 'hidden') { lastActiveTime = Date.now(); } 
+        else if (document.visibilityState === 'visible') { checkLock(); }
     });
-
     setTimeout(checkLock, 500);
 
     // ==========================================
-    // 3. ФИКС СОРТИРОВКИ СЧЕТОВ
-    // ==========================================
-    const originalInitSortable = window.initSortable;
-    window.initSortable = function() {
-        if (originalInitSortable) originalInitSortable();
-        if (typeof Sortable === 'undefined') return;
-        
-        document.querySelectorAll('.account-list-wrapper').forEach(container => {
-            if (container.dataset.sortableInit) return;
-            container.dataset.sortableInit = 'true';
-            new Sortable(container, {
-                animation: 150,
-                group: { name: 'accounts', pull: false, put: false },
-                handle: '.drag-handle',
-                filter: 'button, input, select, .sub-bank-section',
-                onEnd: function() {
-                    const items = container.querySelectorAll(':scope > [data-acc-id]');
-                    items.forEach((item, index) => {
-                        const id = item.dataset.accId;
-                        const a = getAcc(id);
-                        if (a) a.order = index;
-                    });
-                    save();
-                    renderAll();
-                }
-            });
-        });
-    };
-
-    // ==========================================
-    // 4. НАСТРОЙКИ
+    // 4. НАСТРОЙКИ И БЕЗОПАСНОСТЬ (Добавлен токен Т-Инвест)
     // ==========================================
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
@@ -267,6 +199,13 @@
             <label>PIN-код (4 цифры, пусто = отключен)</label>
             <input type="text" id="secPin" maxlength="4" value="${S.settings.pinCode || ''}" placeholder="****">
         </div>
+        <hr style="border-color:var(--border); margin: 16px 0;">
+        <div style="font-weight:700; margin-bottom:10px;">📈 Синхронизация с Т-Инвестиции</div>
+        <div class="form-group">
+            <label>Токен доступа (Read-only)</label>
+            <input type="password" id="secTInvestToken" value="${S.settings.tInvestToken || ''}" placeholder="Вставьте токен">
+            <div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится только на этом устройстве.</div>
+        </div>
         <button class="btn-primary btn-block" onclick="window.saveSecuritySettings()">Сохранить</button>`);
     };
 
@@ -274,18 +213,18 @@
         const pin = document.getElementById('secPin').value.trim();
         if (pin && !/^\d{4}$/.test(pin)) { toast('PIN должен состоять из 4 цифр'); return; }
         S.settings.pinCode = pin;
+        S.settings.tInvestToken = document.getElementById('secTInvestToken').value.trim();
         save();
         toast('Настройки безопасности сохранены');
         window.openMenu();
     };
 
     // ==========================================
-    // 5. ОКНО СЧЕТА
+    // 5. ОКНО СЧЕТА (Срок, Исключить, Хедж)
     // ==========================================
     const prevOpenAccountModal = window.openAccountModal;
     window.openAccountModal = function(id, bankId) {
         prevOpenAccountModal(id, bankId);
-        
         const modal = document.getElementById('modalContent');
         if (!modal) return;
         const acc = id ? getAcc(id) : null;
@@ -312,11 +251,7 @@
                 customDiv.style.display = 'block';
                 document.getElementById('accTermDays').value = acc.term.replace('d', '');
             }
-
-            termSelect.onchange = function() {
-                customDiv.style.display = this.value === 'custom' ? 'block' : 'none';
-            };
-
+            termSelect.onchange = function() { customDiv.style.display = this.value === 'custom' ? 'block' : 'none'; };
             form.addEventListener('submit', function(e) {
                 if (termSelect.value === 'custom') {
                     const days = document.getElementById('accTermDays').value;
@@ -345,17 +280,7 @@
     };
 
     const originalSave = window.save;
-    window.save = function(...args) {
-        originalSave.apply(this, args);
-        applyBadgeStyle();
-    };
-
-    document.addEventListener('change', function(e) {
-        if (e.target.id === 'accIgnoreBalance') {
-            const form = e.target.closest('#accForm');
-            if (form) form.dataset.ignoreBalance = e.target.checked ? 'true' : 'false';
-        }
-    });
+    window.save = function(...args) { originalSave.apply(this, args); applyBadgeStyle(); };
 
     document.addEventListener('submit', function(e) {
         if (e.target.id === 'accForm') {
@@ -380,27 +305,21 @@
         let totals = originalComputeTotals();
         if (typeof S !== 'undefined') {
             let ignoredSum = 0;
-            S.accounts.filter(a => a.ignoreBalance && !a.archived).forEach(a => {
-                ignoredSum += accValue(a);
-            });
+            S.accounts.filter(a => a.ignoreBalance && !a.archived).forEach(a => { ignoredSum += accValue(a); });
             totals.totalCap -= ignoredSum;
         }
         return totals;
     };
 
     // ==========================================
-    // 7. ПРЕДОХРАНИТЕЛЬ
+    // 7. ПРЕДОХРАНИТЕЛЬ И БАННЕР
     // ==========================================
     const originalBackup = window.backupToYandexDisk;
     window.backupToYandexDisk = async function(silent = false) {
         if (typeof S !== 'undefined') {
             const isEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
             const isReset = localStorage.getItem('financeApp_isReset') === 'true';
-            if (isEmpty && isReset) {
-                console.warn('⚠️ Отправка пустых данных в облако заблокирована!');
-                if (!silent) toast('Отправка пустых данных заблокирована');
-                return;
-            }
+            if (isEmpty && isReset) { if (!silent) toast('Отправка пустых данных заблокирована'); return; }
         }
         return originalBackup(silent);
     };
@@ -409,17 +328,14 @@
         if (localStorage.getItem('financeApp_isReset') === 'true') {
             const banner = document.createElement('div');
             banner.id = 'restoreBanner';
-            banner.innerHTML = `
-                <span>Данные очищены. Восстановить из облака?</span>
-                <button onclick="window.restoreFromYandexDisk()">Восстановить</button>
-            `;
+            banner.innerHTML = `<span>Данные очищены. Восстановить из облака?</span><button onclick="window.restoreFromYandexDisk()">Восстановить</button>`;
             const main = document.querySelector('main');
             if (main) main.prepend(banner);
         }
     }, 1000);
 
     // ==========================================
-    // 8. ОСТАЛЬНОЕ
+    // 8. МЕНЮ И КНОПКИ
     // ==========================================
     const prevRenderTransactions = window.renderTransactions;
     window.renderTransactions = function() {
