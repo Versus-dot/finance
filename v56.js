@@ -1,8 +1,8 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v57.1 (ФИКС МЕНЮ)
+// ФИНАЛЬНЫЙ МОДУЛЬ v57.2 (Перенос токенов)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v57.1)");
+    console.log("✅ Файл v56.js успешно загружен (v57.2)");
 
     // ==========================================
     // 0. ЖЕСТКИЙ ФИКС СКРОЛЛА
@@ -22,7 +22,6 @@
         #fabBtn { display: none !important; }
         .account-row { transition: all 0.2s ease; }
 
-        /* СТИЛИ ТЕМ */
         body.style-stripe .account-row {
             border-left: 4px solid var(--bank-color) !important;
             background: var(--card) !important;
@@ -162,7 +161,7 @@
     setTimeout(checkLock, 500);
 
     // ==========================================
-    // 4. НАСТРОЙКИ И БЕЗОПАСНОСТЬ (Т-Инвест)
+    // 4. НАСТРОЙКИ И БЕЗОПАСНОСТЬ (Скрываем старое, добавляем новое)
     // ==========================================
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
@@ -176,6 +175,15 @@
     const prevOpenSettings = window.openSettings;
     window.openSettings = function() {
         prevOpenSettings();
+        
+        // 1. Скрываем старые поля PIN и Токена в "Настройках"
+        const oldPin = document.getElementById('setPin');
+        if (oldPin) oldPin.closest('.form-group').style.display = 'none';
+        
+        const oldToken = document.getElementById('setYandexToken');
+        if (oldToken) oldToken.closest('.form-group').style.display = 'none';
+
+        // 2. Добавляем выбор темы
         const badgeSelect = document.getElementById('setBadge');
         if (badgeSelect) {
             badgeSelect.innerHTML = `
@@ -195,25 +203,37 @@
     window.openSecuritySettings = function() {
         openModal(`
         <div class="modal-header"><h2>Безопасность</h2><button class="btn-icon" onclick="openMenu()">✕</button></div>
+        
         <div class="form-group">
             <label>PIN-код (4 цифры, пусто = отключен)</label>
             <input type="text" id="secPin" maxlength="4" value="${S.settings.pinCode || ''}" placeholder="****">
         </div>
+        
+        <hr style="border-color:var(--border); margin: 16px 0;">
+        <div style="font-weight:700; margin-bottom:10px;">💾 Токен облачного бэкапа</div>
+        <div class="form-group">
+            <label>Токен доступа (например, Яндекс.Диск)</label>
+            <input type="password" id="secYandexToken" value="${S.settings.yandexToken || ''}" placeholder="Вставьте токен">
+        </div>
+
         <hr style="border-color:var(--border); margin: 16px 0;">
         <div style="font-weight:700; margin-bottom:10px;">📈 Синхронизация с Т-Инвестиции</div>
         <div class="form-group">
             <label>Токен доступа (Read-only)</label>
             <input type="password" id="secTInvestToken" value="${S.settings.tInvestToken || ''}" placeholder="Вставьте токен">
-            <div style="font-size:11px; color:var(--muted); margin-top:4px;">Токен хранится только на этом устройстве.</div>
         </div>
-        <button class="btn-primary btn-block" onclick="window.saveSecuritySettings()">Сохранить</button>`);
+
+        <button class="btn-primary btn-block" onclick="window.saveSecuritySettings()">Сохранить всё</button>`);
     };
 
     window.saveSecuritySettings = function() {
         const pin = document.getElementById('secPin').value.trim();
         if (pin && !/^\d{4}$/.test(pin)) { toast('PIN должен состоять из 4 цифр'); return; }
+        
         S.settings.pinCode = pin;
+        S.settings.yandexToken = document.getElementById('secYandexToken').value.trim();
         S.settings.tInvestToken = document.getElementById('secTInvestToken').value.trim();
+        
         save();
         toast('Настройки безопасности сохранены');
         window.openMenu();
@@ -367,8 +387,6 @@
         </div>`);
     };
 
-    // ВОТ ОНО, ТО САМОЕ ИСПРАВЛЕНИЕ!
-    // Перепривязываем кнопку в шапке к новой функции меню
     setTimeout(() => {
         const menuBtn = document.getElementById('menuBtn');
         if (menuBtn) menuBtn.onclick = window.openMenu;
