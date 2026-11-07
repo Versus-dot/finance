@@ -1,4 +1,4 @@
-const CACHE = 'finance-v78a';
+const CACHE = 'finance-v81';
 const ASSETS=[
   './',
   './index.html',
