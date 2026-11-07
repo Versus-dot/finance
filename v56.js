@@ -1,20 +1,14 @@
 // ==========================================
-// ФИНАЛЬНЫЙ МОДУЛЬ v66 (Убийца багов синхронизации)
+// ФИНАЛЬНЫЙ МОДУЛЬ v68 (Умный сканер изменений)
 // ==========================================
 (function() {
-    console.log("✅ Файл v56.js успешно загружен (v66: Жесткая синхронизация)");
+    console.log("✅ Файл v56.js успешно загружен (v68)");
 
-    // ==========================================
-    // 0. УБИВАЕМ СТАРЫЙ "ДИВЕРСАНТ" (sync-manager.js)
-    // ==========================================
     window.queueSmartSync = function() {}; 
     window.performSmartSync = function() {};
     window.checkCloudSync = function() {};
     window.silentAutoSave = function() {};
 
-    // ==========================================
-    // 1. СТИЛИ
-    // ==========================================
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }
@@ -49,13 +43,12 @@
     document.head.appendChild(styleEl);
     document.addEventListener('touchmove', function(e) { if (e.target.closest('.modal')) e.stopPropagation(); }, { capture: true, passive: true });
 
-    // ИНИЦИАЛИЗАЦИЯ СПИСКА УДАЛЕННЫХ
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
         if (!S.meta.deletedIds) S.meta.deletedIds = [];
     }
 
-    // ПЕРЕХВАТ УДАЛЕНИЙ (Записываем в Tombstones)
+    // ПЕРЕХВАТ УДАЛЕНИЙ
     const originalDeleteAccount = window.deleteAccount;
     window.deleteAccount = function(id) {
         const acc = getAcc(id); if (!acc) return;
@@ -76,9 +69,6 @@
         originalDeleteTx(id);
     };
 
-    // ==========================================
-    // 2. БЛОКИРОВКА
-    // ==========================================
     let pinBuffer = '';
     let lastActiveTime = Date.now();
     function showLockScreen() {
@@ -121,9 +111,6 @@
     });
     setTimeout(checkLock, 500);
 
-    // ==========================================
-    // 3. НАСТРОЙКИ
-    // ==========================================
     function applyBadgeStyle() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
         const style = (typeof S !== 'undefined' && S.settings && S.settings.badgeStyle) ? S.settings.badgeStyle : 'stripe';
@@ -259,6 +246,11 @@
         }, 100);
     };
 
+    // ==========================================
+    // УМНЫЙ СКАНЕР ИЗМЕНЕНИЙ (Убийца рассинхрона)
+    // ==========================================
+    if (!window._prevState) window._prevState = JSON.parse(JSON.stringify(S));
+
     const originalSave = window.save;
     window.save = function(isUserAction = true) {
         const accForm = document.getElementById('accForm');
@@ -268,19 +260,31 @@
             const isIgnore = ignoreCb.checked;
             if (window._currentEditingAccId) {
                 const acc = S.accounts.find(a => a.id === window._currentEditingAccId);
-                if (acc && acc.ignoreBalance !== isIgnore) { acc.ignoreBalance = isIgnore; acc._updatedAt = Date.now(); }
+                if (acc) acc.ignoreBalance = isIgnore;
             } else {
                 if (S.accounts.length > 0) {
-                    const last = S.accounts[S.accounts.length - 1];
-                    if (last.ignoreBalance !== isIgnore) { last.ignoreBalance = isIgnore; last._updatedAt = Date.now(); }
+                    S.accounts[S.accounts.length - 1].ignoreBalance = isIgnore;
                 }
             }
         }
 
-        // Обновляем время изменения для всех элементов, у которых его нет
-        ['accounts', 'transactions', 'budgets', 'debts', 'categories', 'banks'].forEach(key => {
-            if (S[key]) S[key].forEach(item => { if (!item._updatedAt) item._updatedAt = Date.now(); });
+        // СРАВНИВАЕМ С ПРОШЛЫМ СОСТОЯНИЕМ И СТАВИМ СВЕЖУЮ МЕТКУ ВРЕМЕНИ
+        ['accounts', 'transactions', 'banks', 'categories', 'budgets', 'debts'].forEach(key => {
+            if (!S[key] || !window._prevState[key]) return;
+            S[key].forEach(newItem => {
+                const oldItem = window._prevState[key].find(x => x.id === newItem.id);
+                if (!oldItem) {
+                    newItem._updatedAt = Date.now();
+                } else {
+                    const cleanNew = { ...newItem }; delete cleanNew._updatedAt;
+                    const cleanOld = { ...oldItem }; delete cleanOld._updatedAt;
+                    if (JSON.stringify(cleanNew) !== JSON.stringify(cleanOld)) {
+                        newItem._updatedAt = Date.now();
+                    }
+                }
+            });
         });
+        window._prevState = JSON.parse(JSON.stringify(S));
 
         originalSave.call(this, isUserAction);
         applyBadgeStyle();
@@ -290,12 +294,11 @@
     };
 
     // ==========================================
-    // 4. СИНХРОНИЗАЦИЯ
+    // СИНХРОНИЗАЦИЯ
     // ==========================================
     let syncTimeout;
     function scheduleSync() { clearTimeout(syncTimeout); syncTimeout = setTimeout(() => { syncSmart(false); }, 2000); }
 
-    // Отправка при закрытии (SendBeacon)
     function sendBeaconUpload() {
         const token = S.settings.yandexToken;
         if (!token) return;
@@ -304,11 +307,9 @@
         const localSettings = ['theme', 'badgeStyle', 'pinCode', 'yandexToken', 'tInvestToken', 'appTitle'];
         localSettings.forEach(k => delete cloudS.settings[k]);
 
-        // ВАЖНО: используем text/plain, чтобы браузер не делал preflight OPTIONS
         const payload = JSON.stringify({ action: 'yandex_upload', token: token, fileContent: JSON.stringify(cloudS) });
-        
-        // Отправляем через прокси (sendBeacon не поддерживает кастомные заголовки)
-        navigator.sendBeacon('https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm', payload);
+        const blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon('https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm', blob);
         console.log("📤 Данные отправлены через sendBeacon");
     }
     window.addEventListener('pagehide', sendBeaconUpload);
@@ -336,7 +337,6 @@
             const lastSync = parseInt(localStorage.getItem('financeApp_lastSync') || '0');
             const localChange = parseInt(localStorage.getItem('financeApp_localChange') || '0');
 
-            // Скачиваем, если облако новее
             if (cloudModified > localChange) {
                 if (isManual) toast('⬇️ Скачиваем новые данные...');
                 const downRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'yandex_download', token: token }) });
@@ -353,7 +353,6 @@
                 return;
             }
 
-            // Загружаем, если есть локальные изменения
             if (localChange > lastSync) {
                 await uploadToCloud(token);
                 if (isManual) toast('✅ Данные сохранены в облако');
@@ -393,17 +392,14 @@
         if (!S.meta) S.meta = { deletedIds: [] };
         if (!cloudData.meta) cloudData.meta = { deletedIds: [] };
 
-        // Объединяем списки удаленных
         const allDeleted = [...new Set([...S.meta.deletedIds, ...cloudData.meta.deletedIds])];
         
         const mergeArray = (localArr, cloudArr) => {
             if (!localArr) return cloudArr || [];
             if (!cloudArr) return localArr;
             const map = new Map();
-            // Сначала заполняем локальными, пропуская удаленные
             localArr.forEach(item => { if(!allDeleted.includes(item.id)) map.set(item.id, item); });
             
-            // Затем накатываем облачные
             cloudArr.forEach(cItem => {
                 if(allDeleted.includes(cItem.id)) return; 
                 const lItem = map.get(cItem.id);
@@ -412,7 +408,7 @@
                 } else {
                     const lTime = lItem._updatedAt || 0;
                     const cTime = cItem._updatedAt || 0;
-                    if (cTime > lTime) map.set(cItem.id, cItem); // Побеждает свежий
+                    if (cTime > lTime) map.set(cItem.id, cItem); 
                 }
             });
             return Array.from(map.values());
@@ -452,7 +448,6 @@
     
     setTimeout(() => { if (typeof renderAll === 'function') renderAll(); }, 100);
 
-    // ... ОСТАЛЬНОЙ UI КОД ...
     const originalBackup = window.backupToYandexDisk; 
     window.backupToYandexDisk = async function(silent = false) { 
         if (typeof S !== 'undefined') { 
