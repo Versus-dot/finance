@@ -2,7 +2,7 @@
 // МОДУЛЬ ДЕТАЛИЗАЦИИ БАЛАНСА И КРЕДИТОВ (mod-balance.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль детализации баланса и кредитов загружен");
+    console.log("✅ Модуль детализации баланса и кредитов загружен (v104)");
 
     // 1. Добавляем стили
     const styleEl = document.createElement('style');
@@ -33,12 +33,10 @@
         if (totalBar) {
             const vals = totalBar.querySelectorAll('.total-val');
             if (vals.length >= 2) {
-                // Клик по Балансу
                 vals[0].classList.add('total-val-clickable');
                 vals[0].title = "Нажмите для детализации активов";
                 vals[0].onclick = window.openTotalBalanceDetails;
                 
-                // Клик по Кредитам
                 vals[1].classList.add('total-val-clickable');
                 vals[1].title = "Нажмите для детализации долгов";
                 vals[1].onclick = window.openTotalDebtDetails;
@@ -46,7 +44,7 @@
         }
     };
 
-    // 3. Окно Баланса (Строгая математическая логика)
+    // 3. Окно Баланса
     window.openTotalBalanceDetails = function() {
         if (typeof S === 'undefined') return;
         
@@ -56,26 +54,25 @@
         let displayAccs = [];
         
         S.accounts.forEach(a => {
-            // Если счет в архиве - пропускаем
             if (a.archived) return;
             
             const val = window.accValue(a);
-            let contribution = 0; // Вклад в общий баланс
+            let contribution = 0; 
             
-            // Логика точь-в-точь как в computeTotals
+            // Считаем вклад точно так же, как в computeTotals
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;
-                contribution = Math.max(0, val - limit); // Берем только переплату, если она есть
+                contribution = Math.max(0, val - limit); 
             } else {
                 contribution = val;
             }
             
-            // Если стоит галочка "Исключить из баланса" - вклад обнуляется
+            // Если исключен, вклад = 0
             if (a.ignoreBalance) {
                 contribution = 0;
             }
             
-            // В список попадают только те, кто реально увеличивает баланс больше нуля
+            // В список попадают только те, кто реально в плюсе
             if (contribution > 0) {
                 displayAccs.push({ acc: a, val: contribution });
             }
@@ -142,13 +139,12 @@
         let debtAccs = [];
         
         S.accounts.forEach(a => {
-            if (a.archived || a.type !== 'credit' || a.ignoreBalance) return;
+            if (a.archived || a.type !== 'credit') return;
             
             const limit = a.creditLimit || 0;
             const val = window.accValue(a);
             const debt = Math.max(0, limit - val);
             
-            // Показываем только если есть реальный долг
             if (debt > 0) {
                 debtAccs.push({ acc: a, debt: debt, limit: limit });
             }
