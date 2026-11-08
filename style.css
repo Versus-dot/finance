@@ -88,28 +88,27 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
     box-shadow: 0 8px 24px rgba(79, 70, 229, 0.1);
 }
 
-/* ТЕКСТОВЫЙ ВОДЯНОЙ ЗНАК */
+/* ТЕКСТОВЫЙ ВОДЯНОЙ ЗНАК (БЕЗ НАКЛОНА) */
 .bank-watermark {
     position: absolute;
-    right: -10px;
-    bottom: -15px;
-    opacity: 0.06; /* Едва заметный */
+    right: -5px;
+    bottom: -8px;
+    opacity: 0.06;
     pointer-events: none;
-    transform: rotate(-15deg);
     z-index: 0;
     font-weight: 900;
-    font-size: 52px; /* Крупные буквы */
+    font-size: 42px;
     line-height: 1;
     white-space: nowrap;
     font-family: system-ui, -apple-system, sans-serif;
-    letter-spacing: -2px;
+    letter-spacing: -1px;
     text-transform: uppercase;
 }
 :root[data-theme="light"] .bank-watermark {
     opacity: 0.05;
 }
 .bank-chip.active .bank-watermark {
-    opacity: 0.12; /* Чуть ярче у активной */
+    opacity: 0.12;
 }
 
 /* Текст поверх водяного знака */
