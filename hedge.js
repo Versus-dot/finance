@@ -1,5 +1,5 @@
 // ==========================================
-// Модуль хеджирования (v56 - Текст вместо полоски) - hedge.js
+// Модуль хеджирования (v57 - Бейджи для источников) - hedge.js
 // ==========================================
 
 if (typeof S !== 'undefined' && S.settings) {
@@ -9,6 +9,29 @@ if (typeof S !== 'undefined' && S.settings) {
     }
 }
 
+// Добавляем стили для нового бейджа
+const hedgeStyle = document.createElement('style');
+hedgeStyle.innerHTML = `
+    .hedge-source-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(99, 102, 241, 0.15);
+        color: var(--accent);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        width: fit-content;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+`;
+document.head.appendChild(hedgeStyle);
+
 const originalOpenSettings = window.openSettings;
 window.openSettings = function() {
     if (originalOpenSettings) originalOpenSettings();
@@ -16,7 +39,7 @@ window.openSettings = function() {
     if (modalContent && !document.getElementById('setHedging')) {
         const toggleDiv = document.createElement('div');
         toggleDiv.className = 'form-group';
-        toggleDiv.style = 'display:flex;align-items:center;justify-content:space-between;background:var(--card2);padding:10px 12px;border-radius:10px;border:1px solid var(--border);margin-top:10px;';
+        toggleDiv.style = 'display:flex;align-items:center;justify-content:space-between;background:var(--card2);padding:12px 16px;border-radius:14px;border:1px solid var(--border);margin-top:10px;';
         toggleDiv.innerHTML = `
             <div><div style="font-size:14px;font-weight:600;">Режим хеджирования</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Привязка вкладов к кредиткам</div></div>
             <label class="toggle-switch"><input type="checkbox" id="setHedging" ${S.settings.hedgingEnabled ? 'checked' : ''}><span class="toggle-slider"></span></label>
@@ -109,29 +132,46 @@ window.renderAccountRow = function(a, bank) {
     if (!originalRenderAccountRow) return '';
     let html = originalRenderAccountRow(a, bank);
     
-    // ИСПРАВЛЕНО: Надежный поиск строки лимита и замена
-    if (typeof S !== 'undefined' && S.settings.hedgingEnabled && a.type === 'credit') {
-        const hedges = S.accounts.filter(x => x.hedgeFor === a.id && !x.archived);
-        if (hedges.length > 0) {
-            const totalHedge = hedges.reduce((sum, h) => sum + accValue(h), 0);
-            const limit = a.creditLimit || 0;
-            const currentBalance = accValue(a);
-            const currentDebt = Math.max(0, limit - currentBalance);
-            
-            let pct = 0;
-            if (currentDebt > 0) {
-                pct = Math.min(100, (totalHedge / currentDebt) * 100);
+    if (typeof S !== 'undefined' && S.settings.hedgingEnabled) {
+        // 1. Отображение на кредитной карте (сколько захеджировано)
+        if (a.type === 'credit') {
+            const hedges = S.accounts.filter(x => x.hedgeFor === a.id && !x.archived);
+            if (hedges.length > 0) {
+                const totalHedge = hedges.reduce((sum, h) => sum + accValue(h), 0);
+                const limit = a.creditLimit || 0;
+                const currentBalance = accValue(a);
+                const currentDebt = Math.max(0, limit - currentBalance);
+                
+                let pct = 0;
+                if (currentDebt > 0) {
+                    pct = Math.min(100, (totalHedge / currentDebt) * 100);
+                }
+                
+                if (pct > 0) {
+                    const targetStr = `Лимит: ${fmt(limit)}`;
+                    const replacementStr = `Лимит: ${fmt(limit)} · <span style="color:var(--muted);">🛡️ Хеджирована на ${pct.toFixed(0)}%</span>`;
+                    html = html.replace(targetStr, replacementStr);
+                }
             }
-            
-            if (pct > 0) {
-                // Ищем просто "Лимит: 50 000 ₽" без учета тегов вокруг
-                const targetStr = `Лимит: ${fmt(limit)}`;
-                const replacementStr = `Лимит: ${fmt(limit)} · <span style="color:var(--muted);">🛡️ Хеджирована на ${pct.toFixed(0)}%</span>`;
-                html = html.replace(targetStr, replacementStr);
+        }
+        
+        // 2. Отображение на счете-источнике (для какой карты он является хеджем)
+        if (a.hedgeFor) {
+            const targetCard = S.accounts.find(c => c.id === a.hedgeFor && c.type === 'credit' && !c.archived);
+            if (targetCard) {
+                const targetBank = S.banks.find(b => b.id === targetCard.bankId);
+                const bankName = targetBank ? targetBank.name : 'Банк';
+                
+                const badgeHtml = `<div class="hedge-source-badge" title="Хедж для: ${esc(targetCard.name)} (${esc(bankName)})">🛡️ Хедж для: ${esc(targetCard.name)} (${esc(bankName)})</div>`;
+                
+                // Вставляем бейдж перед мета-информацией (сразу под названием счета)
+                if (html.includes('<div class="acc-meta">')) {
+                    html = html.replace('<div class="acc-meta">', `${badgeHtml}<div class="acc-meta">`);
+                }
             }
         }
     }
     return html;
 }
 
-console.log('✅ Модуль хеджирования (v56) обновлен');
+console.log('✅ Модуль хеджирования (v57) обновлен');
