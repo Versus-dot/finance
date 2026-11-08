@@ -4,9 +4,9 @@
 (function() {
     console.log("✅ Модуль UI (mod-ui.js) загружен");
 
-    // ==========================================
-    // СТИЛИ (Темы, Пульсация льготного периода)
-    // ==========================================
+    let prevCollapsedState = null;
+
+    // ... (остальные стили и функции без изменений, начиная с const styleEl = ...) ...
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }
@@ -21,36 +21,19 @@
         body.style-minimal .account-row:not(:has(.acc-debt)) .acc-icon-wrap { background: #2d3647 !important; color: #9aa5b8 !important; }
         body.style-minimal .account-row:has(.acc-debt) .acc-icon-wrap { background: #1f2532 !important; color: #6b778c !important; }
         
-        /* СТИЛИ ДЛЯ ЛЬГОТНОГО ПЕРИОДА */
         .account-row.grace-warning { border-color: var(--yellow) !important; box-shadow: inset 0 0 0 2px var(--yellow) !important; }
         .account-row.grace-danger { border-color: var(--red) !important; box-shadow: inset 0 0 0 2px var(--red) !important; }
-        
-        /* ЯРКАЯ ПУЛЬСАЦИЯ ДЛЯ КАРТОЧКИ */
         .account-row.grace-overdue { border-color: var(--red) !important; animation: pulse-red-row 1.5s infinite; }
-        @keyframes pulse-red-row {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), inset 0 0 0 2px var(--red); }
-            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); }
-        }
-
+        @keyframes pulse-red-row { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), inset 0 0 0 2px var(--red); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); } }
         .grace-text { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
         .grace-text.warning { background: var(--yellow); color: #000; }
         .grace-text.danger, .grace-text.overdue { background: var(--red); color: #fff; }
-
-        /* СТИЛИ ДЛЯ ВИДЖЕТА БАНКА */
         .bank-chip.grace-bank-warning { border-color: var(--red) !important; box-shadow: inset 0 0 0 2px var(--red) !important; }
         .bank-chip.grace-bank-overdue { border-color: var(--red) !important; animation: pulse-red-bank 1.5s infinite; }
-        @keyframes pulse-red-bank {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), inset 0 0 0 2px var(--red); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); }
-        }
+        @keyframes pulse-red-bank { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), inset 0 0 0 2px var(--red); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); } }
     `;
     document.head.appendChild(styleEl);
 
-    // ==========================================
-    // ТЕМЫ ОФОРМЛЕНИЯ
-    // ==========================================
     window.applyBadgeStyle = function() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
         const style = (typeof S !== 'undefined' && S.settings && S.settings.badgeStyle) ? S.settings.badgeStyle : 'stripe';
@@ -74,45 +57,26 @@
     const prevSaveSettings = window.saveSettings;
     window.saveSettings = function() { if (prevSaveSettings) prevSaveSettings(); applyBadgeStyle(); };
 
-    // ==========================================
-    // РАМКА ЛЬГОТНОГО ПЕРИОДА
-    // ==========================================
     const prevRenderAccountRow = window.renderAccountRow;
     window.renderAccountRow = function(a, bank) {
         let html = prevRenderAccountRow(a, bank);
-        
         if (html.includes('class="account-row"')) {
             html = html.replace('class="account-row"', `class="account-row" data-acc-type="${a.type}"`);
         }
-
         if (a.type === 'credit' && a.gracePeriod && !a.archived) {
             const limit = a.creditLimit || 0;
             const val = accValue(a);
             const debt = Math.max(0, limit - val);
-            
             if (debt > 0) {
                 const today = new Date(); today.setHours(0,0,0,0);
                 const gp = new Date(a.gracePeriod); gp.setHours(0,0,0,0);
                 const diffTime = gp - today;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                let graceClass = '';
-                let textHtml = '';
-                
-                if (diffDays < 0) {
-                    graceClass = 'grace-overdue';
-                    textHtml = `<span class="grace-text overdue">⏰ Просрочка ${Math.abs(diffDays)} дн.</span>`;
-                } else if (diffDays === 0) {
-                    graceClass = 'grace-overdue';
-                    textHtml = `<span class="grace-text danger">⏰ Сегодня!</span>`;
-                } else if (diffDays <= 3) {
-                    graceClass = 'grace-danger';
-                    textHtml = `<span class="grace-text danger">⏰ Осталось ${diffDays} дн.</span>`;
-                } else if (diffDays <= 7) {
-                    graceClass = 'grace-warning';
-                    textHtml = `<span class="grace-text warning">⏳ Осталось ${diffDays} дн.</span>`;
-                }
-                
+                let graceClass = ''; let textHtml = '';
+                if (diffDays < 0) { graceClass = 'grace-overdue'; textHtml = `<span class="grace-text overdue">⏰ Просрочка ${Math.abs(diffDays)} дн.</span>`; } 
+                else if (diffDays === 0) { graceClass = 'grace-overdue'; textHtml = `<span class="grace-text danger">⏰ Сегодня!</span>`; } 
+                else if (diffDays <= 3) { graceClass = 'grace-danger'; textHtml = `<span class="grace-text danger">⏰ Осталось ${diffDays} дн.</span>`; } 
+                else if (diffDays <= 7) { graceClass = 'grace-warning'; textHtml = `<span class="grace-text warning">⏳ Осталось ${diffDays} дн.</span>`; }
                 if (graceClass) {
                     html = html.replace('class="account-row"', `class="account-row ${graceClass}"`);
                     html = html.replace('Задолженность:', `${textHtml} Задолженность:`);
@@ -122,23 +86,14 @@
         return html;
     };
 
-    // ==========================================
-    // ПОДСВЕТКА ВИДЖЕТОВ БАНКОВ
-    // ==========================================
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDashboard) prevRenderDashboard();
-        
         const today = new Date(); today.setHours(0,0,0,0);
-        const problemBanks = new Set();
-        const overdueBanks = new Set();
-        
+        const problemBanks = new Set(); const overdueBanks = new Set();
         S.accounts.forEach(a => {
             if (a.type === 'credit' && a.gracePeriod && !a.archived) {
-                const limit = a.creditLimit || 0;
-                const val = accValue(a);
-                const debt = Math.max(0, limit - val);
-                
+                const limit = a.creditLimit || 0; const val = accValue(a); const debt = Math.max(0, limit - val);
                 if (debt > 0) {
                     const gp = new Date(a.gracePeriod); gp.setHours(0,0,0,0);
                     const diffDays = Math.ceil((gp - today) / (1000 * 60 * 60 * 24));
@@ -147,7 +102,6 @@
                 }
             }
         });
-        
         document.querySelectorAll('.bank-chip').forEach(chip => {
             const bankId = chip.dataset.bankId;
             chip.classList.remove('grace-bank-warning', 'grace-bank-overdue');
@@ -158,9 +112,6 @@
         });
     };
 
-    // ==========================================
-    // СКРОЛЛ МЫШКОЙ И ФИКС КНОПОК
-    // ==========================================
     const originalSetDashFilter = window.setDashFilter;
     window.setDashFilter = function(bankId) {
         if (typeof S !== 'undefined' && S.ui) {
@@ -190,9 +141,7 @@
     document.addEventListener('mousedown', (e) => {
         const carousel = e.target.closest('.banks-carousel');
         if (!carousel || (S.ui && S.ui.bankEditMode)) return;
-        isDown = true; moved = false;
-        startX = e.pageX - carousel.offsetLeft;
-        scrollLeft = carousel.scrollLeft;
+        isDown = true; moved = false; startX = e.pageX - carousel.offsetLeft; scrollLeft = carousel.scrollLeft;
     });
     document.addEventListener('mouseleave', () => { isDown = false; });
     document.addEventListener('mouseup', () => { isDown = false; });
@@ -200,8 +149,7 @@
         if (!isDown) return;
         const carousel = e.target.closest('.banks-carousel');
         if (!carousel || (S.ui && S.ui.bankEditMode)) return;
-        const x = e.pageX - carousel.offsetLeft;
-        const walk = (x - startX) * 1.5;
+        const x = e.pageX - carousel.offsetLeft; const walk = (x - startX) * 1.5;
         if (Math.abs(walk) > 5) moved = true;
         if (moved) e.preventDefault();
         carousel.scrollLeft = scrollLeft - walk;
@@ -212,40 +160,16 @@
         if (e.deltaY !== 0) { e.preventDefault(); carousel.scrollLeft += e.deltaY; }
     }, { passive: false });
 
-    // ==========================================
-    // МЕНЮ
-    // ==========================================
     window.openMenu = function() { 
         openModal(`<div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="openSettings()"><span class="menu-icon">⚙️</span>Настройки</button><button class="menu-item" onclick="window.openSecuritySettings()"><span class="menu-icon">🔒</span>Безопасность</button><button class="menu-item" onclick="window.openCatAndDebtsMenu()"><span class="menu-icon">📂</span>Категории и Долги</button><button class="menu-item" onclick="window.openBackupMenu()"><span class="menu-icon">💾</span>Резервные копии</button><button class="menu-item warn" onclick="window.clearLocalData()"><span class="menu-icon">🗑</span>Очистить данные</button></div>`); 
     };
     
-    setTimeout(() => { 
-        const menuBtn = document.getElementById('menuBtn'); 
-        if (menuBtn) menuBtn.onclick = window.openMenu; 
-    }, 100);
+    setTimeout(() => { const menuBtn = document.getElementById('menuBtn'); if (menuBtn) menuBtn.onclick = window.openMenu; }, 100);
     
-    window.openCatAndDebtsMenu = function() { 
-        openModal(`<div class="modal-header"><h2>Категории и Долги</h2><button class="btn-icon" onclick="openMenu()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="openCategoryEditor()"><span class="menu-icon">📑</span>Редактор категорий</button><button class="menu-item" onclick="openCounterparties()"><span class="menu-icon">👥</span>Контрагенты (Долги)</button></div>`); 
-    };
-    
-    window.openBackupMenu = function() { 
-        openModal(`<div class="modal-header"><h2>Резервные копии</h2><button class="btn-icon" onclick="openMenu()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="exportJSON()"><span class="menu-icon">📥</span>Скачать бэкап (JSON)</button><button class="menu-item" onclick="importJSON()"><span class="menu-icon">📤</span>Восстановить из JSON</button><button class="menu-item" onclick="openBackupHistoryModal()"><span class="menu-icon">🕒</span>История 7 дней (Облако)</button></div>`); 
-    };
-    
-    window.clearLocalData = function() { 
-        if (!confirm('Вы уверены, что хотите удалить все локальные данные? Приложение вернется в исходное состояние.')) return; 
-        if (confirm('ВНИМАНИЕ! Это действие необратимо. Ваши данные будут удалены с этого устройства. Восстановить их можно будет ТОЛЬКО если вы введете свой Облачный токен заново. Вы точно хотите стереть всё?')) { 
-            localStorage.setItem('financeApp_isReset', 'true'); 
-            localStorage.removeItem('financeApp_v25'); 
-            localStorage.removeItem('financeApp_lastSync'); 
-            localStorage.removeItem('financeApp_localChange'); 
-            location.reload(); 
-        } 
-    };
+    window.openCatAndDebtsMenu = function() { openModal(`<div class="modal-header"><h2>Категории и Долги</h2><button class="btn-icon" onclick="openMenu()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="openCategoryEditor()"><span class="menu-icon">📑</span>Редактор категорий</button><button class="menu-item" onclick="openCounterparties()"><span class="menu-icon">👥</span>Контрагенты (Долги)</button></div>`); };
+    window.openBackupMenu = function() { openModal(`<div class="modal-header"><h2>Резервные копии</h2><button class="btn-icon" onclick="openMenu()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="exportJSON()"><span class="menu-icon">📥</span>Скачать бэкап (JSON)</button><button class="menu-item" onclick="importJSON()"><span class="menu-icon">📤</span>Восстановить из JSON</button><button class="menu-item" onclick="openBackupHistoryModal()"><span class="menu-icon">🕒</span>История 7 дней (Облако)</button></div>`); };
+    window.clearLocalData = function() { if (!confirm('Вы уверены, что хотите удалить все локальные данные? Приложение вернется в исходное состояние.')) return; if (confirm('ВНИМАНИЕ! Это действие необратимо. Ваши данные будут удалены с этого устройства. Восстановить их можно будет ТОЛЬКО если вы введете свой Облачный токен заново. Вы точно хотите стереть всё?')) { localStorage.setItem('financeApp_isReset', 'true'); localStorage.removeItem('financeApp_v25'); localStorage.removeItem('financeApp_lastSync'); localStorage.removeItem('financeApp_localChange'); location.reload(); } };
 
-    // ==========================================
-    // ЗАМЕНА ЭМОДЗИ НА SVG-ИКОНКИ В МЕНЮ
-    // ==========================================
     setTimeout(() => {
         const navTabs = {
             home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
@@ -257,72 +181,48 @@
             const tabName = tab.dataset.tab;
             if (navTabs[tabName]) {
                 const iconSpan = tab.querySelector('.nav-icon');
-                if (iconSpan) {
-                    iconSpan.innerHTML = navTabs[tabName];
-                    iconSpan.style.display = 'flex';
-                }
+                if (iconSpan) { iconSpan.innerHTML = navTabs[tabName]; iconSpan.style.display = 'flex'; }
             }
         });
     }, 500);
 
-    // ==========================================
-    // ФИКС ОТОБРАЖЕНИЯ ВКЛАДКИ "СЧЕТА" (Устранение бага вложенности)
-    // ==========================================
-    
-    // Функция переключения вида архива (раскрывает только нужные банки)
+    // ФИКС АРХИВА С ВОЗВРАТОМ СОСТОЯНИЯ
     window.toggleArchiveView = function() {
-        S.ui.showArchived = !S.ui.showArchived;
-        
-        if (S.ui.showArchived) {
-            // Находим ID всех банков, у которых есть архивные счета
+        if (!S.ui.showArchived) {
+            // Показать архив
+            prevCollapsedState = [...S.ui.collapsedBanks];
             const archBanks = new Set();
             S.accounts.filter(a => a.archived).forEach(a => {
                 archBanks.add(a.bankId);
-                // Если это под-банк, добавляем и его родителя
                 const bank = S.banks.find(b => b.id === a.bankId);
                 if (bank && bank.parentId) archBanks.add(bank.parentId);
             });
-            // Убираем эти банки из списка свернутых
             S.ui.collapsedBanks = S.ui.collapsedBanks.filter(id => !archBanks.has(id));
+        } else {
+            // Скрыть архив
+            if (prevCollapsedState) {
+                S.ui.collapsedBanks = [...prevCollapsedState];
+            }
         }
-        
+        S.ui.showArchived = !S.ui.showArchived;
         save();
         renderAccounts();
     };
 
     window.renderAccounts = function() {
-        const el = document.getElementById('page-accounts');
-        if (!el) return;
+        const el = document.getElementById('page-accounts'); if (!el) return;
         const showArch = S.ui.showArchived;
         let html = `<button class="btn-primary btn-block" style="margin-bottom:12px" onclick="openBankModal()">+ Добавить банк</button>`;
-        
-        if (showArch) {
-            html += `<div style="font-size:12px; color:var(--muted); text-align:center; margin-bottom:12px;">Показаны архивные счета (они выделены серым)</div>`;
-        }
-
+        if (showArch) html += `<div style="font-size:12px; color:var(--muted); text-align:center; margin-bottom:12px;">Показаны архивные счета (они выделены серым)</div>`;
         const topBanks = filterBanksForDisplay(S.banks.filter(b => !b.parentId)).sort((a,b) => (a.order||0) - (b.order||0));
-        
         html += `<div id="banksSortable">`;
         topBanks.forEach(b => {
             const accs = filterAccountsForDisplay(S.accounts.filter(a => a.bankId === b.id && (showArch || !a.archived))).sort((a,b) => (a.order||0) - (b.order||0));
             const subBanks = filterBanksForDisplay(S.banks.filter(sb => sb.parentId === b.id)).sort((a,b) => (a.order||0) - (b.order||0));
             let total = 0;
-            
-            accs.forEach(a => {
-                const v = accValue(a);
-                if (a.type === 'credit') { const limit = a.creditLimit || 0; total += Math.max(0, v - limit); }
-                else { total += v; }
-            });
-            subBanks.forEach(sb => {
-                filterAccountsForDisplay(S.accounts.filter(a => a.bankId === sb.id && (showArch || !a.archived))).forEach(a => {
-                    const v = accValue(a);
-                    if (a.type === 'credit') { const limit = a.creditLimit || 0; total += Math.max(0, v - limit); }
-                    else { total += v; }
-                });
-            });
-
+            accs.forEach(a => { const v = accValue(a); if (a.type === 'credit') { const limit = a.creditLimit || 0; total += Math.max(0, v - limit); } else { total += v; } });
+            subBanks.forEach(sb => { filterAccountsForDisplay(S.accounts.filter(a => a.bankId === sb.id && (showArch || !a.archived))).forEach(a => { const v = accValue(a); if (a.type === 'credit') { const limit = a.creditLimit || 0; total += Math.max(0, v - limit); } else { total += v; } }); });
             const collapsed = S.ui.collapsedBanks.includes(b.id);
-            
             html += `<div class="bank-section" data-bank-id="${b.id}">
                 <div class="bank-header" onclick="toggleBankAccs('${b.id}')" style="cursor:pointer">
                     <span style="display:flex;align-items:center;">
@@ -333,17 +233,12 @@
                     <span class="bank-total">${fmt(total)}</span>
                 </div>
                 <div class="bank-accounts-list" data-bank-id="${b.id}" style="${collapsed?'display:none':''}">`;
-                
             subBanks.forEach(sb => {
                 const sbAccs = filterAccountsForDisplay(S.accounts.filter(a => a.bankId === sb.id && (showArch || !a.archived))).sort((a,b) => (a.order||0) - (b.order||0));
                 const sbCollapsed = S.ui.collapsedBanks.includes(sb.id);
-                
                 html += `<div class="sub-bank-section" data-bank-id="${sb.id}" style="padding-left:14px;border-left:2px solid ${sb.color};margin-left:14px;margin-top:8px;">
                     <div style="font-weight:600;font-size:13px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleBankAccs('${sb.id}')">
-                        <span>
-                            <span class="drag-handle" style="cursor:grab;margin-right:4px;" onclick="event.stopPropagation()">⋮⋮</span>
-                            ${sbCollapsed?'▶':'▼'} ${esc(sb.name)}
-                        </span>
+                        <span><span class="drag-handle" style="cursor:grab;margin-right:4px;" onclick="event.stopPropagation()">⋮⋮</span>${sbCollapsed?'▶':'▼'} ${esc(sb.name)}</span>
                         <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
                             <button class="btn-icon" onclick="openBankModal('${sb.id}')" title="Редактировать банк">✏️</button>
                             <button class="btn-icon" onclick="deleteBank('${sb.id}')" title="Удалить банк">🗑</button>
@@ -355,68 +250,16 @@
                     </div>
                 </div>`;
             });
-            
-            accs.forEach(a => {
-                html += `<div data-acc-id="${a.id}">${renderAccountRow(a, b)}</div>`;
-            });
-            
-            html += `</div>
-                <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;">
-                    <div style="display:flex;gap:8px;">
-                        <button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>
-                        ${b.isPlatform?`<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>`:''}
-                    </div>
-                    <div style="display:flex;gap:4px;">
-                        <button class="btn-icon" onclick="openBankModal('${b.id}')" title="Редактировать банк">✏️</button>
-                        ${!b.isPlatform?`<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>`:''}
-                    </div>
-                </div>
-            </div>`;
+            accs.forEach(a => { html += `<div data-acc-id="${a.id}">${renderAccountRow(a, b)}</div>`; });
+            html += `</div><div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;"><div style="display:flex;gap:8px;"><button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>${b.isPlatform?`<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>`:''}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="openBankModal('${b.id}')" title="Редактировать банк">✏️</button>${!b.isPlatform?`<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>`:''}</div></div></div>`;
         });
         html += `</div>`;
-        // Обновленный onclick с вызовом нашей новой функции
         html += `<button class="btn-secondary btn-block" style="margin-top:12px" onclick="window.toggleArchiveView()">${showArch?'Скрыть архив':'Показать архив'}</button>`;
         el.innerHTML = html;
-
         if (typeof Sortable !== 'undefined') {
             const banksContainer = document.getElementById('banksSortable');
-            if (banksContainer) {
-                new Sortable(banksContainer, {
-                    animation: 150,
-                    handle: '.drag-handle',
-                    filter: 'button, input, select, .sub-bank-section',
-                    onEnd: function() {
-                        const items = banksContainer.querySelectorAll(':scope > .bank-section');
-                        items.forEach((item, index) => {
-                            const id = item.dataset.bankId;
-                            const b = getBank(id);
-                            if (b) b.order = index;
-                        });
-                        save();
-                        renderAll();
-                    }
-                });
-            }
-
-            document.querySelectorAll('.bank-accounts-list').forEach(container => {
-                new Sortable(container, {
-                    animation: 150,
-                    group: { name: 'accounts', pull: false, put: false },
-                    handle: '.drag-handle',
-                    filter: 'button, input, select, .sub-bank-section',
-                    onEnd: function() {
-                        const items = container.querySelectorAll(':scope > [data-acc-id]');
-                        items.forEach((item, index) => {
-                            const id = item.dataset.accId;
-                            const a = getAcc(id);
-                            if (a) a.order = index;
-                        });
-                        save();
-                        renderAll();
-                    }
-                });
-            });
+            if (banksContainer) { new Sortable(banksContainer, { animation: 150, handle: '.drag-handle', filter: 'button, input, select, .sub-bank-section', onEnd: function() { const items = banksContainer.querySelectorAll(':scope > .bank-section'); items.forEach((item, index) => { const id = item.dataset.bankId; const b = getBank(id); if (b) b.order = index; }); save(); renderAll(); } }); }
+            document.querySelectorAll('.bank-accounts-list').forEach(container => { new Sortable(container, { animation: 150, group: { name: 'accounts', pull: false, put: false }, handle: '.drag-handle', filter: 'button, input, select, .sub-bank-section', onEnd: function() { const items = container.querySelectorAll(':scope > [data-acc-id]'); items.forEach((item, index) => { const id = item.dataset.accId; const a = getAcc(id); if (a) a.order = index; }); save(); renderAll(); } }); });
         }
     };
-
 })();
