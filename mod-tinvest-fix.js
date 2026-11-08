@@ -86,20 +86,31 @@
     };
 
     // ==========================================
-    // 2. ОЧИСТКА СТАРЫХ ФЕЙКОВЫХ ОПЕРАЦИЙ
+    // 2. ОЧИСТКА СТАРЫХ ФЕЙКОВЫХ ОПЕРАЦИЙ (С МОГИЛЬНЫМИ ПЛИТАМИ)
     // ==========================================
     window.cleanupFakeTInvestTransactions = function() {
         if (!confirm('Удалить все старые операции "Синхронизация с Т-Инвест", которые были созданы до обновления?\n\nЭто очистит статистику, но не затронет реальные доходы/расходы.')) return;
         
-        const beforeCount = S.transactions.length;
-        S.transactions = S.transactions.filter(t => t.note !== 'Синхронизация с Т-Инвест');
-        const deletedCount = beforeCount - S.transactions.length;
+        const fakeTxs = S.transactions.filter(t => t.note === 'Синхронизация с Т-Инвест');
         
-        if (deletedCount > 0) {
-            save();
+        if (fakeTxs.length > 0) {
+            // Добавляем ID в могильные плиты, чтобы они не вернулись из облака
+            if (!S.meta) S.meta = { deletedIds: [] };
+            if (!S.meta.deletedIds) S.meta.deletedIds = [];
+            
+            fakeTxs.forEach(t => {
+                S.meta.deletedIds.push(t.id);
+            });
+
+            // Удаляем локально
+            S.transactions = S.transactions.filter(t => t.note !== 'Синхронизация с Т-Инвест');
+            
+            // Сохраняем и принудительно синхронизируем (скачаем облако, сольем - могильные плиты сработают, и загрузим обратно)
+            save(); 
+            if (typeof syncSmart === 'function') syncSmart(true); 
+            
             renderAll();
-            if (typeof syncSmart === 'function') syncSmart(true);
-            toast(`✅ Удалено ${deletedCount} фейковых операций`);
+            toast(`✅ Удалено ${fakeTxs.length} фейковых операций`);
         } else {
             toast('Мусорных операций не найдено');
         }
@@ -112,8 +123,9 @@
         
         setTimeout(() => {
             const tInvestBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Запросить баланс'));
-            if (tInvestBtn) {
+            if (tInvestBtn && !document.getElementById('btnCleanTInvest')) {
                 const cleanBtn = document.createElement('button');
+                cleanBtn.id = 'btnCleanTInvest';
                 cleanBtn.className = 'btn-secondary btn-block';
                 cleanBtn.style.marginBottom = '8px';
                 cleanBtn.style.color = 'var(--red)';
