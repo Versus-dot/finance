@@ -64,17 +64,16 @@
         }
         .cushion-progress-bg {
             height: 4px;
-            background: var(--border); /* Темно-серая подложка */
+            background: var(--border);
             border-radius: 2px;
             overflow: hidden;
         }
         .cushion-progress-fill {
             height: 100%;
             border-radius: 2px;
-            background: var(--muted); /* Нейтральный серый цвет */
+            background: var(--muted);
             transition: width 0.3s ease-out;
         }
-        /* Мини-виджет, когда подушка скрыта */
         .cushion-mini {
             background: var(--card);
             border: 1px solid var(--border);
@@ -158,11 +157,11 @@
         }
     }
 
-    // 3. Перехватываем рендер главной страницы БЕЗ ЗАДЕРЖКИ (чтобы не было рывков)
+    // 3. Перехватываем рендер главной страницы
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDashboard) prevRenderDashboard();
-        injectCushionWidget(); // Вставляем сразу же, синхронно
+        injectCushionWidget();
     };
 
     // 4. Функции-действия
@@ -217,4 +216,31 @@
         `);
     };
 
+    // ==========================================
+    // 5. ДОБАВЛЯЕМ ПОЛЕ ЦЕЛИ В ОКНО НАСТРОЕК
+    // ==========================================
+    const prevOpenSettings = window.openSettings;
+    window.openSettings = function() {
+        if (prevOpenSettings) prevOpenSettings();
+        
+        // Вставляем поле ввода цели
+        const titleInput = document.getElementById('setTitle');
+        if (titleInput && !document.getElementById('setCushionTarget')) {
+            const targetDiv = document.createElement('div');
+            targetDiv.className = 'form-group';
+            targetDiv.innerHTML = `<label>Цель подушки безопасности (₽)</label><input id="setCushionTarget" type="number" value="${S.settings.cushionTarget || ''}" placeholder="Например, 500000">`;
+            titleInput.closest('.form-group').after(targetDiv);
+        }
+    };
+
+    const prevSaveSettings = window.saveSettings;
+    window.saveSettings = function() {
+        const targetVal = document.getElementById('setCushionTarget');
+        if (targetVal) {
+            S.settings.cushionTarget = parseFloat(targetVal.value) || 0;
+        }
+        if (prevSaveSettings) prevSaveSettings();
+        // Принудительно перерисовываем виджет после сохранения
+        setTimeout(injectCushionWidget, 100);
+    };
 })();
