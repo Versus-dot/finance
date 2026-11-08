@@ -10,14 +10,13 @@
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }
-        #fabBtn { display: none !important; }
         .account-row { transition: all 0.2s ease; }
         body.style-stripe .account-row { border-left: 4px solid var(--bank-color) !important; background: var(--card) !important; margin: 0 6px 0 10px !important; border-radius: 0 8px 8px 0 !important; border-bottom: 1px solid var(--border) !important; }
-        body.style-stripe .account-row:has(.acc-debt) { background: rgba(255, 92, 92, 0.05) !important; }
-        body.style-stripe .account-row:not(:has(.acc-debt)) { background: rgba(46, 204, 113, 0.04) !important; }
-        body.style-bg .account-row { border-left: none !important; background: rgba(46, 204, 113, 0.1) !important; margin: 6px 10px !important; border-radius: 10px !important; border: 1px solid rgba(46, 204, 113, 0.2) !important; }
-        body.style-bg .account-row:has(.acc-debt) { background: rgba(255, 92, 92, 0.1) !important; border-color: rgba(255, 92, 92, 0.3) !important; }
-        body.style-minimal .account-row { border-left: none !important; background: var(--card2) !important; margin: 6px 10px !important; border-radius: 10px !important; border: 1px solid var(--border) !important; }
+        body.style-stripe .account-row:has(.acc-debt) { background: rgba(239, 68, 68, 0.05) !important; }
+        body.style-stripe .account-row:not(:has(.acc-debt)) { background: rgba(16, 185, 129, 0.04) !important; }
+        body.style-bg .account-row { border-left: none !important; background: rgba(16, 185, 129, 0.1) !important; margin: 6px 10px !important; border-radius: 10px !important; border: 1px solid rgba(16, 185, 129, 0.2) !important; }
+        body.style-bg .account-row:has(.acc-debt) { background: rgba(239, 68, 68, 0.1) !important; border-color: rgba(239, 68, 68, 0.3) !important; }
+        body.style-minimal .account-row { border-left: none !important; background: var(--card2) !important; margin: 6px 10px !important; border-radius: 14px !important; border: 1px solid var(--border) !important; }
         body.style-minimal .acc-icon-wrap { transition: all 0.2s ease; }
         body.style-minimal .account-row:not(:has(.acc-debt)) .acc-icon-wrap { background: #2d3647 !important; color: #9aa5b8 !important; }
         body.style-minimal .account-row:has(.acc-debt) .acc-icon-wrap { background: #1f2532 !important; color: #6b778c !important; }
@@ -29,9 +28,9 @@
         /* ЯРКАЯ ПУЛЬСАЦИЯ ДЛЯ КАРТОЧКИ */
         .account-row.grace-overdue { border-color: var(--red) !important; animation: pulse-red-row 1.5s infinite; }
         @keyframes pulse-red-row {
-            0% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0.8), inset 0 0 0 2px var(--red); }
-            70% { box-shadow: 0 0 0 15px rgba(255, 92, 92, 0), inset 0 0 0 2px var(--red); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0), inset 0 0 0 2px var(--red); }
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), inset 0 0 0 2px var(--red); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); }
         }
 
         .grace-text { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
@@ -42,15 +41,15 @@
         .bank-chip.grace-bank-warning { border-color: var(--red) !important; box-shadow: inset 0 0 0 2px var(--red) !important; }
         .bank-chip.grace-bank-overdue { border-color: var(--red) !important; animation: pulse-red-bank 1.5s infinite; }
         @keyframes pulse-red-bank {
-            0% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0.8), inset 0 0 0 2px var(--red); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 92, 92, 0), inset 0 0 0 2px var(--red); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0), inset 0 0 0 2px var(--red); }
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), inset 0 0 0 2px var(--red); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); }
         }
     `;
     document.head.appendChild(styleEl);
 
     // ==========================================
-    // ТЕМЫ ОФОРМЛЕНИЯ (Полоски, Фон, Минимализм)
+    // ТЕМЫ ОФОРМЛЕНИЯ
     // ==========================================
     window.applyBadgeStyle = function() {
         document.body.classList.remove('style-stripe', 'style-bg', 'style-minimal');
@@ -65,7 +64,6 @@
     window.openSettings = function() {
         if (prevOpenSettingsForBadge) prevOpenSettingsForBadge();
         const badgeSelect = document.getElementById('setBadge');
-        // ВОТ ТУТ ДОЛЖНЫ БЫТЬ ВСЕ ТРИ ТЕМЫ
         if (badgeSelect) badgeSelect.innerHTML = `
             <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option>
             <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
@@ -244,4 +242,26 @@
             location.reload(); 
         } 
     };
+
+    // ==========================================
+    // ЗАМЕНА ЭМОДЗИ НА SVG-ИКОНКИ В МЕНЮ
+    // ==========================================
+    setTimeout(() => {
+        const navTabs = {
+            home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+            accounts: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>',
+            transactions: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+            stats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>'
+        };
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            const tabName = tab.dataset.tab;
+            if (navTabs[tabName]) {
+                const iconSpan = tab.querySelector('.nav-icon');
+                if (iconSpan) {
+                    iconSpan.innerHTML = navTabs[tabName];
+                    iconSpan.style.display = 'flex';
+                }
+            }
+        });
+    }, 500);
 })();
