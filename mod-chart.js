@@ -2,13 +2,14 @@
 // МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v115)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v116)");
 
     let myChart = null;
 
     const centerTextPlugin = {
         id: 'centerText',
-        afterDraw: (chart) => {
+        // ИСПРАВЛЕНО: afterDatasetsDraw срабатывает ДО отрисовки тултипа
+        afterDatasetsDraw: (chart) => {
             const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
             ctx.save();
             const centerX = left + width / 2;
@@ -122,10 +123,10 @@
                         }
                     },
                     tooltip: {
-                        backgroundColor: '#1e2532', // 100% непрозрачный темный фон (цвет карточки)
+                        backgroundColor: 'rgba(30, 37, 50, 1)', // 100% непрозрачный фон
                         titleColor: '#ffffff',
                         bodyColor: '#ffffff',
-                        borderColor: '#4d7fff', // Яркая синяя рамка
+                        borderColor: '#4d7fff', 
                         borderWidth: 2,
                         padding: 12,
                         cornerRadius: 8,
