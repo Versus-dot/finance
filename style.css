@@ -15,11 +15,11 @@
     --debt: #F87171;
 }
 :root[data-theme="light"]{
-    --bg: #F8FAFC;
-    --bg2: #F1F5F9;
+    --bg: #F1F5F9;
+    --bg2: #E2E8F0;
     --card: #FFFFFF;
     --card2: #F8FAFC;
-    --text: #0F172A;
+    --text: #1E293B;
     --muted: #64748B;
     --border: #E2E8F0;
     --accent: #4F46E5;
@@ -33,10 +33,10 @@
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
-body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px;padding-bottom:calc(120px + env(safe-area-inset-bottom));padding-top:env(safe-area-inset-top);overflow-x:hidden;min-height:100vh;max-width:1200px;margin:0 auto}
+body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px;padding-bottom:calc(120px + env(safe-area-inset-bottom));padding-top:env(safe-area-inset-top);overflow-x:hidden;min-height:100vh;max-width:1200px;margin:0 auto;transition: background 0.3s, color 0.3s;}
 
-.app-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--bg);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:rgba(11,14,20,0.8)}
-:root[data-theme="light"] .app-header{background:rgba(248,250,252,0.8)}
+.app-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--bg);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:rgba(11,14,20,0.8); transition: background 0.3s;}
+:root[data-theme="light"] .app-header{background:rgba(241,245,249,0.85)}
 .app-header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-0.5px}
 .icon-btn{background:transparent;border:none;color:var(--text);font-size:20px;padding:8px;cursor:pointer;border-radius:12px;transition:background 0.2s}
 .icon-btn:active{background:var(--card2)}
@@ -56,6 +56,7 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .banks-carousel:active{cursor:grabbing}
 .banks-carousel::-webkit-scrollbar{display:none}
 .bank-chip{flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:16px;min-width:140px;cursor:pointer;transition:all 0.2s ease;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05)}
+:root[data-theme="light"] .bank-chip{box-shadow:0 4px 12px rgba(15,23,42,0.05)}
 .bank-chip.active{border-color:var(--accent);background:rgba(99,102,241,0.1);box-shadow:0 4px 12px rgba(99,102,241,0.15)}
 .bank-chip .bc-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
 .bank-chip .bc-bal{font-size:16px;font-weight:800;letter-spacing:-0.5px}
@@ -63,6 +64,8 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 
 /* ГРУППЫ БАНКОВ И СЧЕТА */
 .bank-group{margin-bottom:16px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05)}
+:root[data-theme="light"] .bank-group,
+:root[data-theme="light"] .bank-section{box-shadow:0 4px 12px rgba(15,23,42,0.05)}
 .bank-group-header{padding:14px 16px;background:var(--card2);font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center;cursor:default;border-bottom:1px solid var(--border)}
 .bank-group-header .drag-handle{cursor:grab}.bank-group-header .drag-handle:active{cursor:grabbing}
 .bank-group-list{padding:8px 0}
@@ -89,6 +92,8 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 
 /* КАРТОЧКИ */
 .card, .stat-card{background:var(--card);border-radius:20px;padding:16px;border:1px solid var(--border);box-shadow:0 4px 6px -1px rgba(0,0,0,0.05)}
+:root[data-theme="light"] .card, 
+:root[data-theme="light"] .stat-card{box-shadow:0 4px 12px rgba(15,23,42,0.05)}
 .stat-card .label{font-size:12px;color:var(--muted);margin-bottom:6px}
 .stat-card .value{font-size:18px;font-weight:700}
 .pos{color:var(--green)}.neg{color:var(--red)}.muted{color:var(--muted)}
@@ -112,6 +117,7 @@ button:active{transform:scale(0.98)}
     box-shadow:0 8px 32px rgba(0,0,0,0.4);
     backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
 }
+:root[data-theme="light"] .bottom-nav{box-shadow:0 8px 32px rgba(15,23,42,0.1)}
 .nav-tab{
     flex:1;background:transparent;border:none;color:var(--muted);
     padding:10px 4px;text-align:center;font-size:11px;font-weight:600;
@@ -144,8 +150,10 @@ input[type="date"]{color-scheme:dark}:root[data-theme="light"] input[type="date"
 
 /* МОДАЛКИ */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+:root[data-theme="light"] .modal-backdrop{background:rgba(15,23,42,0.4)}
 .modal-backdrop.active{display:flex}#modalBackdrop2{z-index:250}
 .modal{background:var(--card);width:100%;max-width:500px;max-height:85vh;overflow-y:auto;border-radius:24px;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.5);border:1px solid var(--border)}
+:root[data-theme="light"] .modal{box-shadow:0 20px 40px rgba(15,23,42,0.15)}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .modal-header h2{margin:0;font-size:18px;font-weight:700}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
@@ -177,6 +185,7 @@ input[type="date"]{color-scheme:dark}:root[data-theme="light"] input[type="date"
 .menu-item:active{background:var(--border)}
 .menu-item .menu-icon{font-size:22px}.menu-item.warn{color:var(--red)}
 .toast{position:fixed;bottom:calc(100px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--card2);color:var(--text);padding:12px 24px;border-radius:16px;font-size:14px;font-weight:600;z-index:300;opacity:0;transition:all .3s;pointer-events:none;border:1px solid var(--border);max-width:90%;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3)}
+:root[data-theme="light"] .toast{box-shadow:0 8px 24px rgba(15,23,42,0.1)}
 .toast.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(-10px)}
 .toast button{background:var(--accent);color:#fff;padding:6px 12px;border-radius:8px;font-size:12px}
 
@@ -209,4 +218,13 @@ body:has(#page-home.active) #fabBtn {display: none !important;}
     .account-row > div:last-child {width: 100%;margin-top: 10px;text-align: right;display: flex;flex-direction: column;align-items: flex-end;}
     .acc-balance {font-size: 18px;}
     .account-row > div:last-child > div:last-child {max-width: 100% !important;}
+}
+
+/* === ПОДДЕРЖКА СВЕТЛОЙ ТЕМЫ ДЛЯ ПОДУШКИ === */
+:root[data-theme="light"] .cushion-widget {
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.05), rgba(255, 255, 255, 0.6)) !important;
+    border-color: rgba(5, 150, 105, 0.2) !important;
+}
+:root[data-theme="light"] .cushion-mini {
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
