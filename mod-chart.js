@@ -2,7 +2,7 @@
 // МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v120)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v121)");
 
     let myChart = null;
 
@@ -162,7 +162,8 @@
         };
 
         S.accounts.forEach(a => {
-            if (a.archived || a.ignoreBalance) return;
+            // Убрали проверку a.ignoreBalance, чтобы диаграмма видела ВЕСЬ капитал
+            if (a.archived) return;
 
             const val = accValue(a);
             let contribution = val;
@@ -251,7 +252,7 @@
         let stocksSum = 0, bondsSum = 0, etfSum = 0, cashSum = 0;
         let hasBreakdown = false;
 
-        S.accounts.filter(a => (a.type === 'brokerage' || a.type === 'iis') && !a.inCushion && !a.archived && !a.ignoreBalance).forEach(a => {
+        S.accounts.filter(a => (a.type === 'brokerage' || a.type === 'iis') && !a.inCushion && !a.archived).forEach(a => {
             if (a.portfolioBreakdown) {
                 hasBreakdown = true;
                 stocksSum += a.portfolioBreakdown.stocks || 0;
