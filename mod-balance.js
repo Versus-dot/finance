@@ -2,7 +2,7 @@
 // МОДУЛЬ ДЕТАЛИЗАЦИИ БАЛАНСА И КРЕДИТОВ (mod-balance.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль детализации баланса и кредитов загружен (v118)");
+    console.log("✅ Модуль детализации баланса и кредитов загружен (v120)");
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
