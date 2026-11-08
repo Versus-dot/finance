@@ -24,22 +24,21 @@
     `;
     document.head.appendChild(styleEl);
 
-    // 2. Перехватываем рендер главной страницы
+    // 2. Перехватываем рендер главной страницы для добавления кликов
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDashboard) prevRenderDashboard();
         
         const totalBar = document.querySelector('.total-bar');
         if (totalBar) {
-            // Более надежный поиск: находим все элементы с классом total-val
             const vals = totalBar.querySelectorAll('.total-val');
             if (vals.length >= 2) {
-                // Первый - это Баланс
+                // Клик по Балансу
                 vals[0].classList.add('total-val-clickable');
                 vals[0].title = "Нажмите для детализации активов";
                 vals[0].onclick = window.openTotalBalanceDetails;
                 
-                // Второй - это Кредиты
+                // Клик по Кредитам
                 vals[1].classList.add('total-val-clickable');
                 vals[1].title = "Нажмите для детализации долгов";
                 vals[1].onclick = window.openTotalDebtDetails;
@@ -47,7 +46,7 @@
         }
     };
 
-    // 3. Окно Баланса (только счета > 0 и не исключенные)
+    // 3. Окно Баланса (Строгая математическая логика)
     window.openTotalBalanceDetails = function() {
         if (typeof S === 'undefined') return;
         
@@ -57,15 +56,28 @@
         let displayAccs = [];
         
         S.accounts.forEach(a => {
-            if (a.archived || a.ignoreBalance) return; // Жестко отсекаем архив и "исключенные"
+            // Если счет в архиве - пропускаем
+            if (a.archived) return;
             
             const val = window.accValue(a);
+            let contribution = 0; // Вклад в общий баланс
+            
+            // Логика точь-в-точь как в computeTotals
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;
-                const overpay = Math.max(0, val - limit);
-                if (overpay > 0) displayAccs.push({ acc: a, val: overpay });
+                contribution = Math.max(0, val - limit); // Берем только переплату, если она есть
             } else {
-                if (val > 0) displayAccs.push({ acc: a, val: val }); // Только если больше нуля
+                contribution = val;
+            }
+            
+            // Если стоит галочка "Исключить из баланса" - вклад обнуляется
+            if (a.ignoreBalance) {
+                contribution = 0;
+            }
+            
+            // В список попадают только те, кто реально увеличивает баланс больше нуля
+            if (contribution > 0) {
+                displayAccs.push({ acc: a, val: contribution });
             }
         });
         
@@ -111,7 +123,7 @@
                 ${fmt(total)}
             </div>
             <div style="font-size: 12px; color: var(--muted); margin-bottom: 10px;">
-                Показаны только счета, которые сейчас учитываются в балансе и имеют средства.
+                Показаны только те счета, которые сейчас реально увеличивают общий баланс.
             </div>
             <div style="max-height: 350px; overflow-y: auto;">
                 ${listHtml}
@@ -120,7 +132,7 @@
         `);
     };
 
-    // 4. Окно Кредитов (только активные долги)
+    // 4. Окно Кредитов
     window.openTotalDebtDetails = function() {
         if (typeof S === 'undefined') return;
         
@@ -135,6 +147,8 @@
             const limit = a.creditLimit || 0;
             const val = window.accValue(a);
             const debt = Math.max(0, limit - val);
+            
+            // Показываем только если есть реальный долг
             if (debt > 0) {
                 debtAccs.push({ acc: a, debt: debt, limit: limit });
             }
