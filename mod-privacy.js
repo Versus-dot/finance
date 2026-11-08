@@ -2,7 +2,7 @@
 // МОДУЛЬ ПРИВАТНОСТИ (Скрытие балансов) - mod-privacy.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль приватности (mod-privacy.js) загружен (v136)");
+    console.log("✅ Модуль приватности (mod-privacy.js) загружен (v144)");
 
     // Инициализация настроек
     if (typeof S !== 'undefined' && S.ui) {
@@ -10,6 +10,10 @@
         if (!S.ui.hiddenBanks) S.ui.hiddenBanks = [];
         if (!S.ui.hiddenAccounts) S.ui.hiddenAccounts = [];
     }
+
+    // Стилизованные снежинки для скрытых сумм
+    const HIDDEN_BALANCE = '<span style="filter: grayscale(1) opacity(0.4); font-size: 0.9em; margin-right: 2px;">❄️❄️❄️</span> ₽';
+    const HIDDEN_PERCENT = '<span style="filter: grayscale(1) opacity(0.4); font-size: 0.9em;">❄❄❄</span> %';
 
     // SVG Иконки
     const eyeOpenSvg = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
@@ -40,14 +44,11 @@
         if (S.ui.globalHideBalances) return;
         
         const allBankIds = S.banks.map(b => b.id);
-        // Проверяем, скрыты ли ВСЕ банки
         const areAllHidden = allBankIds.length > 0 && allBankIds.every(id => S.ui.hiddenBanks.includes(id));
         
         if (areAllHidden) {
-            // Если все скрыты — показываем все
             S.ui.hiddenBanks = S.ui.hiddenBanks.filter(id => !allBankIds.includes(id));
         } else {
-            // Иначе — скрываем все
             S.ui.hiddenBanks = [...new Set([...S.ui.hiddenBanks, ...allBankIds])];
         }
         save();
@@ -71,9 +72,9 @@
         const isHidden = S.ui.globalHideBalances || S.ui.hiddenBanks.includes(a.bankId) || S.ui.hiddenAccounts.includes(a.id);
         
         if (isHidden) {
-            html = html.replace(/<div class="acc-balance">([\s\S]*?)<\/div>/, `<div class="acc-balance">•••• ₽</div>`);
-            html = html.replace(/Задолженность:\s*([^<]*)<\/div>/, `Задолженность: •••• ₽</div>`);
-            html = html.replace(/Ваши деньги:\s*\+?([^<]*)<\/div>/, `Ваши деньги: +•••• ₽</div>`);
+            html = html.replace(/<div class="acc-balance">([\s\S]*?)<\/div>/, `<div class="acc-balance">${HIDDEN_BALANCE}</div>`);
+            html = html.replace(/Задолженность:\s*([^<]*)<\/div>/, `Задолженность: ${HIDDEN_BALANCE}</div>`);
+            html = html.replace(/Ваши деньги:\s*\+?([^<]*)<\/div>/, `Ваши деньги: +${HIDDEN_BALANCE}</div>`);
         }
 
         const eyeIcon = isHidden ? eyeOpenSvg : eyeClosedSvg;
@@ -105,20 +106,20 @@
         }
 
         if (S.ui.globalHideBalances) {
-            document.querySelectorAll('.total-val').forEach(el => el.textContent = '•••• ₽');
-            document.querySelectorAll('.group-total-val').forEach(el => el.textContent = '•••• ₽');
-            document.querySelectorAll('.bottom-widgets-grid .pos, .bottom-widgets-grid .neg').forEach(el => el.textContent = '•••• ₽');
+            document.querySelectorAll('.total-val').forEach(el => el.innerHTML = HIDDEN_BALANCE);
+            document.querySelectorAll('.group-total-val').forEach(el => el.innerHTML = HIDDEN_BALANCE);
+            document.querySelectorAll('.bottom-widgets-grid .pos, .bottom-widgets-grid .neg').forEach(el => el.innerHTML = HIDDEN_BALANCE);
             document.querySelectorAll('.bottom-widgets-grid div').forEach(el => {
-                if (el.children.length === 0 && el.textContent.trim().endsWith('%')) el.textContent = '•••• %';
+                if (el.children.length === 0 && el.textContent.trim().endsWith('%')) el.innerHTML = HIDDEN_PERCENT;
             });
             const cushionAmt = document.querySelector('.cushion-amount');
-            if (cushionAmt) cushionAmt.textContent = '•••• ₽';
+            if (cushionAmt) cushionAmt.innerHTML = HIDDEN_BALANCE;
             const goalText = document.querySelector('.cushion-goal-text');
             if (goalText) {
                 const spans = goalText.querySelectorAll('span');
                 spans.forEach(span => {
-                    if (span.textContent.includes('Цель')) span.textContent = 'Цель: •••• ₽';
-                    else if (span.textContent.includes('%')) span.textContent = '•••• %';
+                    if (span.textContent.includes('Цель')) span.innerHTML = 'Цель: ' + HIDDEN_BALANCE;
+                    else if (span.textContent.includes('%')) span.innerHTML = HIDDEN_PERCENT;
                 });
             }
         }
@@ -127,13 +128,13 @@
         document.querySelectorAll('.bank-chip').forEach(chip => {
             const bId = chip.dataset.bankId;
 
-            // Логика для чипа "Все банки" (у него нет data-bank-id, поэтому проверяем по тексту)
+            // Логика для чипа "Все банки" (у него нет data-bank-id)
             if (!bId && chip.textContent.includes('Все банки')) {
                 const isAllHidden = S.ui.globalHideBalances || (S.banks.length > 0 && S.banks.every(b => S.ui.hiddenBanks.includes(b.id)));
                 
                 if (isAllHidden && !S.ui.globalHideBalances) {
                     const bal = chip.querySelector('.bc-bal');
-                    if (bal) bal.textContent = '•••• ₽';
+                    if (bal) bal.innerHTML = HIDDEN_BALANCE;
                 }
                 
                 if (!S.ui.globalHideBalances && !chip.querySelector('.bank-eye-btn')) {
@@ -145,7 +146,7 @@
                     chip.style.position = 'relative';
                     chip.appendChild(eyeBtn);
                 }
-                return; // Переходим к следующей карточке
+                return; 
             }
 
             if (!bId) return;
@@ -155,9 +156,9 @@
             
             if (isHidden) {
                 const bal = chip.querySelector('.bc-bal');
-                if (bal) bal.textContent = '•••• ₽';
+                if (bal) bal.innerHTML = HIDDEN_BALANCE;
                 const debt = chip.querySelector('.bc-debt');
-                if (debt) debt.textContent = '•••• ₽';
+                if (debt) debt.innerHTML = HIDDEN_BALANCE;
             }
 
             if (!S.ui.globalHideBalances && !chip.querySelector('.bank-eye-btn')) {
@@ -177,7 +178,7 @@
             const isHidden = S.ui.globalHideBalances || S.ui.hiddenBanks.includes(bankId);
             if (isHidden) {
                 const totalEl = group.querySelector('.group-total-val');
-                if (totalEl) totalEl.textContent = '•••• ₽';
+                if (totalEl) totalEl.innerHTML = HIDDEN_BALANCE;
             }
         });
     };
