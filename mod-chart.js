@@ -2,7 +2,7 @@
 // МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v111)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v112)");
 
     let myChart = null;
 
@@ -19,7 +19,6 @@
         const statsPage = document.getElementById('page-stats');
         if (!statsPage) return;
 
-        // Удаляем старый контейнер, если есть
         const oldContainer = document.getElementById('donutChartContainer');
         if (oldContainer) oldContainer.remove();
 
@@ -29,7 +28,6 @@
 
         if (totalSum <= 0) return; // Если капитала нет, не рисуем
 
-        // Создаем контейнер
         const container = document.createElement('div');
         container.id = 'donutChartContainer';
         container.className = 'card';
@@ -42,10 +40,8 @@
             </div>
         `;
 
-        // Вставляем в начало страницы статистики
         statsPage.prepend(container);
 
-        // Рисуем Chart.js
         const ctx = document.getElementById('capitalDonutChart').getContext('2d');
         
         if (myChart) myChart.destroy();
@@ -106,7 +102,9 @@
         };
 
         S.accounts.forEach(a => {
-            if (a.archived || a.ignoreBalance) return; // Исключенные не считаем
+            // Теперь берем все неархивные счета (галочку ignoreBalance игнорируем)
+            if (a.archived) return;
+            
             const val = window.accValue(a);
             if (val <= 0) return;
 
