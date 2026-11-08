@@ -73,8 +73,8 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .banks-carousel:active{cursor:grabbing}
 .banks-carousel::-webkit-scrollbar{display:none}
 .bank-chip{
-    position: relative; /* Важно для водяного знака */
-    overflow: hidden;   /* Обрезаем логотип по краям */
+    position: relative;
+    overflow: hidden;
     flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:16px;min-width:140px;cursor:pointer;transition:all 0.2s ease;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05)
 }
 :root[data-theme="light"] .bank-chip{box-shadow:0 4px 12px rgba(15,23,42,0.05)}
@@ -88,23 +88,28 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
     box-shadow: 0 8px 24px rgba(79, 70, 229, 0.1);
 }
 
-/* ВОДЯНОЙ ЗНАК */
+/* ТЕКСТОВЫЙ ВОДЯНОЙ ЗНАК */
 .bank-watermark {
     position: absolute;
-    right: -15px;
+    right: -10px;
     bottom: -15px;
-    width: 90px;
-    height: 90px;
-    opacity: 0.08; /* Едва заметный */
+    opacity: 0.06; /* Едва заметный */
     pointer-events: none;
-    transform: rotate(-15deg); /* Наклон как на карте */
+    transform: rotate(-15deg);
     z-index: 0;
+    font-weight: 900;
+    font-size: 52px; /* Крупные буквы */
+    line-height: 1;
+    white-space: nowrap;
+    font-family: system-ui, -apple-system, sans-serif;
+    letter-spacing: -2px;
+    text-transform: uppercase;
 }
 :root[data-theme="light"] .bank-watermark {
-    opacity: 0.06;
+    opacity: 0.05;
 }
 .bank-chip.active .bank-watermark {
-    opacity: 0.15; /* Чуть ярче у активной */
+    opacity: 0.12; /* Чуть ярче у активной */
 }
 
 /* Текст поверх водяного знака */
