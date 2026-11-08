@@ -4,7 +4,7 @@
 (function() {
     console.log("✅ Модуль детализации баланса и кредитов загружен");
 
-    // 1. Добавляем стили для курсора и подсказки
+    // 1. Добавляем стили
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .total-val-clickable {
@@ -24,34 +24,30 @@
     `;
     document.head.appendChild(styleEl);
 
-    // 2. Перехватываем рендер главной страницы, чтобы добавить клики
+    // 2. Перехватываем рендер главной страницы
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDashboard) prevRenderDashboard();
         
         const totalBar = document.querySelector('.total-bar');
         if (totalBar) {
-            // Левая часть - Баланс
-            const balanceDiv = totalBar.querySelector('div:first-child');
-            const balanceVal = balanceDiv ? balanceDiv.querySelector('.total-val') : null;
-            if (balanceVal) {
-                balanceVal.classList.add('total-val-clickable');
-                balanceVal.title = "Нажмите для детализации активов";
-                balanceVal.onclick = window.openTotalBalanceDetails;
-            }
-
-            // Правая часть - Кредиты
-            const creditDiv = totalBar.querySelector('div:last-child');
-            const creditVal = creditDiv ? creditDiv.querySelector('.total-val') : null;
-            if (creditVal) {
-                creditVal.classList.add('total-val-clickable');
-                creditVal.title = "Нажмите для детализации долгов";
-                creditVal.onclick = window.openTotalDebtDetails;
+            // Более надежный поиск: находим все элементы с классом total-val
+            const vals = totalBar.querySelectorAll('.total-val');
+            if (vals.length >= 2) {
+                // Первый - это Баланс
+                vals[0].classList.add('total-val-clickable');
+                vals[0].title = "Нажмите для детализации активов";
+                vals[0].onclick = window.openTotalBalanceDetails;
+                
+                // Второй - это Кредиты
+                vals[1].classList.add('total-val-clickable');
+                vals[1].title = "Нажмите для детализации долгов";
+                vals[1].onclick = window.openTotalDebtDetails;
             }
         }
     };
 
-    // 3. Функция открытия детализации БАЛАНСА (Активы)
+    // 3. Окно Баланса (только счета > 0 и не исключенные)
     window.openTotalBalanceDetails = function() {
         if (typeof S === 'undefined') return;
         
@@ -60,14 +56,16 @@
         
         let displayAccs = [];
         
-        S.accounts.filter(a => !a.archived && !a.ignoreBalance).forEach(a => {
+        S.accounts.forEach(a => {
+            if (a.archived || a.ignoreBalance) return; // Жестко отсекаем архив и "исключенные"
+            
             const val = window.accValue(a);
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;
                 const overpay = Math.max(0, val - limit);
                 if (overpay > 0) displayAccs.push({ acc: a, val: overpay });
             } else {
-                if (val !== 0) displayAccs.push({ acc: a, val: val });
+                if (val > 0) displayAccs.push({ acc: a, val: val }); // Только если больше нуля
             }
         });
         
@@ -113,7 +111,7 @@
                 ${fmt(total)}
             </div>
             <div style="font-size: 12px; color: var(--muted); margin-bottom: 10px;">
-                Показаны активы, за вычетом исключенных из баланса и кредитных лимитов.
+                Показаны только счета, которые сейчас учитываются в балансе и имеют средства.
             </div>
             <div style="max-height: 350px; overflow-y: auto;">
                 ${listHtml}
@@ -122,7 +120,7 @@
         `);
     };
 
-    // 4. Функция открытия детализации КРЕДИТОВ (Долги)
+    // 4. Окно Кредитов (только активные долги)
     window.openTotalDebtDetails = function() {
         if (typeof S === 'undefined') return;
         
@@ -131,12 +129,14 @@
         
         let debtAccs = [];
         
-        S.accounts.filter(a => !a.archived && a.type === 'credit' && !a.ignoreBalance).forEach(a => {
+        S.accounts.forEach(a => {
+            if (a.archived || a.type !== 'credit' || a.ignoreBalance) return;
+            
             const limit = a.creditLimit || 0;
             const val = window.accValue(a);
             const debt = Math.max(0, limit - val);
             if (debt > 0) {
-                debtAccs.push({ acc: a, debt: debt, limit: limit, balance: val });
+                debtAccs.push({ acc: a, debt: debt, limit: limit });
             }
         });
         
@@ -165,7 +165,7 @@
                         </div>
                         <div style="text-align:right;">
                             <div style="font-weight:700; color:var(--red);">${fmt(debt)}</div>
-                            <div style="font-size:11px; color:var(--muted);">${pct}% от общего долга</div>
+                            <div style="font-size:11px; color:var(--muted);">${pct}% от долга</div>
                         </div>
                     </div>
                 `;
@@ -179,9 +179,6 @@
             </div>
             <div style="font-size: 24px; font-weight: 800; color: var(--red); margin-bottom: 16px;">
                 ${fmt(totalDebt)}
-            </div>
-            <div style="font-size: 12px; color: var(--muted); margin-bottom: 10px;">
-                Суммы рассчитаны как (Кредитный лимит - Остаток на карте).
             </div>
             <div style="max-height: 350px; overflow-y: auto;">
                 ${listHtml}
