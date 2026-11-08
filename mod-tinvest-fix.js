@@ -4,14 +4,13 @@
 (function() {
     console.log("✅ Модуль фиксов Т-Инвеста и Статистики загружен");
 
-    // Вспомогательная функция для перевода формата {units, nano} в число
     const qv = (val) => {
         if (!val) return 0;
         return parseFloat(val.units || 0) + (parseFloat(val.nano || 0) / 1000000000);
     };
 
     // ==========================================
-    // 1. ПЕРЕПИСАННАЯ СИНХРОНИЗАЦИЯ С Т-ИНВЕСТ
+    // 1. ПРАВИЛЬНАЯ СИНХРОНИЗАЦИЯ С Т-ИНВЕСТ
     // ==========================================
     window.syncTInvest = async function() {
         const token = document.getElementById('secTInvestToken').value.trim();
@@ -44,11 +43,8 @@
                 
                 if (portData.totalAmountPortfolio) {
                     const totalRub = qv(portData.totalAmountPortfolio);
-                    
-                    // Ищем счет в приложении
                     let localAcc = S.accounts.find(a => a.tinvestId === apiAcc.id);
                     
-                    // Если счета нет — создаем
                     if (!localAcc) {
                         const isIIS = apiAcc.type === 'ACCOUNT_TYPE_TINKOFF_IIS';
                         localAcc = { 
@@ -60,19 +56,16 @@
                         createdCount++;
                     }
 
-                    // Считаем текущий баланс в приложении (до синхронизации)
                     const currentBal = accValue(localAcc);
                     const diff = totalRub - currentBal;
                     
-                    // ФИКС: Вместо создания транзакции, просто корректируем начальный баланс.
-                    // Это тихо обновит сумму на счете, но не испортит статистику доходов/расходов.
+                    // ТИХАЯ КОРРЕКТИРОВКА БАЛАНСА (без создания транзакций)
                     if (Math.abs(diff) > 1) {
                         localAcc.initialBalance = (localAcc.initialBalance || 0) + diff;
                         localAcc._updatedAt = Date.now(); 
                         syncedCount++;
                     }
 
-                    // ФИКС: Сохраняем разбивку портфеля (Акции, Облигации, ETF, Деньги)
                     localAcc.portfolioBreakdown = {
                         stocks: qv(portData.totalAmountShares),
                         bonds: qv(portData.totalAmountBonds),
@@ -93,16 +86,50 @@
     };
 
     // ==========================================
-    // 2. ФИКС ГРАФИКОВ СТАТИСТИКИ НА ТЕЛЕФОНЕ
+    // 2. ОЧИСТКА СТАРЫХ ФЕЙКОВЫХ ОПЕРАЦИЙ
     // ==========================================
-    // Перехватываем рендер статистики, чтобы принудительно обновить размеры графиков
+    window.cleanupFakeTInvestTransactions = function() {
+        if (!confirm('Удалить все старые операции "Синхронизация с Т-Инвест", которые были созданы до обновления?\n\nЭто очистит статистику, но не затронет реальные доходы/расходы.')) return;
+        
+        const beforeCount = S.transactions.length;
+        S.transactions = S.transactions.filter(t => t.note !== 'Синхронизация с Т-Инвест');
+        const deletedCount = beforeCount - S.transactions.length;
+        
+        if (deletedCount > 0) {
+            save();
+            renderAll();
+            if (typeof syncSmart === 'function') syncSmart(true);
+            toast(`✅ Удалено ${deletedCount} фейковых операций`);
+        } else {
+            toast('Мусорных операций не найдено');
+        }
+    };
+
+    // Добавляем кнопку очистки в окно Безопасности (рядом с Т-Инвестом)
+    const prevOpenSecurity = window.openSecuritySettings;
+    window.openSecuritySettings = function() {
+        if (prevOpenSecurity) prevOpenSecurity();
+        
+        setTimeout(() => {
+            const tInvestBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Запросить баланс'));
+            if (tInvestBtn) {
+                const cleanBtn = document.createElement('button');
+                cleanBtn.className = 'btn-secondary btn-block';
+                cleanBtn.style.marginBottom = '8px';
+                cleanBtn.style.color = 'var(--red)';
+                cleanBtn.innerHTML = '🧹 Очистить старые операции Т-Инвеста';
+                cleanBtn.onclick = window.cleanupFakeTInvestTransactions;
+                tInvestBtn.after(cleanBtn);
+            }
+        }, 100);
+    };
+
+    // ==========================================
+    // 3. ФИКС ГРАФИКОВ СТАТИСТИКИ НА ТЕЛЕФОНЕ
+    // ==========================================
     const prevRenderStats = window.renderStats;
     window.renderStats = function() {
         if (prevRenderStats) prevRenderStats();
-        
-        // Небольшая задержка, чтобы DOM успел отрисоваться, а затем пинок для Chart.js
-        setTimeout(() => {
-            window.dispatchEvent(new Event('resize'));
-        }, 150);
+        setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 150);
     };
 })();
