@@ -1,4 +1,4 @@
-const CACHE = 'finance-v98';
+const CACHE = 'finance-v99';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const ASSETS = [
   './mod-fixes.js',
   './mod-tinvest-fix.js',
   './mod-cushion.js',
+  './mod-balance.js',
   './v56.js'
 ];
 
