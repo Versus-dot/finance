@@ -111,7 +111,7 @@
         });
     };
 
-    // === ДОБАВЛЕНА ЛОГИКА СКРОЛЛА КАРУСЕЛИ ===
+    // === ИСПРАВЛЕННАЯ ЛОГИКА СКРОЛЛА КАРУСЕЛИ ===
     const originalSetDashFilter = window.setDashFilter;
     window.setDashFilter = function(bankId) {
         if (typeof S !== 'undefined' && S.ui) {
@@ -124,20 +124,29 @@
         }
         if (originalSetDashFilter) originalSetDashFilter(bankId);
 
-        // Плавная прокрутка к выбранному банку
+        // Надежный скролл: ждем отрисовки, считаем позицию вручную
         setTimeout(() => {
-            const carousel = document.querySelector('.banks-carousel');
-            if (!carousel) return;
+            requestAnimationFrame(() => {
+                const carousel = document.querySelector('.banks-carousel');
+                if (!carousel) return;
 
-            if (bankId === 'all') {
-                carousel.scrollTo({ left: 0, behavior: 'smooth' });
-            } else {
-                const targetChip = carousel.querySelector(`.bank-chip[data-bank-id="${bankId}"]`);
-                if (targetChip) {
-                    targetChip.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+                if (bankId === 'all') {
+                    carousel.scrollTo({ left: 0, behavior: 'smooth' });
+                } else {
+                    const targetChip = carousel.querySelector(`.bank-chip[data-bank-id="${bankId}"]`);
+                    if (targetChip) {
+                        const carouselRect = carousel.getBoundingClientRect();
+                        const targetRect = targetChip.getBoundingClientRect();
+                        const offset = targetRect.left - carouselRect.left;
+                        
+                        // Вычисляем идеальную позицию для центрирования
+                        const scrollTarget = carousel.scrollLeft + offset - (carouselRect.width / 2) + (targetRect.width / 2);
+                        
+                        carousel.scrollTo({ left: scrollTarget, behavior: 'smooth' });
+                    }
                 }
-            }
-        }, 50); // Небольшая задержка, чтобы DOM успел перерисоваться
+            });
+        }, 100);
     };
 
     const originalSetActiveTab = window.setActiveTab;
