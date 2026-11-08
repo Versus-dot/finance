@@ -9,6 +9,14 @@
         if (!S.meta.deletedIds) S.meta.deletedIds = [];
     }
 
+    // Стиль для архивных счетов
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `
+        .account-row.archived-acc { opacity: 0.5; filter: grayscale(100%); transition: opacity 0.2s; }
+        .account-row.archived-acc:hover { opacity: 0.8; }
+    `;
+    document.head.appendChild(styleEl);
+
     // 🗑 МОГИЛЬНЫЕ ПЛИТЫ (Удаление)
     const originalDeleteAccount = window.deleteAccount;
     window.deleteAccount = function(id) {
@@ -31,7 +39,7 @@
     };
 
     // ==========================================
-    // ФИКСЫ ОКНА СЧЕТА (Игнор баланса, Срок в днях, Хедж)
+    // ФИКСЫ ОКНА СЧЕТА (Игнор баланса, Срок в днях, Архив)
     // ==========================================
     const prevOpenAccountModal = window.openAccountModal;
     window.openAccountModal = function(id, bankId) {
@@ -42,9 +50,18 @@
         window._currentEditingAccId = id || null; 
 
         const cushionLabel = form.querySelector('input[id="accCushion"]').closest('.form-group');
-        const ignoreDiv = document.createElement('div'); ignoreDiv.className = 'form-group';
+        
+        // Чекбокс "Исключить из баланса"
+        const ignoreDiv = document.createElement('div'); 
+        ignoreDiv.className = 'form-group';
         ignoreDiv.innerHTML = `<label><input type="checkbox" id="accIgnoreBalance" style="width:auto;margin-right:8px" ${acc && acc.ignoreBalance ? 'checked' : ''}>👁️‍🗨️ Исключить из общего баланса</label>`;
         cushionLabel.after(ignoreDiv);
+
+        // Чекбокс "Отправить в архив"
+        const archiveDiv = document.createElement('div');
+        archiveDiv.className = 'form-group';
+        archiveDiv.innerHTML = `<label><input type="checkbox" id="accArchived" style="width:auto;margin-right:8px" ${acc && acc.archived ? 'checked' : ''}>🗄️ Отправить в архив (скрыть из списка)</label>`;
+        ignoreDiv.after(archiveDiv);
         
         const termSelect = document.getElementById('accTerm');
         if (termSelect) {
@@ -73,24 +90,44 @@
         }, 100);
     };
 
-    // ФИКС СОХРАНЕНИЯ ГАЛОЧКИ ИГНОРИРОВАНИЯ
+    // ФИКС СОХРАНЕНИЯ ГАЛОЧЕК (Игнор и Архив)
     const prevSaveWithIgnore = window.save;
     window.save = function(isUserAction = true) {
         const accForm = document.getElementById('accForm');
         const ignoreCb = document.getElementById('accIgnoreBalance');
+        const archCb = document.getElementById('accArchived');
         
-        if (accForm && ignoreCb) {
-            const isIgnore = ignoreCb.checked;
+        if (accForm) {
             if (window._currentEditingAccId) {
                 const acc = S.accounts.find(a => a.id === window._currentEditingAccId);
-                if (acc) acc.ignoreBalance = isIgnore;
+                if (acc) {
+                    if (ignoreCb) acc.ignoreBalance = ignoreCb.checked;
+                    if (archCb) acc.archived = archCb.checked;
+                }
             } else {
                 if (S.accounts.length > 0) {
-                    S.accounts[S.accounts.length - 1].ignoreBalance = isIgnore;
+                    const lastAcc = S.accounts[S.accounts.length - 1];
+                    if (ignoreCb) lastAcc.ignoreBalance = ignoreCb.checked;
+                    if (archCb) lastAcc.archived = archCb.checked;
                 }
             }
         }
         if (prevSaveWithIgnore) prevSaveWithIgnore.call(this, isUserAction);
+    };
+
+    // Визуальный стиль для архивных счетов
+    const prevRenderAccRowForArch = window.renderAccountRow;
+    window.renderAccountRow = function(a, bank) {
+        let html = prevRenderAccRowForArch(a, bank);
+        if (a.archived) {
+            // Ищем класс account-row и добавляем класс archived-acc
+            if (html.includes('class="account-row ')) {
+                html = html.replace('class="account-row ', 'class="account-row archived-acc ');
+            } else {
+                html = html.replace('class="account-row"', 'class="account-row archived-acc"');
+            }
+        }
+        return html;
     };
 
     // ПЕРЕСЧЕТ ИТОГОВ (Игнор баланса)
