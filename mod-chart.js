@@ -2,11 +2,10 @@
 // МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v113)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v114)");
 
     let myChart = null;
 
-    // 1. Плагин для отрисовки суммы в центре
     const centerTextPlugin = {
         id: 'centerText',
         afterDraw: (chart) => {
@@ -15,17 +14,14 @@
             const centerX = left + width / 2;
             const centerY = top + height / 2;
 
-            // Считаем общую сумму
             const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
 
-            // Пишем сумму
             ctx.font = 'bold 20px -apple-system, system-ui, sans-serif';
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#fff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(fmt(total), centerX, centerY - 8);
 
-            // Пишем подпись
             ctx.font = '11px -apple-system, system-ui, sans-serif';
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#888';
             ctx.fillText('Общий капитал', centerX, centerY + 14);
@@ -33,7 +29,6 @@
         }
     };
 
-    // 2. Плагин для отрисовки процентов на секторах
     const sectorLabelPlugin = {
         id: 'sectorLabels',
         afterDatasetsDraw: (chart) => {
@@ -49,7 +44,6 @@
                 const value = data[index];
                 const pct = (value / total) * 100;
 
-                // Рисуем только если сектор больше 5%, чтобы текст не наезжал друг на друга
                 if (pct > 5) {
                     const midAngle = (arc.startAngle + arc.endAngle) / 2;
                     const midRadius = (arc.innerRadius + arc.outerRadius) / 2;
@@ -57,7 +51,7 @@
                     const centerY = arc.y + Math.sin(midAngle) * midRadius;
 
                     ctx.font = 'bold 12px -apple-system, system-ui, sans-serif';
-                    ctx.fillStyle = '#ffffff'; // Белый текст лучше всего читается на цветных секторах
+                    ctx.fillStyle = '#ffffff'; 
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText(Math.round(pct) + '%', centerX, centerY);
@@ -67,7 +61,6 @@
         }
     };
 
-    // 3. Перехватываем рендер статистики
     const prevRenderStats = window.renderStats;
     window.renderStats = function() {
         if (prevRenderStats) prevRenderStats();
@@ -118,7 +111,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '60%', // Сделали бублик толще (было 70%)
+                cutout: '60%', 
                 plugins: {
                     legend: {
                         position: 'right',
@@ -129,6 +122,14 @@
                         }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(30, 37, 50, 0.95)', // Плотный фон (цвет карточки)
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#4d7fff', // Синяя рамка
+                        borderWidth: 1,
+                        padding: 10,
+                        cornerRadius: 8,
+                        displayColors: true,
                         callbacks: {
                             label: function(context) {
                                 const val = context.raw;
@@ -146,7 +147,7 @@
                     }
                 }
             },
-            plugins: [centerTextPlugin, sectorLabelPlugin] // Подключаем наши плагины
+            plugins: [centerTextPlugin, sectorLabelPlugin] 
         });
     }
 
