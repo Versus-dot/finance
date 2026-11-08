@@ -8,70 +8,71 @@
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .cushion-widget {
-            background: linear-gradient(135deg, rgba(46, 204, 113, 0.1), rgba(30, 37, 50, 0.5));
-            border: 1px solid rgba(46, 204, 113, 0.3);
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.05), rgba(30, 37, 50, 0.5));
+            border: 1px solid rgba(46, 204, 113, 0.15);
             border-radius: 14px;
             padding: 16px;
             margin-bottom: 16px;
             cursor: pointer;
-            transition: transform 0.1s, box-shadow 0.2s;
+            transition: transform 0.1s;
             position: relative;
             overflow: hidden;
         }
         .cushion-widget:active { transform: scale(0.99); }
-        .cushion-widget:hover { box-shadow: 0 4px 12px rgba(46, 204, 113, 0.1); }
         
         .cushion-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
         .cushion-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--green);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
             display: flex;
             align-items: center;
             gap: 6px;
+            opacity: 0.9;
         }
         .cushion-eye-btn {
-            background: rgba(255,255,255,0.1);
+            background: transparent;
             border: none;
             border-radius: 50%;
-            width: 28px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            color: var(--text);
+            color: var(--muted);
             transition: background 0.2s;
         }
-        .cushion-eye-btn:hover { background: rgba(255,255,255,0.2); }
+        .cushion-eye-btn:hover { background: rgba(255,255,255,0.1); }
         
         .cushion-amount {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         .cushion-goal-text {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--muted);
             display: flex;
             justify-content: space-between;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
         .cushion-progress-bg {
-            height: 8px;
-            background: var(--border);
-            border-radius: 4px;
+            height: 4px;
+            background: var(--border); /* Темно-серая подложка */
+            border-radius: 2px;
             overflow: hidden;
         }
         .cushion-progress-fill {
             height: 100%;
-            border-radius: 4px;
-            transition: width 0.5s ease-out, background-color 0.3s;
+            border-radius: 2px;
+            background: var(--muted); /* Нейтральный серый цвет */
+            transition: width 0.3s ease-out;
         }
         /* Мини-виджет, когда подушка скрыта */
         .cushion-mini {
@@ -122,12 +123,6 @@
             if (target > 0) {
                 percent = Math.min(100, (cushionSum / target) * 100);
             }
-            
-            let barColor = 'var(--green)';
-            if (target > 0) {
-                if (percent < 30) barColor = 'var(--red)';
-                else if (percent < 80) barColor = 'var(--yellow)';
-            }
 
             const goalHtml = target > 0 ? `
                 <div class="cushion-goal-text">
@@ -135,10 +130,10 @@
                     <span>${percent.toFixed(0)}%</span>
                 </div>
                 <div class="cushion-progress-bg">
-                    <div class="cushion-progress-fill" style="width: ${percent}%; background-color: ${barColor};"></div>
+                    <div class="cushion-progress-fill" style="width: ${percent}%;"></div>
                 </div>
             ` : `
-                <div class="cushion-goal-text" style="justify-content: flex-start; color: var(--muted);">
+                <div class="cushion-goal-text" style="justify-content: flex-start;">
                     <span>Цель не задана (нажмите, чтобы настроить)</span>
                 </div>
             `;
@@ -163,12 +158,14 @@
         }
     }
 
+    // 3. Перехватываем рендер главной страницы БЕЗ ЗАДЕРЖКИ (чтобы не было рывков)
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDashboard) prevRenderDashboard();
-        setTimeout(injectCushionWidget, 50);
+        injectCushionWidget(); // Вставляем сразу же, синхронно
     };
 
+    // 4. Функции-действия
     window.toggleCushionVisibility = function() {
         S.settings.showCushionWidget = (S.settings.showCushionWidget === false);
         if (typeof save === 'function') save();
