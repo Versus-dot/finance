@@ -2,13 +2,12 @@
 // МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v116)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v117)");
 
     let myChart = null;
 
     const centerTextPlugin = {
         id: 'centerText',
-        // ИСПРАВЛЕНО: afterDatasetsDraw срабатывает ДО отрисовки тултипа
         afterDatasetsDraw: (chart) => {
             const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
             ctx.save();
@@ -123,7 +122,7 @@
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(30, 37, 50, 1)', // 100% непрозрачный фон
+                        backgroundColor: 'rgba(30, 37, 50, 1)',
                         titleColor: '#ffffff',
                         bodyColor: '#ffffff',
                         borderColor: '#4d7fff', 
@@ -163,30 +162,50 @@
         };
 
         S.accounts.forEach(a => {
-            if (a.archived) return;
+            if (a.archived || a.ignoreBalance) return; // Исключаем архивные и скрытые из баланса
+
             const val = window.accValue(a);
-            if (val <= 0) return;
+            let contribution = val;
 
-            let target = null;
-
-            if (a.inCushion) {
-                target = sectors.cushion;
-            } 
-            else if (a.type === 'brokerage' || a.type === 'iis') {
-                target = sectors.stocks;
-            } else if (a.type === 'pds') {
-                target = sectors.pds;
-            } else if (a.type === 'crypto_wallet' || a.type === 'crypto_exchange') {
-                target = sectors.crypto;
-            } else if (['deposit', 'savings', 'finu_wallet', 'invest_kopilka'].includes(a.type)) {
-                target = sectors.savings;
-            } else if (['debit', 'cash'].includes(a.type)) {
-                target = sectors.cash;
+            // 1. Для кредиток в капитал идет только переплата
+            if (a.type === 'credit') {
+                const limit = a.creditLimit || 0;
+                contribution = Math.max(0, val - limit);
             }
 
-            if (target) {
-                target.value += val;
-                target.accounts.push(a);
+            // 2. Учитываем хедж (вычитаем перекрытую часть)
+            if (S.settings.hedgingEnabled && a.hedgeFor) {
+                const card = S.accounts.find(c => c.id === a.hedgeFor && c.type === 'credit' && !c.archived);
+                if (card) {
+                    const limit = card.creditLimit || 0;
+                    const covered = Math.min(val, limit);
+                    contribution -= covered;
+                }
+            }
+
+            // 3. Распределяем по секторам (только положительный остаток)
+            if (contribution > 0) {
+                let target = null;
+
+                if (a.inCushion) {
+                    target = sectors.cushion;
+                } else if (a.type === 'brokerage' || a.type === 'iis') {
+                    target = sectors.stocks;
+                } else if (a.type === 'pds') {
+                    target = sectors.pds;
+                } else if (a.type === 'crypto_wallet' || a.type === 'crypto_exchange') {
+                    target = sectors.crypto;
+                } else if (['deposit', 'savings', 'finu_wallet', 'invest_kopilka'].includes(a.type)) {
+                    target = sectors.savings;
+                } else if (['debit', 'cash', 'credit'].includes(a.type)) {
+                    target = sectors.cash;
+                }
+
+                if (target) {
+                    target.value += contribution;
+                    // Сохраняем счет вместе с его реальным вкладом для правильного отображения в модалке
+                    target.accounts.push({ ...a, _chartContribution: contribution });
+                }
             }
         });
 
@@ -195,8 +214,8 @@
 
     function openCategoryDetails(category) {
         let listHtml = '';
-        category.accounts.sort((a, b) => window.accValue(b) - window.accValue(a)).forEach(acc => {
-            const val = window.accValue(acc);
+        category.accounts.sort((a, b) => b._chartContribution - a._chartContribution).forEach(acc => {
+            const val = acc._chartContribution;
             const bank = S.banks.find(b => b.id === acc.bankId);
             const bankName = bank ? bank.name : 'Банк';
             
@@ -236,7 +255,7 @@
         let stocksSum = 0, bondsSum = 0, etfSum = 0, cashSum = 0;
         let hasBreakdown = false;
 
-        S.accounts.filter(a => (a.type === 'brokerage' || a.type === 'iis') && !a.inCushion && !a.archived).forEach(a => {
+        S.accounts.filter(a => (a.type === 'brokerage' || a.type === 'iis') && !a.inCushion && !a.archived && !a.ignoreBalance).forEach(a => {
             if (a.portfolioBreakdown) {
                 hasBreakdown = true;
                 stocksSum += a.portfolioBreakdown.stocks || 0;
