@@ -96,26 +96,21 @@
         const homePage = document.getElementById('page-home');
         if (!homePage) return;
 
-        // Удаляем старые виджеты, если они есть (чтобы не дублировались)
         const oldWidget = document.getElementById('cushionWidgetContainer');
         if (oldWidget) oldWidget.remove();
 
-        // Считаем сумму подушки
         const totals = window.computeTotals ? window.computeTotals() : { cushion: 0 };
         const cushionSum = totals.cushion || 0;
         const target = S.settings.cushionTarget || 0;
         
-        // Проверяем настройку видимости (по умолчанию - true)
         const isVisible = S.settings.showCushionWidget !== false;
 
-        // Если сумма 0 и цели нет, не показываем виджет, чтобы не захламлять экран
         if (cushionSum === 0 && target === 0) return;
 
         const container = document.createElement('div');
         container.id = 'cushionWidgetContainer';
 
         if (!isVisible) {
-            // Компактный вид, если скрыто
             container.innerHTML = `
                 <div class="cushion-mini" onclick="window.toggleCushionVisibility()">
                     <span>🛡️ Подушка безопасности (скрыта)</span>
@@ -123,13 +118,11 @@
                 </div>
             `;
         } else {
-            // Полный вид
             let percent = 0;
             if (target > 0) {
                 percent = Math.min(100, (cushionSum / target) * 100);
             }
             
-            // Цвет прогресс-бара
             let barColor = 'var(--green)';
             if (target > 0) {
                 if (percent < 30) barColor = 'var(--red)';
@@ -138,7 +131,7 @@
 
             const goalHtml = target > 0 ? `
                 <div class="cushion-goal-text">
-                    <span>Цель: ${window.fmt(target)}</span>
+                    <span>Цель: ${fmt(target)}</span>
                     <span>${percent.toFixed(0)}%</span>
                 </div>
                 <div class="cushion-progress-bg">
@@ -156,13 +149,12 @@
                         <div class="cushion-title">🛡️ Подушка безопасности</div>
                         <button class="cushion-eye-btn" onclick="event.stopPropagation(); window.toggleCushionVisibility()" title="Скрыть">👁️</button>
                     </div>
-                    <div class="cushion-amount">${window.fmt(cushionSum)}</div>
+                    <div class="cushion-amount">${fmt(cushionSum)}</div>
                     ${goalHtml}
                 </div>
             `;
         }
 
-        // Вставляем виджет после верхней панели с общим балансом
         const totalBar = homePage.querySelector('.total-bar');
         if (totalBar) {
             totalBar.after(container);
@@ -171,15 +163,12 @@
         }
     }
 
-    // 3. Перехватываем рендер главной страницы
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDashboard) prevRenderDashboard();
-        // Задержка, чтобы app.js успел отрисовать свой HTML
         setTimeout(injectCushionWidget, 50);
     };
 
-    // 4. Функции-действия
     window.toggleCushionVisibility = function() {
         S.settings.showCushionWidget = (S.settings.showCushionWidget === false);
         if (typeof save === 'function') save();
@@ -208,10 +197,10 @@
             listHtml += `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border);">
                     <div>
-                        <div style="font-weight:600; font-size:14px;">${window.esc(acc.name)}</div>
-                        <div style="font-size:11px; color:var(--muted);">${window.esc(bankName)} · ${pct}%</div>
+                        <div style="font-weight:600; font-size:14px;">${esc(acc.name)}</div>
+                        <div style="font-size:11px; color:var(--muted);">${esc(bankName)} · ${pct}%</div>
                     </div>
-                    <div style="font-weight:700;">${window.fmt(val)}</div>
+                    <div style="font-weight:700;">${fmt(val)}</div>
                 </div>
             `;
         });
@@ -222,7 +211,7 @@
                 <button class="btn-icon" onclick="closeModal()">✕</button>
             </div>
             <div style="font-size: 24px; font-weight: 800; color: var(--green); margin-bottom: 16px;">
-                ${window.fmt(total)}
+                ${fmt(total)}
             </div>
             <div style="max-height: 300px; overflow-y: auto;">
                 ${listHtml}
