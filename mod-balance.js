@@ -2,7 +2,7 @@
 // МОДУЛЬ ДЕТАЛИЗАЦИИ БАЛАНСА И КРЕДИТОВ (mod-balance.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль детализации баланса и кредитов загружен (v104)");
+    console.log("✅ Модуль детализации баланса и кредитов загружен (v105)");
 
     // 1. Добавляем стили
     const styleEl = document.createElement('style');
@@ -54,22 +54,33 @@
         let displayAccs = [];
         
         S.accounts.forEach(a => {
+            // Жесткий фильтр архивных
             if (a.archived) return;
             
             const val = window.accValue(a);
             let contribution = 0; 
             
-            // Считаем вклад точно так же, как в computeTotals
+            // Считаем вклад так же, как computeTotals
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;
                 contribution = Math.max(0, val - limit); 
             } else {
                 contribution = val;
             }
-            
-            // Если исключен, вклад = 0
-            if (a.ignoreBalance) {
+
+            // Если "Исключить из баланса" или "Транзитный" - вклад 0
+            if (a.ignoreBalance || a.isTransit) {
                 contribution = 0;
+            }
+
+            // Учитываем хедж (если включен)
+            if (S.settings.hedgingEnabled && a.hedgeFor) {
+                const card = S.accounts.find(c => c.id === a.hedgeFor && c.type === 'credit' && !c.archived);
+                if (card) {
+                    const limit = card.creditLimit || 0;
+                    const covered = Math.min(val, limit);
+                    contribution -= covered;
+                }
             }
             
             // В список попадают только те, кто реально в плюсе
@@ -139,7 +150,7 @@
         let debtAccs = [];
         
         S.accounts.forEach(a => {
-            if (a.archived || a.type !== 'credit') return;
+            if (a.archived || a.type !== 'credit' || a.ignoreBalance) return;
             
             const limit = a.creditLimit || 0;
             const val = window.accValue(a);
