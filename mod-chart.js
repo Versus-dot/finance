@@ -2,7 +2,7 @@
 // МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v114)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v115)");
 
     let myChart = null;
 
@@ -122,12 +122,12 @@
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(30, 37, 50, 0.95)', // Плотный фон (цвет карточки)
+                        backgroundColor: '#1e2532', // 100% непрозрачный темный фон (цвет карточки)
                         titleColor: '#ffffff',
                         bodyColor: '#ffffff',
-                        borderColor: '#4d7fff', // Синяя рамка
-                        borderWidth: 1,
-                        padding: 10,
+                        borderColor: '#4d7fff', // Яркая синяя рамка
+                        borderWidth: 2,
+                        padding: 12,
                         cornerRadius: 8,
                         displayColors: true,
                         callbacks: {
