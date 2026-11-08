@@ -2,7 +2,7 @@
 // МОДУЛЬ ДЕТАЛИЗАЦИИ БАЛАНСА И КРЕДИТОВ (mod-balance.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль детализации баланса и кредитов загружен (v106)");
+    console.log("✅ Модуль детализации баланса и кредитов загружен (v107)");
 
     // 1. Добавляем стили
     const styleEl = document.createElement('style');
@@ -70,6 +70,7 @@
                 contribution = 0;
             }
 
+            // Учитываем хедж
             if (S.settings.hedgingEnabled && a.hedgeFor) {
                 const card = S.accounts.find(c => c.id === a.hedgeFor && c.type === 'credit' && !c.archived);
                 if (card) {
@@ -135,7 +136,7 @@
         `);
     };
 
-    // 4. Окно Кредитов (ИСПРАВЛЕНО: добавлен фильтр a.ignoreBalance)
+    // 4. Окно Кредитов (С УЧЕТОМ ХЕДЖА)
     window.openTotalDebtDetails = function() {
         if (typeof S === 'undefined') return;
         
@@ -145,15 +146,21 @@
         let debtAccs = [];
         
         S.accounts.forEach(a => {
-            // ЖЕСТКИЙ ФИЛЬТР: архив, не кредитка, исключенные из баланса
             if (a.archived || a.type !== 'credit' || a.ignoreBalance) return;
             
             const limit = a.creditLimit || 0;
             const val = window.accValue(a);
-            const debt = Math.max(0, limit - val);
+            let realDebt = Math.max(0, limit - val);
             
-            if (debt > 0) {
-                debtAccs.push({ acc: a, debt: debt, limit: limit });
+            // Вычитаем хедж (вклады, привязанные к этой карте)
+            if (S.settings.hedgingEnabled) {
+                const hedges = S.accounts.filter(x => x.hedgeFor === a.id && !x.archived);
+                const totalHedge = hedges.reduce((sum, h) => sum + window.accValue(h), 0);
+                realDebt = Math.max(0, realDebt - totalHedge);
+            }
+            
+            if (realDebt > 0) {
+                debtAccs.push({ acc: a, debt: realDebt, limit: limit });
             }
         });
         
