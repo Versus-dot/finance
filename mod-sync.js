@@ -16,9 +16,7 @@
     };
 
     // Блокируем старый бэкап-менеджер
-    window.checkDailyBackup = async function() { 
-        console.log("⏸️ Старый ежедневный бэкап заблокирован (используем умную синхронизацию)"); 
-    };
+    window.checkDailyBackup = async function() {};
     window.queueSmartSync = function() {}; 
     window.performSmartSync = function() {};
     window.checkCloudSync = function() {};
@@ -56,8 +54,8 @@
 
     const originalSave = window.save;
     window.save = function(isUserAction = true) {
-        // Трекинг изменений для синхронизации
-        if (typeof S !== 'undefined' && window._prevState) {
+        // ИСПРАВЛЕНО: Обновляем метки времени и _prevState ТОЛЬКО если это ручное действие пользователя
+        if (isUserAction && typeof S !== 'undefined' && window._prevState) {
             ['accounts', 'transactions', 'banks', 'categories', 'budgets', 'debts'].forEach(key => {
                 if (!S[key] || !window._prevState[key]) return;
                 S[key].forEach(newItem => {
@@ -74,14 +72,12 @@
                 });
             });
             window._prevState = JSON.parse(JSON.stringify(S));
+            localStorage.setItem('financeApp_localChange', Date.now()); 
+            scheduleSync();
         }
 
         if (originalSave) originalSave.call(this, isUserAction);
-        
         if (typeof applyBadgeStyle === 'function') applyBadgeStyle();
-        localStorage.setItem('financeApp_localChange', Date.now()); 
-        
-        if (isUserAction) scheduleSync();
     };
 
     // Планировщик синхронизации
@@ -137,7 +133,7 @@
             const lastSync = parseInt(localStorage.getItem('financeApp_lastSync') || '0');
             const localChange = parseInt(localStorage.getItem('financeApp_localChange') || '0');
 
-            // ЕСЛИ НАЖАЛИ ВРУЧНУЮ — ВСЕГДА КАЧАЕМ, СЛИВАЕМ И ОТПРАВЛЯЕМ ОБРАТНО
+            // ЕСЛИ НАЖАЛИ ВРУЧНУЮ — СКАЧИВАЕМ, СЛИВАЕМ И ОТПРАВЛЯЕМ ОБРАТНО
             if (isManual) {
                 if (typeof toast === 'function') toast('⬇️ Скачиваем и сливаем данные...');
                 await downloadFromCloud(token, cloudModified, isManual);
@@ -146,7 +142,7 @@
                 return;
             }
 
-            // АВТОМАТИЧЕСКАЯ СИНХРОНИЗАЦИЯ (если не нажимали кнопку)
+            // АВТОМАТИЧЕСКАЯ СИНХРОНИЗАЦИЯ
             const isLocalEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
 
             if (isLocalEmpty) {
@@ -180,8 +176,14 @@
 
         mergeData(cloudData);
         
+        // ⚠️ ИСПРАВЛЕНО: Обновляем _prevState, чтобы save(false) не пометил всё как измененное
+        if (typeof S !== 'undefined') {
+            window._prevState = JSON.parse(JSON.stringify(S));
+        }
+
         localStorage.setItem('financeApp_lastSync', cloudModified);
         localStorage.setItem('financeApp_localChange', cloudModified); 
+        
         if (typeof save === 'function') save(false); 
         if (typeof renderAll === 'function') renderAll();
         if (isManual && typeof toast === 'function') toast('✅ Данные обновлены из облака');
@@ -213,7 +215,6 @@
         }
     }
 
-    // СЛИЯНИЕ ДАННЫХ (Могильные плиты и _updatedAt)
     function mergeData(cloudData) {
         if (typeof S === 'undefined') return;
 
@@ -263,16 +264,13 @@
         S.meta = { deletedIds: allDeleted, _updatedAt: Date.now() };
     }
 
-    // Запуск и переопределение ручной кнопки
     setTimeout(() => { if (typeof window.syncSmart === 'function') window.syncSmart(false); }, 1500); 
     window.syncManual = function() { window.syncSmart(true); };
 
-    // Подменяем кнопку ручной синхронизации
     setTimeout(() => {
         const syncBtn = document.getElementById('syncBtn');
         if (syncBtn) {
             syncBtn.onclick = function() { window.syncManual(); };
         }
     }, 500);
-
 })();
