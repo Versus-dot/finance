@@ -8,9 +8,9 @@
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .cushion-widget {
-            background: linear-gradient(135deg, rgba(46, 204, 113, 0.05), rgba(30, 37, 50, 0.5));
-            border: 1px solid rgba(46, 204, 113, 0.15);
-            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(26, 32, 44, 0.5));
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            border-radius: 20px;
             padding: 16px;
             margin-bottom: 16px;
             cursor: pointer;
@@ -24,7 +24,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
         .cushion-title {
             font-size: 13px;
@@ -38,47 +38,51 @@
         .cushion-eye-btn {
             background: transparent;
             border: none;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             color: var(--muted);
-            transition: background 0.2s;
+            transition: background 0.2s, color 0.2s;
+            padding: 0;
         }
-        .cushion-eye-btn:hover { background: rgba(255,255,255,0.1); }
+        .cushion-eye-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+        .cushion-eye-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         
         .cushion-amount {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 800;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
         }
         .cushion-goal-text {
             font-size: 11px;
             color: var(--muted);
             display: flex;
             justify-content: space-between;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
+            font-weight: 600;
         }
         .cushion-progress-bg {
-            height: 4px;
+            height: 6px;
             background: var(--border);
-            border-radius: 2px;
+            border-radius: 3px;
             overflow: hidden;
         }
         .cushion-progress-fill {
             height: 100%;
-            border-radius: 2px;
+            border-radius: 3px;
             background: var(--muted);
             transition: width 0.3s ease-out;
         }
         .cushion-mini {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 8px 12px;
+            border-radius: 16px;
+            padding: 12px 16px;
             margin-bottom: 16px;
             display: flex;
             justify-content: space-between;
@@ -87,9 +91,21 @@
             font-weight: 600;
             color: var(--muted);
             cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
         }
+        .cushion-mini span:last-child {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--accent);
+        }
+        .cushion-mini svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     `;
     document.head.appendChild(styleEl);
+
+    // SVG Иконки
+    const eyeOpen = `<svg viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    const eyeClosed = `<svg viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
 
     // 2. Функция отрисовки виджета
     function injectCushionWidget() {
@@ -114,7 +130,7 @@
             container.innerHTML = `
                 <div class="cushion-mini" onclick="window.toggleCushionVisibility()">
                     <span>🛡️ Подушка безопасности (скрыта)</span>
-                    <span>👁️ Показать</span>
+                    <span>${eyeOpen} Показать</span>
                 </div>
             `;
         } else {
@@ -141,7 +157,7 @@
                 <div class="cushion-widget" onclick="window.openCushionDetails()">
                     <div class="cushion-header">
                         <div class="cushion-title">🛡️ Подушка безопасности</div>
-                        <button class="cushion-eye-btn" onclick="event.stopPropagation(); window.toggleCushionVisibility()" title="Скрыть">👁️</button>
+                        <button class="cushion-eye-btn" onclick="event.stopPropagation(); window.toggleCushionVisibility()" title="Скрыть">${eyeClosed}</button>
                     </div>
                     <div class="cushion-amount">${fmt(cushionSum)}</div>
                     ${goalHtml}
@@ -191,7 +207,7 @@
             const bankName = bank ? bank.name : 'Банк';
             
             listHtml += `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border);">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid var(--border);">
                     <div>
                         <div style="font-weight:600; font-size:14px;">${esc(acc.name)}</div>
                         <div style="font-size:11px; color:var(--muted);">${esc(bankName)} · ${pct}%</div>
@@ -223,7 +239,6 @@
     window.openSettings = function() {
         if (prevOpenSettings) prevOpenSettings();
         
-        // Вставляем поле ввода цели
         const titleInput = document.getElementById('setTitle');
         if (titleInput && !document.getElementById('setCushionTarget')) {
             const targetDiv = document.createElement('div');
@@ -240,7 +255,6 @@
             S.settings.cushionTarget = parseFloat(targetVal.value) || 0;
         }
         if (prevSaveSettings) prevSaveSettings();
-        // Принудительно перерисовываем виджет после сохранения
         setTimeout(injectCushionWidget, 100);
     };
 })();
