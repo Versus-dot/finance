@@ -2,7 +2,20 @@
 // МОДУЛЬ ДЕТАЛИЗАЦИИ БАЛАНСА И КРЕДИТОВ (mod-balance.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль детализации баланса и кредитов загружен (v121)");
+    console.log("✅ Модуль детализации баланса и кредитов загружен (v122)");
+
+    // ФИКС: Убираем "-0", если сумма микроскопическая
+    const originalComputeTotals = window.computeTotals;
+    window.computeTotals = function() {
+        if (!originalComputeTotals) return { totalCap: 0, debt: 0 };
+        let totals = originalComputeTotals();
+        
+        // Если капитал или долг меньше копейки по модулю, делаем ровно 0
+        if (Math.abs(totals.totalCap) < 0.01) totals.totalCap = 0;
+        if (Math.abs(totals.debt) < 0.01) totals.debt = 0;
+        
+        return totals;
+    };
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
