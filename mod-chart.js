@@ -2,7 +2,7 @@
 // МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v117)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v118)");
 
     let myChart = null;
 
@@ -162,18 +162,16 @@
         };
 
         S.accounts.forEach(a => {
-            if (a.archived || a.ignoreBalance) return; // Исключаем архивные и скрытые из баланса
+            if (a.archived || a.ignoreBalance) return;
 
-            const val = window.accValue(a);
+            const val = accValue(a);
             let contribution = val;
 
-            // 1. Для кредиток в капитал идет только переплата
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;
                 contribution = Math.max(0, val - limit);
             }
 
-            // 2. Учитываем хедж (вычитаем перекрытую часть)
             if (S.settings.hedgingEnabled && a.hedgeFor) {
                 const card = S.accounts.find(c => c.id === a.hedgeFor && c.type === 'credit' && !c.archived);
                 if (card) {
@@ -183,7 +181,6 @@
                 }
             }
 
-            // 3. Распределяем по секторам (только положительный остаток)
             if (contribution > 0) {
                 let target = null;
 
@@ -203,7 +200,6 @@
 
                 if (target) {
                     target.value += contribution;
-                    // Сохраняем счет вместе с его реальным вкладом для правильного отображения в модалке
                     target.accounts.push({ ...a, _chartContribution: contribution });
                 }
             }
