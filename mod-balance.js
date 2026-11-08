@@ -2,7 +2,7 @@
 // МОДУЛЬ ДЕТАЛИЗАЦИИ БАЛАНСА И КРЕДИТОВ (mod-balance.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль детализации баланса и кредитов загружен (v105)");
+    console.log("✅ Модуль детализации баланса и кредитов загружен (v106)");
 
     // 1. Добавляем стили
     const styleEl = document.createElement('style');
@@ -54,26 +54,22 @@
         let displayAccs = [];
         
         S.accounts.forEach(a => {
-            // Жесткий фильтр архивных
             if (a.archived) return;
             
             const val = window.accValue(a);
             let contribution = 0; 
             
-            // Считаем вклад так же, как computeTotals
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;
                 contribution = Math.max(0, val - limit); 
             } else {
                 contribution = val;
             }
-
-            // Если "Исключить из баланса" или "Транзитный" - вклад 0
+            
             if (a.ignoreBalance || a.isTransit) {
                 contribution = 0;
             }
 
-            // Учитываем хедж (если включен)
             if (S.settings.hedgingEnabled && a.hedgeFor) {
                 const card = S.accounts.find(c => c.id === a.hedgeFor && c.type === 'credit' && !c.archived);
                 if (card) {
@@ -83,7 +79,6 @@
                 }
             }
             
-            // В список попадают только те, кто реально в плюсе
             if (contribution > 0) {
                 displayAccs.push({ acc: a, val: contribution });
             }
@@ -140,7 +135,7 @@
         `);
     };
 
-    // 4. Окно Кредитов
+    // 4. Окно Кредитов (ИСПРАВЛЕНО: добавлен фильтр a.ignoreBalance)
     window.openTotalDebtDetails = function() {
         if (typeof S === 'undefined') return;
         
@@ -150,6 +145,7 @@
         let debtAccs = [];
         
         S.accounts.forEach(a => {
+            // ЖЕСТКИЙ ФИЛЬТР: архив, не кредитка, исключенные из баланса
             if (a.archived || a.type !== 'credit' || a.ignoreBalance) return;
             
             const limit = a.creditLimit || 0;
