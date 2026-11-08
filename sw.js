@@ -1,4 +1,4 @@
-const CACHE = 'finance-v88';
+const CACHE = 'finance-v89';
 const ASSETS = [
   './',
   './index.html',
@@ -6,8 +6,6 @@ const ASSETS = [
   './app.js',
   './manifest.json',
   './ui-fixes.js',
-  './sync-manager.js',
-  './backup-manager.js',
   './hedge.js',
   './search-fix.js',
   './mod-sync.js',
