@@ -13,6 +13,8 @@
     --yellow: #F59E0B;
     --purple: #8B5CF6;
     --debt: #F87171;
+    --gradient-balance: linear-gradient(135deg, rgba(26, 32, 44, 1) 0%, rgba(15, 23, 42, 0.6) 100%);
+    --gradient-bank-active: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0.02) 100%);
 }
 :root[data-theme="light"]{
     --bg: #F1F5F9;
@@ -29,6 +31,8 @@
     --yellow: #D97706;
     --purple: #7C3AED;
     --debt: #DC2626;
+    --gradient-balance: linear-gradient(135deg, #FFFFFF 0%, #F1F5F9 100%);
+    --gradient-bank-active: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, #FFFFFF 100%);
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -42,7 +46,20 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .icon-btn:active{background:var(--card2)}
 
 .page{display:none;padding:16px}.page.active{display:block}
-.total-bar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px;padding:0 4px}
+
+/* ГЛАВНЫЙ БАЛАНС КАК ПРЕМИАЛЬНАЯ КАРТОЧКА */
+.total-bar{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    margin-bottom:16px;padding:20px;
+    background: var(--gradient-balance);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+:root[data-theme="light"] .total-bar {
+    box-shadow: 0 8px 24px rgba(15,23,42,0.06);
+    border-color: rgba(15,23,42,0.05);
+}
 .total-val{font-size:28px;font-weight:800;margin-top:4px;letter-spacing:-1px}
 .total-label{font-size:12px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600}
 
@@ -57,7 +74,15 @@ body{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background
 .banks-carousel::-webkit-scrollbar{display:none}
 .bank-chip{flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:16px;min-width:140px;cursor:pointer;transition:all 0.2s ease;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05)}
 :root[data-theme="light"] .bank-chip{box-shadow:0 4px 12px rgba(15,23,42,0.05)}
-.bank-chip.active{border-color:var(--accent);background:rgba(99,102,241,0.1);box-shadow:0 4px 12px rgba(99,102,241,0.15)}
+.bank-chip.active{
+    border-color:var(--accent);
+    background: var(--gradient-bank-active);
+    box-shadow:0 8px 24px rgba(99,102,241,0.15);
+}
+:root[data-theme="light"] .bank-chip.active {
+    border-color: rgba(79, 70, 229, 0.3);
+    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.1);
+}
 .bank-chip .bc-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
 .bank-chip .bc-bal{font-size:16px;font-weight:800;letter-spacing:-0.5px}
 .bank-chip .bc-debt{font-size:11px;color:var(--muted);font-weight:700}
