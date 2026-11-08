@@ -2,7 +2,7 @@
 // МОДУЛЬ ДЕТАЛИЗАЦИИ БАЛАНСА И КРЕДИТОВ (mod-balance.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль детализации баланса и кредитов загружен (v109)");
+    console.log("✅ Модуль детализации баланса и кредитов загружен (v118)");
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
@@ -104,7 +104,6 @@
                 hedgePercent = Math.min(100, Math.round((hedgeAmount / originalDebt) * 100));
             }
             
-            // ИСПРАВЛЕНО: Показываем только если есть реальный долг
             if (realDebt > 0) {
                 debtAccs.push({ acc: a, debt: realDebt, limit: limit, hedgePercent: hedgePercent });
             }
@@ -122,7 +121,6 @@
             const bank = S.banks.find(b => b.id === acc.bankId);
             const bankName = bank ? bank.name : 'Банк';
             
-            // ИСПРАВЛЕНО: Убрал зеленый цвет
             const hedgeHtml = hedgePercent > 0 ? ` · <span>🛡️ Хеджирована на ${hedgePercent}%</span>` : '';
 
             listHtml += `
