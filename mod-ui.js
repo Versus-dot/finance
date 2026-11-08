@@ -268,11 +268,38 @@
     // ==========================================
     // ФИКС ОТОБРАЖЕНИЯ ВКЛАДКИ "СЧЕТА" (Устранение бага вложенности)
     // ==========================================
+    
+    // Функция переключения вида архива (раскрывает только нужные банки)
+    window.toggleArchiveView = function() {
+        S.ui.showArchived = !S.ui.showArchived;
+        
+        if (S.ui.showArchived) {
+            // Находим ID всех банков, у которых есть архивные счета
+            const archBanks = new Set();
+            S.accounts.filter(a => a.archived).forEach(a => {
+                archBanks.add(a.bankId);
+                // Если это под-банк, добавляем и его родителя
+                const bank = S.banks.find(b => b.id === a.bankId);
+                if (bank && bank.parentId) archBanks.add(bank.parentId);
+            });
+            // Убираем эти банки из списка свернутых
+            S.ui.collapsedBanks = S.ui.collapsedBanks.filter(id => !archBanks.has(id));
+        }
+        
+        save();
+        renderAccounts();
+    };
+
     window.renderAccounts = function() {
         const el = document.getElementById('page-accounts');
         if (!el) return;
         const showArch = S.ui.showArchived;
         let html = `<button class="btn-primary btn-block" style="margin-bottom:12px" onclick="openBankModal()">+ Добавить банк</button>`;
+        
+        if (showArch) {
+            html += `<div style="font-size:12px; color:var(--muted); text-align:center; margin-bottom:12px;">Показаны архивные счета (они выделены серым)</div>`;
+        }
+
         const topBanks = filterBanksForDisplay(S.banks.filter(b => !b.parentId)).sort((a,b) => (a.order||0) - (b.order||0));
         
         html += `<div id="banksSortable">`;
@@ -347,7 +374,8 @@
             </div>`;
         });
         html += `</div>`;
-        html += `<button class="btn-secondary btn-block" style="margin-top:12px" onclick="S.ui.showArchived=!S.ui.showArchived;save();renderAccounts()">${showArch?'Скрыть архив':'Показать архив'}</button>`;
+        // Обновленный onclick с вызовом нашей новой функции
+        html += `<button class="btn-secondary btn-block" style="margin-top:12px" onclick="window.toggleArchiveView()">${showArch?'Скрыть архив':'Показать архив'}</button>`;
         el.innerHTML = html;
 
         if (typeof Sortable !== 'undefined') {
