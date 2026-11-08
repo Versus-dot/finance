@@ -6,7 +6,6 @@
 
     let prevCollapsedState = null;
 
-    // ... (остальные стили и функции без изменений, начиная с const styleEl = ...) ...
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }
@@ -112,6 +111,7 @@
         });
     };
 
+    // === ДОБАВЛЕНА ЛОГИКА СКРОЛЛА КАРУСЕЛИ ===
     const originalSetDashFilter = window.setDashFilter;
     window.setDashFilter = function(bankId) {
         if (typeof S !== 'undefined' && S.ui) {
@@ -123,6 +123,21 @@
             if (typeof save === 'function') save(false);
         }
         if (originalSetDashFilter) originalSetDashFilter(bankId);
+
+        // Плавная прокрутка к выбранному банку
+        setTimeout(() => {
+            const carousel = document.querySelector('.banks-carousel');
+            if (!carousel) return;
+
+            if (bankId === 'all') {
+                carousel.scrollTo({ left: 0, behavior: 'smooth' });
+            } else {
+                const targetChip = carousel.querySelector(`.bank-chip[data-bank-id="${bankId}"]`);
+                if (targetChip) {
+                    targetChip.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+                }
+            }
+        }, 50); // Небольшая задержка, чтобы DOM успел перерисоваться
     };
 
     const originalSetActiveTab = window.setActiveTab;
@@ -186,10 +201,8 @@
         });
     }, 500);
 
-    // ФИКС АРХИВА С ВОЗВРАТОМ СОСТОЯНИЯ
     window.toggleArchiveView = function() {
         if (!S.ui.showArchived) {
-            // Показать архив
             prevCollapsedState = [...S.ui.collapsedBanks];
             const archBanks = new Set();
             S.accounts.filter(a => a.archived).forEach(a => {
@@ -199,7 +212,6 @@
             });
             S.ui.collapsedBanks = S.ui.collapsedBanks.filter(id => !archBanks.has(id));
         } else {
-            // Скрыть архив
             if (prevCollapsedState) {
                 S.ui.collapsedBanks = [...prevCollapsedState];
             }
