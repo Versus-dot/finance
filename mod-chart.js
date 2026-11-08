@@ -2,16 +2,75 @@
 // МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v112)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v113)");
 
     let myChart = null;
 
-    // 1. Перехватываем рендер статистики
+    // 1. Плагин для отрисовки суммы в центре
+    const centerTextPlugin = {
+        id: 'centerText',
+        afterDraw: (chart) => {
+            const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+            ctx.save();
+            const centerX = left + width / 2;
+            const centerY = top + height / 2;
+
+            // Считаем общую сумму
+            const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+
+            // Пишем сумму
+            ctx.font = 'bold 20px -apple-system, system-ui, sans-serif';
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#fff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(fmt(total), centerX, centerY - 8);
+
+            // Пишем подпись
+            ctx.font = '11px -apple-system, system-ui, sans-serif';
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#888';
+            ctx.fillText('Общий капитал', centerX, centerY + 14);
+            ctx.restore();
+        }
+    };
+
+    // 2. Плагин для отрисовки процентов на секторах
+    const sectorLabelPlugin = {
+        id: 'sectorLabels',
+        afterDatasetsDraw: (chart) => {
+            const { ctx } = chart;
+            const meta = chart.getDatasetMeta(0);
+            const data = chart.data.datasets[0].data;
+            const total = data.reduce((a, b) => a + b, 0);
+
+            if (total === 0) return;
+
+            ctx.save();
+            meta.data.forEach((arc, index) => {
+                const value = data[index];
+                const pct = (value / total) * 100;
+
+                // Рисуем только если сектор больше 5%, чтобы текст не наезжал друг на друга
+                if (pct > 5) {
+                    const midAngle = (arc.startAngle + arc.endAngle) / 2;
+                    const midRadius = (arc.innerRadius + arc.outerRadius) / 2;
+                    const centerX = arc.x + Math.cos(midAngle) * midRadius;
+                    const centerY = arc.y + Math.sin(midAngle) * midRadius;
+
+                    ctx.font = 'bold 12px -apple-system, system-ui, sans-serif';
+                    ctx.fillStyle = '#ffffff'; // Белый текст лучше всего читается на цветных секторах
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(Math.round(pct) + '%', centerX, centerY);
+                }
+            });
+            ctx.restore();
+        }
+    };
+
+    // 3. Перехватываем рендер статистики
     const prevRenderStats = window.renderStats;
     window.renderStats = function() {
         if (prevRenderStats) prevRenderStats();
-        
-        // Ждем немного, чтобы app.js отрисовал свои графики
         setTimeout(injectDonutChart, 100);
     };
 
@@ -22,11 +81,10 @@
         const oldContainer = document.getElementById('donutChartContainer');
         if (oldContainer) oldContainer.remove();
 
-        // Собираем данные
         const chartData = getChartData();
         const totalSum = chartData.reduce((sum, item) => sum + item.value, 0);
 
-        if (totalSum <= 0) return; // Если капитала нет, не рисуем
+        if (totalSum <= 0) return;
 
         const container = document.createElement('div');
         container.id = 'donutChartContainer';
@@ -60,7 +118,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '70%',
+                cutout: '60%', // Сделали бублик толще (было 70%)
                 plugins: {
                     legend: {
                         position: 'right',
@@ -87,7 +145,8 @@
                         openCategoryDetails(category);
                     }
                 }
-            }
+            },
+            plugins: [centerTextPlugin, sectorLabelPlugin] // Подключаем наши плагины
         });
     }
 
@@ -102,19 +161,15 @@
         };
 
         S.accounts.forEach(a => {
-            // Теперь берем все неархивные счета (галочку ignoreBalance игнорируем)
             if (a.archived) return;
-            
             const val = window.accValue(a);
             if (val <= 0) return;
 
             let target = null;
 
-            // 1. Проверка на Подушку (высший приоритет)
             if (a.inCushion) {
                 target = sectors.cushion;
             } 
-            // 2. Остальные по типам
             else if (a.type === 'brokerage' || a.type === 'iis') {
                 target = sectors.stocks;
             } else if (a.type === 'pds') {
@@ -133,7 +188,6 @@
             }
         });
 
-        // Оставляем только те секторы, где есть деньги
         return Object.values(sectors).filter(s => s.value > 0);
     }
 
@@ -156,7 +210,6 @@
         });
 
         let extraBtnHtml = '';
-        // Если это Фондовый рынок, добавляем кнопку состава портфеля
         if (category.label.includes('Фондовый рынок')) {
             extraBtnHtml = `<button class="btn-secondary btn-block" style="margin-top: 12px;" onclick="window.openPortfolioBreakdown()">📊 Показать состав портфеля</button>`;
         }
@@ -177,7 +230,6 @@
         `);
     }
 
-    // 5. Модалка состава портфеля (Акции/Облигации/ETF)
     window.openPortfolioBreakdown = function() {
         let stocksSum = 0, bondsSum = 0, etfSum = 0, cashSum = 0;
         let hasBreakdown = false;
