@@ -264,4 +264,131 @@
             }
         });
     }, 500);
+
+    // ==========================================
+    // ФИКС ОТОБРАЖЕНИЯ ВКЛАДКИ "СЧЕТА" (Устранение бага вложенности)
+    // ==========================================
+    window.renderAccounts = function() {
+        const el = document.getElementById('page-accounts');
+        if (!el) return;
+        const showArch = S.ui.showArchived;
+        let html = `<button class="btn-primary btn-block" style="margin-bottom:12px" onclick="openBankModal()">+ Добавить банк</button>`;
+        const topBanks = filterBanksForDisplay(S.banks.filter(b => !b.parentId)).sort((a,b) => (a.order||0) - (b.order||0));
+        
+        html += `<div id="banksSortable">`;
+        topBanks.forEach(b => {
+            const accs = filterAccountsForDisplay(S.accounts.filter(a => a.bankId === b.id && (showArch || !a.archived))).sort((a,b) => (a.order||0) - (b.order||0));
+            const subBanks = filterBanksForDisplay(S.banks.filter(sb => sb.parentId === b.id)).sort((a,b) => (a.order||0) - (b.order||0));
+            let total = 0;
+            
+            accs.forEach(a => {
+                const v = accValue(a);
+                if (a.type === 'credit') { const limit = a.creditLimit || 0; total += Math.max(0, v - limit); }
+                else { total += v; }
+            });
+            subBanks.forEach(sb => {
+                filterAccountsForDisplay(S.accounts.filter(a => a.bankId === sb.id && (showArch || !a.archived))).forEach(a => {
+                    const v = accValue(a);
+                    if (a.type === 'credit') { const limit = a.creditLimit || 0; total += Math.max(0, v - limit); }
+                    else { total += v; }
+                });
+            });
+
+            const collapsed = S.ui.collapsedBanks.includes(b.id);
+            
+            html += `<div class="bank-section" data-bank-id="${b.id}">
+                <div class="bank-header" onclick="toggleBankAccs('${b.id}')" style="cursor:pointer">
+                    <span style="display:flex;align-items:center;">
+                        <span class="drag-handle" style="cursor:grab;margin-right:8px;" onclick="event.stopPropagation()">⋮⋮</span>
+                        <span style="width:12px;height:12px;border-radius:50%;background:${b.color||'#888'};margin-right:8px;"></span>
+                        ${collapsed?'▶':'▼'} ${esc(b.name)}
+                    </span>
+                    <span class="bank-total">${fmt(total)}</span>
+                </div>
+                <div class="bank-accounts-list" data-bank-id="${b.id}" style="${collapsed?'display:none':''}">`;
+                
+            subBanks.forEach(sb => {
+                const sbAccs = filterAccountsForDisplay(S.accounts.filter(a => a.bankId === sb.id && (showArch || !a.archived))).sort((a,b) => (a.order||0) - (b.order||0));
+                const sbCollapsed = S.ui.collapsedBanks.includes(sb.id);
+                
+                html += `<div class="sub-bank-section" data-bank-id="${sb.id}" style="padding-left:14px;border-left:2px solid ${sb.color};margin-left:14px;margin-top:8px;">
+                    <div style="font-weight:600;font-size:13px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleBankAccs('${sb.id}')">
+                        <span>
+                            <span class="drag-handle" style="cursor:grab;margin-right:4px;" onclick="event.stopPropagation()">⋮⋮</span>
+                            ${sbCollapsed?'▶':'▼'} ${esc(sb.name)}
+                        </span>
+                        <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
+                            <button class="btn-icon" onclick="openBankModal('${sb.id}')" title="Редактировать банк">✏️</button>
+                            <button class="btn-icon" onclick="deleteBank('${sb.id}')" title="Удалить банк">🗑</button>
+                            <button class="btn-icon" onclick="openAccountModal(null,'${sb.id}')" title="Добавить счёт">+ Счёт</button>
+                        </div>
+                    </div>
+                    <div class="bank-accounts-list" data-bank-id="${sb.id}" style="${sbCollapsed?'display:none':''}">
+                        ${sbAccs.map(a => `<div data-acc-id="${a.id}">${renderAccountRow(a, sb)}</div>`).join('')}
+                    </div>
+                </div>`;
+            });
+            
+            accs.forEach(a => {
+                html += `<div data-acc-id="${a.id}">${renderAccountRow(a, b)}</div>`;
+            });
+            
+            html += `</div>
+                <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;">
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>
+                        ${b.isPlatform?`<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>`:''}
+                    </div>
+                    <div style="display:flex;gap:4px;">
+                        <button class="btn-icon" onclick="openBankModal('${b.id}')" title="Редактировать банк">✏️</button>
+                        ${!b.isPlatform?`<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>`:''}
+                    </div>
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+        html += `<button class="btn-secondary btn-block" style="margin-top:12px" onclick="S.ui.showArchived=!S.ui.showArchived;save();renderAccounts()">${showArch?'Скрыть архив':'Показать архив'}</button>`;
+        el.innerHTML = html;
+
+        if (typeof Sortable !== 'undefined') {
+            const banksContainer = document.getElementById('banksSortable');
+            if (banksContainer) {
+                new Sortable(banksContainer, {
+                    animation: 150,
+                    handle: '.drag-handle',
+                    filter: 'button, input, select, .sub-bank-section',
+                    onEnd: function() {
+                        const items = banksContainer.querySelectorAll(':scope > .bank-section');
+                        items.forEach((item, index) => {
+                            const id = item.dataset.bankId;
+                            const b = getBank(id);
+                            if (b) b.order = index;
+                        });
+                        save();
+                        renderAll();
+                    }
+                });
+            }
+
+            document.querySelectorAll('.bank-accounts-list').forEach(container => {
+                new Sortable(container, {
+                    animation: 150,
+                    group: { name: 'accounts', pull: false, put: false },
+                    handle: '.drag-handle',
+                    filter: 'button, input, select, .sub-bank-section',
+                    onEnd: function() {
+                        const items = container.querySelectorAll(':scope > [data-acc-id]');
+                        items.forEach((item, index) => {
+                            const id = item.dataset.accId;
+                            const a = getAcc(id);
+                            if (a) a.order = index;
+                        });
+                        save();
+                        renderAll();
+                    }
+                });
+            });
+        }
+    };
+
 })();
