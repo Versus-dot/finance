@@ -2,7 +2,7 @@
 // МОДУЛЬ ДЕТАЛИЗАЦИИ БАЛАНСА И КРЕДИТОВ (mod-balance.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль детализации баланса и кредитов загружен (v107)");
+    console.log("✅ Модуль детализации баланса и кредитов загружен (v108)");
 
     // 1. Добавляем стили
     const styleEl = document.createElement('style');
@@ -70,7 +70,6 @@
                 contribution = 0;
             }
 
-            // Учитываем хедж
             if (S.settings.hedgingEnabled && a.hedgeFor) {
                 const card = S.accounts.find(c => c.id === a.hedgeFor && c.type === 'credit' && !c.archived);
                 if (card) {
@@ -136,7 +135,7 @@
         `);
     };
 
-    // 4. Окно Кредитов (С УЧЕТОМ ХЕДЖА)
+    // 4. Окно Кредитов (С УЧЕТОМ ХЕДЖА И ПРОЦЕНТОМ)
     window.openTotalDebtDetails = function() {
         if (typeof S === 'undefined') return;
         
@@ -150,17 +149,22 @@
             
             const limit = a.creditLimit || 0;
             const val = window.accValue(a);
-            let realDebt = Math.max(0, limit - val);
+            const originalDebt = Math.max(0, limit - val);
             
-            // Вычитаем хедж (вклады, привязанные к этой карте)
+            let hedgeAmount = 0;
             if (S.settings.hedgingEnabled) {
                 const hedges = S.accounts.filter(x => x.hedgeFor === a.id && !x.archived);
-                const totalHedge = hedges.reduce((sum, h) => sum + window.accValue(h), 0);
-                realDebt = Math.max(0, realDebt - totalHedge);
+                hedgeAmount = hedges.reduce((sum, h) => sum + window.accValue(h), 0);
+            }
+
+            let realDebt = Math.max(0, originalDebt - hedgeAmount);
+            let hedgePercent = 0;
+            if (originalDebt > 0 && hedgeAmount > 0) {
+                hedgePercent = Math.min(100, Math.round((hedgeAmount / originalDebt) * 100));
             }
             
-            if (realDebt > 0) {
-                debtAccs.push({ acc: a, debt: realDebt, limit: limit });
+            if (realDebt > 0 || hedgePercent > 0) {
+                debtAccs.push({ acc: a, debt: realDebt, limit: limit, hedgePercent: hedgePercent });
             }
         });
         
@@ -174,17 +178,20 @@
                 const acc = item.acc;
                 const debt = item.debt;
                 const limit = item.limit;
+                const hedgePercent = item.hedgePercent;
                 const pct = totalDebt > 0 ? (debt / totalDebt * 100).toFixed(1) : 0;
                 const bank = S.banks.find(b => b.id === acc.bankId);
                 const bankName = bank ? bank.name : 'Банк';
                 
+                const hedgeHtml = hedgePercent > 0 ? ` · <span style="color:var(--green);">🛡️ Хеджирована на ${hedgePercent}%</span>` : '';
+
                 listHtml += `
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border);">
                         <div style="display:flex; align-items:center; gap:10px;">
                             <span style="font-size:20px;">💳</span>
                             <div>
                                 <div style="font-weight:600; font-size:14px;">${esc(acc.name)}</div>
-                                <div style="font-size:11px; color:var(--muted);">${esc(bankName)} · Лимит: ${fmt(limit)}</div>
+                                <div style="font-size:11px; color:var(--muted);">${esc(bankName)} · Лимит: ${fmt(limit)}${hedgeHtml}</div>
                             </div>
                         </div>
                         <div style="text-align:right;">
