@@ -2,7 +2,7 @@
 // МОДУЛЬ ПРИВАТНОСТИ (Скрытие балансов) - mod-privacy.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль приватности (mod-privacy.js) загружен (v133)");
+    console.log("✅ Модуль приватности (mod-privacy.js) загружен (v134)");
 
     // Инициализация настроек
     if (typeof S !== 'undefined' && S.ui) {
@@ -40,7 +40,7 @@
         renderAll();
     };
 
-    // 1. Перехват отрисовки строки счета (добавляем глазик и маскируем цифры)
+    // 1. Перехват отрисовки строки счета
     const prevRenderAccountRow = window.renderAccountRow;
     window.renderAccountRow = function(a, bank) {
         let html = prevRenderAccountRow(a, bank);
@@ -58,7 +58,6 @@
         const eyeIcon = isHidden ? eyeOpenSvg : eyeClosedSvg;
         const eyeBtn = `<span class="privacy-eye-btn" style="cursor:pointer;margin-left:6px;display:inline-flex;align-items:center;color:var(--muted);transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'" onclick="event.stopPropagation(); window.toggleAccountPrivacy('${a.id}')" title="${isHidden ? 'Показать' : 'Скрыть'}">${eyeIcon}</span>`;
         
-        // Добавляем глазик только если не включен глобальный режим (чтобы не путать)
         if (!S.ui.globalHideBalances) {
             if (html.includes('class="acc-balance"')) {
                 html = html.replace(/(<div class="acc-balance">[\s\S]*?)<\/div>/, `$1 ${eyeBtn}</div>`);
@@ -70,7 +69,7 @@
         return html;
     };
 
-    // 2. Перехват отрисовки главной страницы (Глобальный глаз, маскировка банков и подушки)
+    // 2. Перехват отрисовки главной страницы
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDashboard) prevRenderDashboard();
@@ -90,17 +89,35 @@
             totalBar.appendChild(btn);
         }
 
-        // Если глобальный режим включен - маскируем общий баланс и скрываем подушку
         if (S.ui.globalHideBalances) {
+            // 1. Тотал-бар
             document.querySelectorAll('.total-val').forEach(el => el.textContent = '•••• ₽');
-            const cushion = document.getElementById('cushionWidgetContainer');
-            if (cushion) cushion.style.display = 'none';
-        } else {
-            const cushion = document.getElementById('cushionWidgetContainer');
-            if (cushion) cushion.style.display = 'block';
+            
+            // 2. Заголовки групп счетов
+            document.querySelectorAll('.group-total-val').forEach(el => el.textContent = '•••• ₽');
+
+            // 3. Нижние виджеты
+            document.querySelectorAll('.bottom-widgets-grid .pos, .bottom-widgets-grid .neg').forEach(el => el.textContent = '•••• ₽');
+            document.querySelectorAll('.bottom-widgets-grid div').forEach(el => {
+                if (el.children.length === 0 && el.textContent.trim().endsWith('%')) {
+                    el.textContent = '•••• %';
+                }
+            });
+
+            // 4. Подушка безопасности
+            const cushionAmt = document.querySelector('.cushion-amount');
+            if (cushionAmt) cushionAmt.textContent = '•••• ₽';
+            const goalText = document.querySelector('.cushion-goal-text');
+            if (goalText) {
+                const spans = goalText.querySelectorAll('span');
+                spans.forEach(span => {
+                    if (span.textContent.includes('Цель')) span.textContent = 'Цель: •••• ₽';
+                    else if (span.textContent.includes('%')) span.textContent = '•••• %';
+                });
+            }
         }
 
-        // Обработка карточек банков
+        // Обработка карточек банков (карусель)
         document.querySelectorAll('.bank-chip').forEach(chip => {
             const bId = chip.dataset.bankId;
             if (!bId || bId === 'all') return;
@@ -114,7 +131,6 @@
                 if (debt) debt.textContent = '•••• ₽';
             }
 
-            // Добавляем глазик на карточку банка (если не глобальный режим)
             if (!S.ui.globalHideBalances && !chip.querySelector('.bank-eye-btn')) {
                 const eyeBtn = document.createElement('span');
                 eyeBtn.className = 'bank-eye-btn';
@@ -123,6 +139,16 @@
                 eyeBtn.onclick = (e) => { e.stopPropagation(); window.toggleBankPrivacy(bId); };
                 chip.style.position = 'relative';
                 chip.appendChild(eyeBtn);
+            }
+        });
+
+        // Обработка заголовков групп (если банк скрыт локально)
+        document.querySelectorAll('.bank-group').forEach(group => {
+            const bankId = group.dataset.bankId;
+            const isHidden = S.ui.globalHideBalances || S.ui.hiddenBanks.includes(bankId);
+            if (isHidden) {
+                const totalEl = group.querySelector('.group-total-val');
+                if (totalEl) totalEl.textContent = '•••• ₽';
             }
         });
     };
