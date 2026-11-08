@@ -1,4 +1,4 @@
-const CACHE = 'finance-v89';
+const CACHE = 'finance-v90';
 const ASSETS = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const ASSETS = [
   './mod-ui.js',
   './mod-integrations.js',
   './mod-fixes.js',
+  './mod-tinvest-fix.js',
   './v56.js'
 ];
 
@@ -26,7 +27,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(
+    caches.keys().then(Promise.all(
       keys.filter(k => k !== CACHE).map(k => caches.delete(k))
     )).then(() => self.clients.claim())
   );
