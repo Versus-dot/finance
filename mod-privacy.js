@@ -2,7 +2,7 @@
 // МОДУЛЬ ПРИВАТНОСТИ (Скрытие балансов) - mod-privacy.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль приватности (mod-privacy.js) загружен (v135)");
+    console.log("✅ Модуль приватности (mod-privacy.js) загружен (v136)");
 
     // Инициализация настроек
     if (typeof S !== 'undefined' && S.ui) {
@@ -35,7 +35,7 @@
         renderAll();
     };
 
-    // Новая функция для виджета "Все банки"
+    // Функция для виджета "Все банки"
     window.toggleAllBanksPrivacy = function() {
         if (S.ui.globalHideBalances) return;
         
@@ -124,16 +124,13 @@
         }
 
         // --- Обработка карточек банков ---
-        let allHidden = true;
-        if (S.banks.length === 0) allHidden = false;
-
         document.querySelectorAll('.bank-chip').forEach(chip => {
             const bId = chip.dataset.bankId;
-            if (!bId) return;
 
-            // Логика для чипа "Все банки"
-            if (bId === 'all') {
-                const isAllHidden = S.ui.globalHideBalances || S.banks.every(b => S.ui.hiddenBanks.includes(b.id));
+            // Логика для чипа "Все банки" (у него нет data-bank-id, поэтому проверяем по тексту)
+            if (!bId && chip.textContent.includes('Все банки')) {
+                const isAllHidden = S.ui.globalHideBalances || (S.banks.length > 0 && S.banks.every(b => S.ui.hiddenBanks.includes(b.id)));
+                
                 if (isAllHidden && !S.ui.globalHideBalances) {
                     const bal = chip.querySelector('.bc-bal');
                     if (bal) bal.textContent = '•••• ₽';
@@ -148,12 +145,13 @@
                     chip.style.position = 'relative';
                     chip.appendChild(eyeBtn);
                 }
-                return;
+                return; // Переходим к следующей карточке
             }
+
+            if (!bId) return;
 
             // Логика для конкретных банков
             const isHidden = S.ui.globalHideBalances || S.ui.hiddenBanks.includes(bId);
-            if (!isHidden) allHidden = false;
             
             if (isHidden) {
                 const bal = chip.querySelector('.bc-bal');
