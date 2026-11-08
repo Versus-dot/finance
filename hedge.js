@@ -1,5 +1,5 @@
 // ==========================================
-// Модуль хеджирования (v57 - Бейджи для источников) - hedge.js
+// Модуль хеджирования (v59 - Единый стиль) - hedge.js
 // ==========================================
 
 if (typeof S !== 'undefined' && S.settings) {
@@ -8,29 +8,6 @@ if (typeof S !== 'undefined' && S.settings) {
         if (typeof save === 'function') save(false);
     }
 }
-
-// Добавляем стили для нового бейджа
-const hedgeStyle = document.createElement('style');
-hedgeStyle.innerHTML = `
-    .hedge-source-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        background: rgba(99, 102, 241, 0.15);
-        color: var(--accent);
-        padding: 3px 8px;
-        border-radius: 6px;
-        font-size: 11px;
-        font-weight: 600;
-        margin-bottom: 6px;
-        width: fit-content;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100%;
-    }
-`;
-document.head.appendChild(hedgeStyle);
 
 const originalOpenSettings = window.openSettings;
 window.openSettings = function() {
@@ -155,23 +132,22 @@ window.renderAccountRow = function(a, bank) {
             }
         }
         
-        // 2. Отображение на счете-источнике (для какой карты он является хеджем)
+        // 2. Отображение на счете-источнике (в одну строчку, в конце мета-данных)
         if (a.hedgeFor) {
             const targetCard = S.accounts.find(c => c.id === a.hedgeFor && c.type === 'credit' && !c.archived);
             if (targetCard) {
                 const targetBank = S.banks.find(b => b.id === targetCard.bankId);
                 const bankName = targetBank ? targetBank.name : 'Банк';
                 
-                const badgeHtml = `<div class="hedge-source-badge" title="Хедж для: ${esc(targetCard.name)} (${esc(bankName)})">🛡️ Хедж для: ${esc(targetCard.name)} (${esc(bankName)})</div>`;
+                const hedgeStr = ` · <span style="color:var(--muted);">🛡️ Хедж для: ${esc(targetCard.name)} (${esc(bankName)})</span>`;
                 
-                // Вставляем бейдж перед мета-информацией (сразу под названием счета)
-                if (html.includes('<div class="acc-meta">')) {
-                    html = html.replace('<div class="acc-meta">', `${badgeHtml}<div class="acc-meta">`);
-                }
+                // Встраиваем прямо в конец строки <div class="acc-meta">...</div>
+                const regex = /<div class="acc-meta">([\s\S]*?)<\/div>/;
+                html = html.replace(regex, `<div class="acc-meta">$1${hedgeStr}</div>`);
             }
         }
     }
     return html;
 }
 
-console.log('✅ Модуль хеджирования (v57) обновлен');
+console.log('✅ Модуль хеджирования (v59) обновлен');
