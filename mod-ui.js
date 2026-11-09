@@ -2,14 +2,18 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v154)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v155)");
 
-    // Предотвращаем вмешательство старого кода app.js в скролл модальных окон
-    document.addEventListener('touchmove', (e) => {
-        if (e.target.closest('.modal')) {
-            e.stopPropagation();
+    // 💥 ПАТЧ: Блокируем preventDefault из app.js для модальных окон, чтобы починить инерционный скролл
+    const originalPreventDefault = Event.prototype.preventDefault;
+    Event.prototype.preventDefault = function() {
+        if (this.type === 'touchmove' && this.target && this.target.closest) {
+            if (this.target.closest('.modal') || this.target.closest('.modal-backdrop')) {
+                return; // Игнорируем запрет скролла внутри модалки
+            }
         }
-    }, { capture: true, passive: true });
+        originalPreventDefault.call(this);
+    };
 
     let prevCollapsedState = null;
 
