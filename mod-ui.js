@@ -2,7 +2,7 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v166)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v167)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -13,8 +13,15 @@
 
     window.openModal = function(html) {
         if (origOpenModal) origOpenModal(html);
-        // Добавляем шаг для любой модалки
-        history.pushState({ modal: true }, '', location.pathname + '#modal');
+        
+        // Запоминаем, какое меню открыто под модалкой
+        let prevMenu = null;
+        if (isMenuOpen && history.state) {
+            if (history.state.menu === 2) prevMenu = { menu: 2, type: history.state.type };
+            else if (history.state.menu === 1) prevMenu = { menu: 1 };
+        }
+
+        history.pushState({ modal: true, prevMenu: prevMenu }, '', location.pathname + '#modal');
         
         setTimeout(() => {
             document.querySelectorAll('.modal').forEach(modal => {
@@ -43,20 +50,25 @@
         e.stopImmediatePropagation(); // Блокируем app.js
         const state = e.state;
         const backdrop = document.getElementById('modalBackdrop');
-        const isModalActive = backdrop.classList.contains('active');
+        const isModalActive = backdrop.classList.contains('active') || backdrop.classList.contains('visible');
 
         // 1. Если открыта модалка (Настройки, Счет, Операция)
         if (isModalActive) {
             if (origCloseModal) origCloseModal();
             backdrop.classList.remove('active');
             
-            if (isMenuOpen) {
+            // Восстанавливаем меню, из которого пришли
+            if (state && state.prevMenu) {
+                isMenuOpen = true;
                 backdrop.classList.add('visible');
-                if (state && state.menu === 2) {
-                    window.renderMenuContent('sub', state.type);
-                } else if (state && state.menu === 1) {
+                if (state.prevMenu.menu === 2) {
+                    window.renderMenuContent('sub', state.prevMenu.type);
+                } else if (state.prevMenu.menu === 1) {
                     window.renderMenuContent('main');
                 }
+            } else {
+                isMenuOpen = false;
+                backdrop.classList.remove('visible');
             }
             isClosingByButton = false;
             return;
@@ -76,16 +88,16 @@
                     isClosingByButton = false;
                     return;
                 }
-                
-                if (activeTab === 'home') {
-                    handleExit();
-                }
+                if (activeTab === 'home') handleExit();
             }
             return;
         }
 
-        // 3. Если мы на главной
-        if (activeTab === 'home') {
+        // 3. Обработка вкладок и выхода с главной
+        const tab = (state && state.tab) || 'home';
+        if (activeTab !== tab) {
+            window.setActiveTab(tab, true);
+        } else if (tab === 'home') {
             handleExit();
         }
     }, true);
