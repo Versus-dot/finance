@@ -2,19 +2,19 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v165)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v166)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
-    let isHandlingPopState = false;
+    let isClosingByButton = false;
 
     const origOpenModal = window.openModal;
     const origCloseModal = window.closeModal;
 
     window.openModal = function(html) {
         if (origOpenModal) origOpenModal(html);
-        // Всегда добавляем шаг в историю при открытии модалки
-        history.pushState({ modal: true, tab: activeTab }, '', location.pathname + '#' + activeTab);
+        // Добавляем шаг для любой модалки
+        history.pushState({ modal: true }, '', location.pathname + '#modal');
         
         setTimeout(() => {
             document.querySelectorAll('.modal').forEach(modal => {
@@ -25,56 +25,77 @@
     };
 
     window.closeModal = function() {
-        // Универсальная кнопка "Назад"
+        isClosingByButton = true;
         history.back();
     };
 
-    window.addEventListener('popstate', function(e) {
-        isHandlingPopState = true;
-        setTimeout(() => { isHandlingPopState = false; }, 100);
+    function handleExit() {
+        if (Date.now() - lastBackPress < 2000) {
+            // Разрешаем браузеру закрыть приложение
+        } else {
+            history.pushState({ tab: 'home', init: true }, '', location.pathname + '#home');
+            if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
+            lastBackPress = Date.now();
+        }
+    }
 
-        e.stopImmediatePropagation(); // Блокируем старый код app.js
+    window.addEventListener('popstate', function(e) {
+        e.stopImmediatePropagation(); // Блокируем app.js
         const state = e.state;
         const backdrop = document.getElementById('modalBackdrop');
+        const isModalActive = backdrop.classList.contains('active');
 
-        // 1. Если мы возвращаемся в меню (из подменю или из модалки)
-        if (state && state.menu) {
-            isMenuOpen = true;
+        // 1. Если открыта модалка (Настройки, Счет, Операция)
+        if (isModalActive) {
+            if (origCloseModal) origCloseModal();
             backdrop.classList.remove('active');
-            backdrop.classList.add('visible');
             
-            // Принудительно закрываем любые модалки, которые были открыты поверх
-            if (origCloseModal) origCloseModal();
-
-            if (state.menu === 'main') {
-                window.renderMenuContent('main');
-            } else if (state.menu === 'sub') {
-                window.renderMenuContent('sub', state.type);
-            }
-        } 
-        // 2. Если мы на главной (история пуста)
-        else {
-            isMenuOpen = false;
-            if (origCloseModal) origCloseModal();
-            backdrop.classList.remove('active');
-            backdrop.classList.remove('visible');
-
-            if (activeTab === 'home') {
-                if (Date.now() - lastBackPress < 2000) {
-                    // Разрешаем браузеру закрыть приложение
-                } else {
-                    history.pushState({ tab: 'home', init: true }, '', location.pathname + '#home');
-                    if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
-                    lastBackPress = Date.now();
+            if (isMenuOpen) {
+                backdrop.classList.add('visible');
+                if (state && state.menu === 2) {
+                    window.renderMenuContent('sub', state.type);
+                } else if (state && state.menu === 1) {
+                    window.renderMenuContent('main');
                 }
             }
+            isClosingByButton = false;
+            return;
+        }
+
+        // 2. Если мы в меню
+        if (isMenuOpen) {
+            if (state && state.menu === 2) {
+                window.renderMenuContent('sub', state.type);
+            } else if (state && state.menu === 1) {
+                window.renderMenuContent('main');
+            } else {
+                isMenuOpen = false;
+                backdrop.classList.remove('visible');
+                
+                if (isClosingByButton) {
+                    isClosingByButton = false;
+                    return;
+                }
+                
+                if (activeTab === 'home') {
+                    handleExit();
+                }
+            }
+            return;
+        }
+
+        // 3. Если мы на главной
+        if (activeTab === 'home') {
+            handleExit();
         }
     }, true);
 
     // Инициализация буфера для двойного свайпа
     setTimeout(() => {
-        history.replaceState({ tab: 'home' }, '', location.pathname + '#home');
-        history.pushState({ tab: 'home', init: true }, '', location.pathname + '#home');
+        if (!history.state || !history.state.init) {
+            history.replaceState({ tab: 'home' }, '', location.pathname + '#home');
+            history.pushState({ tab: 'home', init: true }, '', location.pathname + '#home');
+        }
     }, 100);
 
     const styleEl = document.createElement('style');
@@ -370,7 +391,7 @@
 
     window.openSubMenu = function(type) {
         window.renderMenuContent('sub', type);
-        history.pushState({ menu: 'sub', type: type, tab: activeTab }, '', location.pathname + '#' + activeTab);
+        history.pushState({ menu: 2, type: type }, '', location.pathname + '#menu-sub');
     };
 
     window.openMenu = function() {
@@ -379,7 +400,7 @@
         backdrop.classList.remove('active');
         backdrop.classList.add('visible');
         window.renderMenuContent('main');
-        history.pushState({ menu: 'main', tab: activeTab }, '', location.pathname + '#' + activeTab);
+        history.pushState({ menu: 1 }, '', location.pathname + '#menu');
     };
 
     window.openSnapshotFreqModal = function() {
