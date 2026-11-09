@@ -30,6 +30,17 @@
         .bank-chip.grace-bank-warning { border-color: var(--red) !important; box-shadow: inset 0 0 0 2px var(--red) !important; }
         .bank-chip.grace-bank-overdue { border-color: var(--red) !important; animation: pulse-red-bank 1.5s infinite; }
         @keyframes pulse-red-bank { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), inset 0 0 0 2px var(--red); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); } }
+
+        /* Стили для нового меню */
+        .menu-section { margin-bottom: 20px; }
+        .menu-section-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 12px; }
+        .menu-item-premium { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--card2); border-radius: 16px; color: var(--text); font-weight: 500; cursor: pointer; border: 1px solid transparent; text-align: left; width: 100%; font-family: inherit; font-size: 15px; transition: all 0.2s ease; margin-bottom: 8px; }
+        .menu-item-premium:hover { border-color: var(--border); background: var(--card); }
+        .menu-item-premium:active { transform: scale(0.98); }
+        .menu-icon-wrap { width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--card); color: var(--accent); flex-shrink: 0; font-size: 18px; border: 1px solid var(--border); }
+        .menu-item-premium .chevron { margin-left: auto; color: var(--muted); font-size: 16px; }
+        .menu-item-premium.warn { color: var(--red); }
+        .menu-item-premium.warn .menu-icon-wrap { color: var(--red); background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); }
     `;
     document.head.appendChild(styleEl);
 
@@ -45,12 +56,22 @@
     const prevOpenSettingsForBadge = window.openSettings;
     window.openSettings = function() {
         if (prevOpenSettingsForBadge) prevOpenSettingsForBadge();
-        const badgeSelect = document.getElementById('setBadge');
-        if (badgeSelect) badgeSelect.innerHTML = `
-            <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option>
-            <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
-            <option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>
-        `;
+        setTimeout(() => {
+            const badgeSelect = document.getElementById('setBadge');
+            if (badgeSelect) badgeSelect.innerHTML = `
+                <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option>
+                <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
+                <option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>
+            `;
+            
+            // Скрываем старые поля, которые переехали в другие меню
+            const setSnap = document.getElementById('setSnap');
+            if (setSnap) setSnap.closest('.form-group').style.display = 'none';
+            
+            // Скрываем старые кнопки бэкапа из окна настроек
+            const yandexBtns = Array.from(document.querySelectorAll('#modalContent button')).filter(b => b.textContent.includes('Яндекс'));
+            yandexBtns.forEach(b => b.style.display = 'none');
+        }, 50);
     };
     
     const prevSaveSettings = window.saveSettings;
@@ -178,18 +199,41 @@
         if (e.deltaY !== 0) { e.preventDefault(); carousel.scrollLeft += e.deltaY; }
     }, { passive: false });
 
-    // === НОВОЕ ПРЕМИАЛЬНОЕ МЕНЮ ===
+    // === НОВОЕ СТРУКТУРИРОВАННОЕ МЕНЮ ===
     window.openMenu = function() { 
         openModal(`
             <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
             
             <div class="menu-section">
-                <div class="menu-section-title">Управление</div>
-                <button class="menu-item-premium" onclick="openSettings()">
-                    <div class="menu-icon-wrap">⚙️</div>Настройки<span class="chevron">›</span>
+                <div class="menu-section-title">Данные и Синхронизация</div>
+                <button class="menu-item-premium" onclick="window.backupToYandexDisk()">
+                    <div class="menu-icon-wrap">☁️</div>Сохранить в облако<span class="chevron">›</span>
                 </button>
-                <button class="menu-item-premium" onclick="window.openSecuritySettings()">
-                    <div class="menu-icon-wrap">🔒</div>Безопасность и Токены<span class="chevron">›</span>
+                <button class="menu-item-premium" onclick="window.restoreFromYandexDisk()">
+                    <div class="menu-icon-wrap">⬇️</div>Восстановить из облака<span class="chevron">›</span>
+                </button>
+                <button class="menu-item-premium" onclick="exportJSON()">
+                    <div class="menu-icon-wrap">📥</div>Скачать бэкап (JSON)<span class="chevron">›</span>
+                </button>
+                <button class="menu-item-premium" onclick="importJSON()">
+                    <div class="menu-icon-wrap">📤</div>Восстановить из JSON<span class="chevron">›</span>
+                </button>
+                <button class="menu-item-premium" onclick="window.openSnapshotFreqModal()">
+                    <div class="menu-icon-wrap">📸</div>Частота снимков<span class="chevron">›</span>
+                </button>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-section-title">Оформление</div>
+                <button class="menu-item-premium" onclick="window.openSettings()">
+                    <div class="menu-icon-wrap">🎨</div>Настройки приложения<span class="chevron">›</span>
+                </button>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-section-title">Инвестиции</div>
+                <button class="menu-item-premium" onclick="window.syncTInvest()">
+                    <div class="menu-icon-wrap">📈</div>Обновить балансы (Т-Инвест)<span class="chevron">›</span>
                 </button>
             </div>
 
@@ -203,40 +247,44 @@
                 </button>
             </div>
 
-            <div class="menu-section">
-                <div class="menu-section-title">Синхронизация данных</div>
-                <button class="menu-item-premium" onclick="window.backupToYandexDisk()">
-                    <div class="menu-icon-wrap">☁️</div>Сохранить в облако<span class="chevron">›</span>
-                </button>
-                <button class="menu-item-premium" onclick="window.syncTInvest()">
-                    <div class="menu-icon-wrap">🔄</div>Обновить балансы (Т-Инвест)<span class="chevron">›</span>
-                </button>
-            </div>
-
-            <div class="menu-section">
-                <div class="menu-section-title">Данные</div>
-                <button class="menu-item-premium" onclick="exportJSON()">
-                    <div class="menu-icon-wrap">📥</div>Скачать бэкап (JSON)<span class="chevron">›</span>
-                </button>
-                <button class="menu-item-premium" onclick="importJSON()">
-                    <div class="menu-icon-wrap">📤</div>Восстановить из JSON<span class="chevron">›</span>
-                </button>
-            </div>
-
-            <div class="menu-section" style="margin-top:24px;">
-                <button class="menu-item-premium warn" onclick="window.clearLocalData()">
-                    <div class="menu-icon-wrap">🗑</div>Очистить данные<span class="chevron">›</span>
+            <div class="menu-section" style="margin-bottom:0;">
+                <div class="menu-section-title">Безопасность</div>
+                <button class="menu-item-premium" onclick="window.openSecuritySettings()">
+                    <div class="menu-icon-wrap">🔒</div>Пароли и Опасная зона<span class="chevron">›</span>
                 </button>
             </div>
         `); 
+    };
+
+    // Окно настройки частоты снимков
+    window.openSnapshotFreqModal = function() {
+        const currentFreq = S.settings.snapshotFreq || 'monthly';
+        openModal(`
+            <div class="modal-header"><h2>Частота снимков</h2><button class="btn-icon" onclick="openMenu()">✕</button></div>
+            <div class="form-group">
+                <label>Как часто сохранять историю капитала</label>
+                <select id="newSnapFreq">
+                    <option value="monthly" ${currentFreq==='monthly'?'selected':''}>Раз в месяц</option>
+                    <option value="weekly" ${currentFreq==='weekly'?'selected':''}>Раз в неделю</option>
+                    <option value="daily" ${currentFreq==='daily'?'selected':''}>Раз в день</option>
+                </select>
+            </div>
+            <button class="btn-primary btn-block" onclick="window.saveSnapshotFreq()">Сохранить</button>
+        `);
+    };
+
+    window.saveSnapshotFreq = function() {
+        const freq = document.getElementById('newSnapFreq').value;
+        S.settings.snapshotFreq = freq;
+        save();
+        closeModal();
+        toast('Частота снимков обновлена');
     };
     
     setTimeout(() => { const menuBtn = document.getElementById('menuBtn'); if (menuBtn) menuBtn.onclick = window.openMenu; }, 100);
     
     window.openCatAndDebtsMenu = function() { openModal(`<div class="modal-header"><h2>Категории и Долги</h2><button class="btn-icon" onclick="openMenu()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="openCategoryEditor()"><span class="menu-icon">📑</span>Редактор категорий</button><button class="menu-item" onclick="openCounterparties()"><span class="menu-icon">👥</span>Контрагенты (Долги)</button></div>`); };
-    window.openBackupMenu = function() { openModal(`<div class="modal-header"><h2>Резервные копии</h2><button class="btn-icon" onclick="openMenu()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="exportJSON()"><span class="menu-icon">📥</span>Скачать бэкап (JSON)</button><button class="menu-item" onclick="importJSON()"><span class="menu-icon">📤</span>Восстановить из JSON</button><button class="menu-item" onclick="openBackupHistoryModal()"><span class="menu-icon">🕒</span>История 7 дней (Облако)</button></div>`); };
-    window.clearLocalData = function() { if (!confirm('Вы уверены, что хотите удалить все локальные данные? Приложение вернется в исходное состояние.')) return; if (confirm('ВНИМАНИЕ! Это действие необратимо. Ваши данные будут удалены с этого устройства. Восстановить их можно будет ТОЛЬКО если вы введете свой Облачный токен заново. Вы точно хотите стереть всё?')) { localStorage.setItem('financeApp_isReset', 'true'); localStorage.removeItem('financeApp_v25'); localStorage.removeItem('financeApp_lastSync'); localStorage.removeItem('financeApp_localChange'); location.reload(); } };
-
+    
     setTimeout(() => {
         const navTabs = {
             home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
