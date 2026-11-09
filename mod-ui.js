@@ -2,28 +2,21 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v161)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v162)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
     let isHandlingPopState = false;
 
-    // 💥 ПАТЧ: Блокируем app.js изменять историю во время нашего свайпа
-    const origPushState = history.pushState;
-    history.pushState = function(state, title, url) {
-        if (isHandlingPopState) return; // Игнорируем попытки app.js
-        origPushState.apply(history, arguments);
-    };
-
+    // 💥 ПАТЧ: Единый диспетчер истории
     const origOpenModal = window.openModal;
     const origCloseModal = window.closeModal;
 
     window.openModal = function(html) {
         if (origOpenModal) origOpenModal(html);
-        if (isMenuOpen) return; // Если меню уже открыто, не добавляем лишние шаги
-        
-        history.pushState({ modal: true, tab: activeTab }, '', location.pathname + '#' + activeTab);
-        
+        if (!isMenuOpen) {
+            history.pushState({ modal: true, tab: activeTab }, '', location.pathname + '#' + activeTab);
+        }
         setTimeout(() => {
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.ontouchmove = null;
@@ -34,65 +27,56 @@
 
     window.closeModal = function() {
         if (isMenuOpen) {
-            if (history.state && history.state.menu) {
-                history.back();
-            } else {
-                document.getElementById('modalBackdrop').classList.remove('active');
-                isMenuOpen = false;
-            }
+            history.back();
         } else {
-            if (history.state && history.state.modal) {
+            if (origCloseModal) origCloseModal();
+            document.getElementById('modalBackdrop').classList.remove('active');
+            // Предотвращаем двойной вызов history.back() при свайпе
+            if (!isHandlingPopState && history.state && history.state.modal) {
                 history.back();
-            } else {
-                if (origCloseModal) origCloseModal();
             }
         }
     };
 
+    // Перехватываем popstate в фазе перехвата (capture: true), чтобы app.js не мешал
     window.addEventListener('popstate', function(e) {
-        e.stopImmediatePropagation(); // Останавливаем app.js
         isHandlingPopState = true;
         setTimeout(() => { isHandlingPopState = false; }, 100);
 
         const state = e.state;
-        const modalActive = document.querySelector('.modal-backdrop.active');
+        const backdrop = document.getElementById('modalBackdrop');
 
         if (isMenuOpen) {
+            // Полностью блокируем app.js
+            e.stopImmediatePropagation(); 
+            e.stopPropagation();
+            
             if (state && state.menu === 'main') {
                 window.renderMenuContent('main');
             } else if (state && state.menu === 'sub') {
                 window.renderMenuContent('sub', state.type);
             } else {
-                // Свайп из главного меню -> закрываем его
-                document.getElementById('modalBackdrop').classList.remove('active');
+                backdrop.classList.remove('visible');
                 isMenuOpen = false;
             }
         } else {
-            if (modalActive) {
-                if (origCloseModal) origCloseModal();
-            } else {
-                const tab = (state && state.tab) || 'home';
-                if (activeTab !== tab) {
-                    window.setActiveTab(tab, true);
-                } else if (tab === 'home') {
-                    if (Date.now() - lastBackPress < 2000) {
-                        // Разрешаем браузеру закрыть приложение
-                    } else {
-                        history.pushState({ tab: 'home' }, '', location.pathname + '#home');
-                        if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
-                        lastBackPress = Date.now();
-                    }
+            // Отдаем управление app.js (для карточек счетов), но контролируем выход
+            const tab = (state && state.tab) || 'home';
+            if (activeTab === 'home' && tab === 'home') {
+                if (Date.now() - lastBackPress < 2000) {
+                    // Разрешаем браузеру закрыть приложение
+                } else {
+                    history.pushState({ tab: 'home' }, '', location.pathname + '#home');
+                    if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
+                    lastBackPress = Date.now();
                 }
             }
         }
     }, true);
 
-    setTimeout(() => {
-        if (!history.state) history.replaceState({ tab: 'home' }, '', location.pathname + '#home');
-    }, 500);
-
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
+        .modal-backdrop.visible { display: flex; }
         .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; touch-action: pan-y !important; }
         .account-row { transition: all 0.2s ease; }
         body.style-stripe .account-row { border-left: 4px solid var(--bank-color) !important; background: var(--card) !important; margin: 0 6px 0 10px !important; border-radius: 0 8px 8px 0 !important; border-bottom: 1px solid var(--border) !important; }
@@ -388,7 +372,9 @@
 
     window.openMenu = function() {
         isMenuOpen = true;
-        document.getElementById('modalBackdrop').classList.add('active');
+        const backdrop = document.getElementById('modalBackdrop');
+        backdrop.classList.remove('active');
+        backdrop.classList.add('visible');
         window.renderMenuContent('main');
         history.pushState({ menu: 'main', tab: activeTab }, '', location.pathname + '#' + activeTab);
     };
