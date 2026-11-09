@@ -2,7 +2,7 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v163)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v164)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -34,9 +34,9 @@
     window.closeModal = function() {
         if (isMenuOpen) {
             if (history.state && history.state.menu === 'sub') {
-                history.go(-2);
+                history.go(-2); // Закрываем подменю и главное меню сразу
             } else if (history.state && history.state.menu === 'main') {
-                history.go(-1);
+                history.go(-1); // Закрываем главное меню
             } else {
                 const backdrop = document.getElementById('modalBackdrop');
                 backdrop.classList.remove('visible');
