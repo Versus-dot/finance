@@ -68,9 +68,30 @@
             const setSnap = document.getElementById('setSnap');
             if (setSnap) setSnap.closest('.form-group').style.display = 'none';
             
-            // Скрываем старые кнопки бэкапа из окна настроек
+            // Скрываем старые кнопки бэкапа
             const yandexBtns = Array.from(document.querySelectorAll('#modalContent button')).filter(b => b.textContent.includes('Яндекс'));
             yandexBtns.forEach(b => b.style.display = 'none');
+
+            // Скрываем заголовок "Облачный бэкап" и лишние разделители
+            const allElements = document.querySelectorAll('#modalContent *');
+            allElements.forEach(el => {
+                if (el.textContent.includes('Облачный бэкап (Яндекс.Диск)') && el.children.length === 0) {
+                    el.style.display = 'none';
+                    if (el.previousElementSibling && el.previousElementSibling.tagName === 'HR') {
+                        el.previousElementSibling.style.display = 'none';
+                    }
+                }
+            });
+
+            // Скрываем кнопку USDT из настроек (она переехала в меню)
+            const usdtBtn = Array.from(document.querySelectorAll('#modalContent button')).find(b => b.textContent.includes('USDT'));
+            if (usdtBtn) usdtBtn.style.display = 'none';
+            
+            // Скрываем оставшиеся пустые разделители
+            document.querySelectorAll('#modalContent hr').forEach(hr => {
+                 if (!hr.nextElementSibling || hr.nextElementSibling.style.display === 'none') hr.style.display = 'none';
+            });
+
         }, 50);
     };
     
@@ -220,6 +241,10 @@
                 </button>
                 <button class="menu-item-premium" onclick="window.openSnapshotFreqModal()">
                     <div class="menu-icon-wrap">📸</div>Частота снимков<span class="chevron">›</span>
+                </button>
+                <!-- НОВАЯ КНОПКА USDT -->
+                <button class="menu-item-premium" onclick="fetchUSDT()">
+                    <div class="menu-icon-wrap">💱</div>Обновить курс USDT<span class="chevron">›</span>
                 </button>
             </div>
 
