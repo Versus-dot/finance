@@ -2,17 +2,22 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v155)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v156)");
 
-    // 💥 ПАТЧ: Блокируем preventDefault из app.js для модальных окон, чтобы починить инерционный скролл
-    const originalPreventDefault = Event.prototype.preventDefault;
-    Event.prototype.preventDefault = function() {
-        if (this.type === 'touchmove' && this.target && this.target.closest) {
-            if (this.target.closest('.modal') || this.target.closest('.modal-backdrop')) {
-                return; // Игнорируем запрет скролла внутри модалки
-            }
-        }
-        originalPreventDefault.call(this);
+    // 💥 ПАТЧ: Изолируем модальные окна от старого кода в app.js
+    const originalOpenModal = window.openModal;
+    window.openModal = function(html) {
+        if (originalOpenModal) originalOpenModal(html);
+        setTimeout(() => {
+            document.querySelectorAll('.modal').forEach(modal => {
+                // Убираем старый обработчик, если он был
+                modal.ontouchmove = null;
+                // Вешаем новый, который не пускает событие наверх
+                modal.addEventListener('touchmove', (e) => {
+                    e.stopPropagation();
+                }, { passive: true });
+            });
+        }, 50);
     };
 
     let prevCollapsedState = null;
