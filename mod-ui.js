@@ -2,17 +2,16 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v159)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v160)");
 
     let lastBackPress = 0;
 
-    // 💥 ПАТЧ: Единый диспетчер истории для нативной навигации
+    // 💥 ПАТЧ: Единый диспетчер истории
     const origOpenModal = window.openModal;
     const origCloseModal = window.closeModal;
 
     window.openModal = function(html) {
         if (origOpenModal) origOpenModal(html);
-        // Добавляем состояние модалки в историю
         history.pushState({ modal: true, tab: activeTab }, '', location.pathname + '#' + activeTab);
         
         setTimeout(() => {
@@ -24,7 +23,6 @@
     };
 
     window.closeModal = function() {
-        // Если мы в модалке или меню, делаем шаг назад в истории
         if (history.state && (history.state.modal || history.state.menu)) {
             history.back();
         } else {
@@ -32,35 +30,29 @@
         }
     };
 
-    // Перехватываем popstate в фазе перехвата (capture: true), чтобы app.js не мешал
     window.addEventListener('popstate', function(e) {
-        e.stopImmediatePropagation(); // Блокируем старый обработчик из app.js
+        e.stopImmediatePropagation();
 
         const modalActive = document.querySelector('.modal-backdrop.active');
         const state = e.state;
 
         if (modalActive) {
             if (state && state.menu) {
-                // Возврат в меню
-                if (origCloseModal) origCloseModal();
                 if (state.menu === 'main') {
-                    renderMenuContent('main');
+                    window.renderMenuContent('main');
                 } else if (state.menu === 'sub') {
-                    renderMenuContent('sub', state.type);
+                    window.renderMenuContent('sub', state.type);
                 }
             } else {
-                // Закрываем обычную модалку (счет, операция, настройки)
                 if (origCloseModal) origCloseModal();
             }
         } else {
-            // Работа с вкладками
             const tab = (state && state.tab) || 'home';
             if (activeTab !== tab) {
                 window.setActiveTab(tab, true);
             } else if (tab === 'home') {
-                // Логика двойного свайпа для выхода
                 if (Date.now() - lastBackPress < 2000) {
-                    // Разрешаем браузеру закрыть приложение
+                    // Закрываем приложение
                 } else {
                     history.pushState({ tab: 'home' }, '', location.pathname + '#home');
                     if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
@@ -68,15 +60,11 @@
                 }
             }
         }
-    }, true); // capture: true
+    }, true);
 
-    // Инициализация начального состояния истории
     setTimeout(() => {
-        if (!history.state) {
-            history.replaceState({ tab: 'home' }, '', location.pathname + '#home');
-        }
+        if (!history.state) history.replaceState({ tab: 'home' }, '', location.pathname + '#home');
     }, 500);
-
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
@@ -374,8 +362,13 @@
     };
 
     window.openMenu = function() {
+        // Вызываем оригинальную функцию, чтобы открыть саму модалку (добавить класс active)
+        if (typeof openModal === 'function') {
+            openModal(''); 
+        }
         window.renderMenuContent('main');
-        history.pushState({ menu: 'main', tab: activeTab }, '', location.pathname + '#' + activeTab);
+        // Заменяем состояние, которое только что создал openModal, на наше menu: 'main'
+        history.replaceState({ menu: 'main', tab: activeTab }, '', location.pathname + '#' + activeTab);
     };
 
     window.openSnapshotFreqModal = function() {
