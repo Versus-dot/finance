@@ -13,8 +13,11 @@
     // 1. ПРАВИЛЬНАЯ СИНХРОНИЗАЦИЯ С Т-ИНВЕСТ
     // ==========================================
     window.syncTInvest = async function() {
-        const token = document.getElementById('secTInvestToken').value.trim();
-        if (!token) { toast('Сначала вставьте токен и нажмите Сохранить!'); return; }
+        // Пытаемся взять токен из DOM (если открыто окно безопасности) или из настроек
+        const tokenInput = document.getElementById('secTInvestToken');
+        const token = tokenInput ? tokenInput.value.trim() : (S.settings.tInvestToken || '');
+        
+        if (!token) { toast('Сначала вставьте токен в разделе Безопасность и нажмите Сохранить!'); return; }
         
         toast('⏳ Запрашиваем счета из Т-Инвестиций...');
         const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
@@ -94,7 +97,6 @@
         const fakeTxs = S.transactions.filter(t => t.note === 'Синхронизация с Т-Инвест');
         
         if (fakeTxs.length > 0) {
-            // Добавляем ID в могильные плиты, чтобы они не вернулись из облака
             if (!S.meta) S.meta = { deletedIds: [] };
             if (!S.meta.deletedIds) S.meta.deletedIds = [];
             
@@ -102,10 +104,8 @@
                 S.meta.deletedIds.push(t.id);
             });
 
-            // Удаляем локально
             S.transactions = S.transactions.filter(t => t.note !== 'Синхронизация с Т-Инвест');
             
-            // Сохраняем и принудительно синхронизируем (скачаем облако, сольем - могильные плиты сработают, и загрузим обратно)
             save(); 
             if (typeof syncSmart === 'function') syncSmart(true); 
             
@@ -116,25 +116,7 @@
         }
     };
 
-    // Добавляем кнопку очистки в окно Безопасности (рядом с Т-Инвестом)
-    const prevOpenSecurity = window.openSecuritySettings;
-    window.openSecuritySettings = function() {
-        if (prevOpenSecurity) prevOpenSecurity();
-        
-        setTimeout(() => {
-            const tInvestBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Запросить баланс'));
-            if (tInvestBtn && !document.getElementById('btnCleanTInvest')) {
-                const cleanBtn = document.createElement('button');
-                cleanBtn.id = 'btnCleanTInvest';
-                cleanBtn.className = 'btn-secondary btn-block';
-                cleanBtn.style.marginBottom = '8px';
-                cleanBtn.style.color = 'var(--red)';
-                cleanBtn.innerHTML = '🧹 Очистить старые операции Т-Инвеста';
-                cleanBtn.onclick = window.cleanupFakeTInvestTransactions;
-                tInvestBtn.after(cleanBtn);
-            }
-        }, 100);
-    };
+    // Кнопка очистки теперь перенесена в меню (если нужно, можно добавить ее в окно безопасности, но мы ее убрали отсюда, чтобы не мешала)
 
     // ==========================================
     // 3. ФИКС ГРАФИКОВ СТАТИСТИКИ НА ТЕЛЕФОНЕ
