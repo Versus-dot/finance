@@ -64,7 +64,7 @@
                 <option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>
             `;
             
-            // Скрываем старые поля, которые переехали в другие меню
+            // Скрываем старые поля
             const setSnap = document.getElementById('setSnap');
             if (setSnap) setSnap.closest('.form-group').style.display = 'none';
             
@@ -72,21 +72,25 @@
             const yandexBtns = Array.from(document.querySelectorAll('#modalContent button')).filter(b => b.textContent.includes('Яндекс'));
             yandexBtns.forEach(b => b.style.display = 'none');
 
-            // Скрываем заголовок "Облачный бэкап" и лишние разделители
-            const allElements = document.querySelectorAll('#modalContent *');
-            allElements.forEach(el => {
-                if (el.textContent.includes('Облачный бэкап (Яндекс.Диск)') && el.children.length === 0) {
-                    el.style.display = 'none';
-                    if (el.previousElementSibling && el.previousElementSibling.tagName === 'HR') {
-                        el.previousElementSibling.style.display = 'none';
-                    }
-                }
-            });
+            // Надежное скрытие блока Яндекс.Диска
+            const yandexTitle = Array.from(document.querySelectorAll('#modalContent div')).find(el => el.textContent.includes('Облачный бэкап (Яндекс.Диск)') && el.tagName === 'DIV');
+            if (yandexTitle) {
+                yandexTitle.style.display = 'none';
+                let prev = yandexTitle.previousElementSibling;
+                if (prev && prev.tagName === 'HR') prev.style.display = 'none';
 
-            // Скрываем кнопку USDT из настроек (она переехала в меню)
+                let next = yandexTitle.nextElementSibling;
+                while (next && next.tagName !== 'HR') {
+                    next.style.display = 'none';
+                    next = next.nextElementSibling;
+                }
+                if (next && next.tagName === 'HR') next.style.display = 'none';
+            }
+
+            // Скрываем кнопку USDT
             const usdtBtn = Array.from(document.querySelectorAll('#modalContent button')).find(b => b.textContent.includes('USDT'));
             if (usdtBtn) usdtBtn.style.display = 'none';
-            
+
             // Скрываем оставшиеся пустые разделители
             document.querySelectorAll('#modalContent hr').forEach(hr => {
                  if (!hr.nextElementSibling || hr.nextElementSibling.style.display === 'none') hr.style.display = 'none';
@@ -242,7 +246,6 @@
                 <button class="menu-item-premium" onclick="window.openSnapshotFreqModal()">
                     <div class="menu-icon-wrap">📸</div>Частота снимков<span class="chevron">›</span>
                 </button>
-                <!-- НОВАЯ КНОПКА USDT -->
                 <button class="menu-item-premium" onclick="fetchUSDT()">
                     <div class="menu-icon-wrap">💱</div>Обновить курс USDT<span class="chevron">›</span>
                 </button>
@@ -281,7 +284,6 @@
         `); 
     };
 
-    // Окно настройки частоты снимков
     window.openSnapshotFreqModal = function() {
         const currentFreq = S.settings.snapshotFreq || 'monthly';
         openModal(`
