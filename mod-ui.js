@@ -2,18 +2,19 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v157)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v159)");
 
-    // 💥 ПАТЧ: Изолируем модальные окна от старого кода в app.js для скролла
-    const originalOpenModal = window.openModal;
+    let lastBackPress = 0;
+
+    // 💥 ПАТЧ: Единый диспетчер истории для нативной навигации
+    const origOpenModal = window.openModal;
+    const origCloseModal = window.closeModal;
+
     window.openModal = function(html) {
-        if (originalOpenModal) originalOpenModal(html);
+        if (origOpenModal) origOpenModal(html);
+        // Добавляем состояние модалки в историю
+        history.pushState({ modal: true, tab: activeTab }, '', location.pathname + '#' + activeTab);
         
-        // Добавляем состояние в историю для работы свайпа назад
-        if (!history.state || !history.state.modal) {
-            history.pushState({ modal: 'generic' }, '');
-        }
-
         setTimeout(() => {
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.ontouchmove = null;
@@ -22,52 +23,60 @@
         }, 50);
     };
 
-    // Перехват закрытия модалки, чтобы история не ломалась
-    const originalCloseModal = window.closeModal;
     window.closeModal = function() {
-        if (history.state && history.state.modal) {
-            history.back(); // Вызываем шаг назад, это вызовет popstate
+        // Если мы в модалке или меню, делаем шаг назад в истории
+        if (history.state && (history.state.modal || history.state.menu)) {
+            history.back();
         } else {
-            if (originalCloseModal) originalCloseModal();
+            if (origCloseModal) origCloseModal();
         }
     };
 
-    // Управление историей (Свайп назад)
-    let lastBackPress = 0;
-    window.addEventListener('popstate', (e) => {
+    // Перехватываем popstate в фазе перехвата (capture: true), чтобы app.js не мешал
+    window.addEventListener('popstate', function(e) {
+        e.stopImmediatePropagation(); // Блокируем старый обработчик из app.js
+
         const modalActive = document.querySelector('.modal-backdrop.active');
-        
+        const state = e.state;
+
         if (modalActive) {
-            const state = history.state;
-            if (state && state.modal === 'main') {
-                renderMenuContent('main'); // Вернулись в главное меню
-            } else if (state && state.modal === 'sub') {
-                renderMenuContent('sub', state.type); // Вернулись в подменю
+            if (state && state.menu) {
+                // Возврат в меню
+                if (origCloseModal) origCloseModal();
+                if (state.menu === 'main') {
+                    renderMenuContent('main');
+                } else if (state.menu === 'sub') {
+                    renderMenuContent('sub', state.type);
+                }
             } else {
-                if (originalCloseModal) originalCloseModal(); // Закрываем модалку
+                // Закрываем обычную модалку (счет, операция, настройки)
+                if (origCloseModal) origCloseModal();
             }
         } else {
-            // Мы на главном экране
-            if (Date.now() - lastBackPress < 2000) {
-                // Разрешаем браузеру закрыть приложение (ничего не делаем)
-            } else {
-                history.pushState({ app: true }, '');
-                if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
-                lastBackPress = Date.now();
+            // Работа с вкладками
+            const tab = (state && state.tab) || 'home';
+            if (activeTab !== tab) {
+                window.setActiveTab(tab, true);
+            } else if (tab === 'home') {
+                // Логика двойного свайпа для выхода
+                if (Date.now() - lastBackPress < 2000) {
+                    // Разрешаем браузеру закрыть приложение
+                } else {
+                    history.pushState({ tab: 'home' }, '', location.pathname + '#home');
+                    if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
+                    lastBackPress = Date.now();
+                }
             }
         }
-    });
+    }, true); // capture: true
 
-    // Инициализация истории при старте
+    // Инициализация начального состояния истории
     setTimeout(() => {
-        if (!history.state || !history.state.app) {
-            history.replaceState({ app: true }, '');
-            history.pushState({ app: true }, '');
+        if (!history.state) {
+            history.replaceState({ tab: 'home' }, '', location.pathname + '#home');
         }
     }, 500);
 
-
-    let prevCollapsedState = null;
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
@@ -103,6 +112,8 @@
         .menu-item-premium .chevron { margin-left: auto; color: var(--muted); font-size: 16px; }
         .menu-item-premium.warn { color: var(--red); }
         .menu-item-premium.warn .menu-icon-wrap { color: var(--red); background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); }
+        
+        .menu-back-btn { background: var(--card2); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 20px; padding-bottom: 4px; color: var(--text); cursor: pointer; border: none; }
     `;
     document.head.appendChild(styleEl);
 
@@ -340,7 +351,7 @@
             content.innerHTML = `
                 <div class="modal-header" style="align-items:center;">
                     <div style="display:flex; align-items:center; gap:12px;">
-                        <button class="btn-icon" onclick="history.back()" style="background:var(--card2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:20px; padding-bottom:4px;">‹</button>
+                        <button class="menu-back-btn" onclick="history.back()">‹</button>
                         <h2>${title}</h2>
                     </div>
                     <button class="btn-icon" onclick="closeModal()">✕</button>
@@ -359,12 +370,12 @@
 
     window.openSubMenu = function(type) {
         window.renderMenuContent('sub', type);
-        history.pushState({ modal: 'sub', type: type }, '');
+        history.pushState({ menu: 'sub', type: type, tab: activeTab }, '', location.pathname + '#' + activeTab);
     };
 
     window.openMenu = function() {
         window.renderMenuContent('main');
-        history.pushState({ modal: 'main' }, '');
+        history.pushState({ menu: 'main', tab: activeTab }, '', location.pathname + '#' + activeTab);
     };
 
     window.openSnapshotFreqModal = function() {
