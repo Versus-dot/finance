@@ -1,4 +1,4 @@
-const CACHE = 'finance-v144';
+const CACHE = 'finance-v145';
 const ASSETS = [
   './',
   './index.html',
@@ -41,6 +41,19 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
 
+  // Network-First для главной страницы и навигации (всегда свежий HTML)
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html')) {
+    e.respondWith(
+      fetch(e.request).then(resp => {
+        const copy = resp.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy));
+        return resp;
+      }).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Cache-First для остальных ресурсов (стили, скрипты)
   e.respondWith(
     caches.match(e.request).then(r => {
       if (r) return r;
@@ -50,7 +63,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(e.request, copy));
         }
         return resp;
-      }).catch(() => caches.match('./index.html'));
+      });
     })
   );
 });
