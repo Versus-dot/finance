@@ -2,13 +2,20 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v154)");
+
+    // Предотвращаем вмешательство старого кода app.js в скролл модальных окон
+    document.addEventListener('touchmove', (e) => {
+        if (e.target.closest('.modal')) {
+            e.stopPropagation();
+        }
+    }, { capture: true, passive: true });
 
     let prevCollapsedState = null;
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
-        .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }
+        .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; touch-action: pan-y !important; }
         .account-row { transition: all 0.2s ease; }
         body.style-stripe .account-row { border-left: 4px solid var(--bank-color) !important; background: var(--card) !important; margin: 0 6px 0 10px !important; border-radius: 0 8px 8px 0 !important; border-bottom: 1px solid var(--border) !important; }
         body.style-stripe .account-row:has(.acc-debt) { background: rgba(239, 68, 68, 0.05) !important; }
@@ -31,7 +38,6 @@
         .bank-chip.grace-bank-overdue { border-color: var(--red) !important; animation: pulse-red-bank 1.5s infinite; }
         @keyframes pulse-red-bank { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), inset 0 0 0 2px var(--red); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 2px var(--red); } }
 
-        /* Стили для нового меню */
         .menu-section { margin-bottom: 20px; }
         .menu-section-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 12px; }
         .menu-item-premium { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--card2); border-radius: 16px; color: var(--text); font-weight: 500; cursor: pointer; border: 1px solid transparent; text-align: left; width: 100%; font-family: inherit; font-size: 15px; transition: all 0.2s ease; margin-bottom: 8px; }
@@ -57,6 +63,9 @@
     window.openSettings = function() {
         if (prevOpenSettingsForBadge) prevOpenSettingsForBadge();
         setTimeout(() => {
+            const modalContent = document.getElementById('modalContent');
+            if (!modalContent) return;
+
             const badgeSelect = document.getElementById('setBadge');
             if (badgeSelect) badgeSelect.innerHTML = `
                 <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option>
@@ -64,16 +73,13 @@
                 <option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>
             `;
             
-            // Скрываем старые поля
             const setSnap = document.getElementById('setSnap');
             if (setSnap) setSnap.closest('.form-group').style.display = 'none';
             
-            // Скрываем старые кнопки бэкапа
-            const yandexBtns = Array.from(document.querySelectorAll('#modalContent button')).filter(b => b.textContent.includes('Яндекс'));
+            const yandexBtns = Array.from(modalContent.querySelectorAll('button')).filter(b => b.textContent.includes('Яндекс'));
             yandexBtns.forEach(b => b.style.display = 'none');
 
-            // Надежное скрытие блока Яндекс.Диска
-            const yandexTitle = Array.from(document.querySelectorAll('#modalContent div')).find(el => el.textContent.includes('Облачный бэкап (Яндекс.Диск)') && el.tagName === 'DIV');
+            const yandexTitle = Array.from(modalContent.querySelectorAll('div')).find(el => el.textContent.includes('Облачный бэкап (Яндекс.Диск)') && el.children.length === 0);
             if (yandexTitle) {
                 yandexTitle.style.display = 'none';
                 let prev = yandexTitle.previousElementSibling;
@@ -87,16 +93,14 @@
                 if (next && next.tagName === 'HR') next.style.display = 'none';
             }
 
-            // Скрываем кнопку USDT
-            const usdtBtn = Array.from(document.querySelectorAll('#modalContent button')).find(b => b.textContent.includes('USDT'));
+            const usdtBtn = Array.from(modalContent.querySelectorAll('button')).find(b => b.textContent.includes('USDT'));
             if (usdtBtn) usdtBtn.style.display = 'none';
 
-            // Скрываем оставшиеся пустые разделители
-            document.querySelectorAll('#modalContent hr').forEach(hr => {
+            modalContent.querySelectorAll('hr').forEach(hr => {
                  if (!hr.nextElementSibling || hr.nextElementSibling.style.display === 'none') hr.style.display = 'none';
             });
 
-        }, 50);
+        }, 100);
     };
     
     const prevSaveSettings = window.saveSettings;
@@ -224,7 +228,6 @@
         if (e.deltaY !== 0) { e.preventDefault(); carousel.scrollLeft += e.deltaY; }
     }, { passive: false });
 
-    // === НОВОЕ СТРУКТУРИРОВАННОЕ МЕНЮ ===
     window.openMenu = function() { 
         openModal(`
             <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
