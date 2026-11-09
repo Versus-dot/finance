@@ -111,7 +111,6 @@
         });
     };
 
-    // === ИСПРАВЛЕННАЯ ЛОГИКА СКРОЛЛА КАРУСЕЛИ ===
     const originalSetDashFilter = window.setDashFilter;
     window.setDashFilter = function(bankId) {
         if (typeof S !== 'undefined' && S.ui) {
@@ -124,12 +123,10 @@
         }
         if (originalSetDashFilter) originalSetDashFilter(bankId);
 
-        // Надежный скролл: ждем отрисовки, считаем позицию вручную
         setTimeout(() => {
             requestAnimationFrame(() => {
                 const carousel = document.querySelector('.banks-carousel');
                 if (!carousel) return;
-
                 if (bankId === 'all') {
                     carousel.scrollTo({ left: 0, behavior: 'smooth' });
                 } else {
@@ -138,10 +135,7 @@
                         const carouselRect = carousel.getBoundingClientRect();
                         const targetRect = targetChip.getBoundingClientRect();
                         const offset = targetRect.left - carouselRect.left;
-                        
-                        // Вычисляем идеальную позицию для центрирования
                         const scrollTarget = carousel.scrollLeft + offset - (carouselRect.width / 2) + (targetRect.width / 2);
-                        
                         carousel.scrollTo({ left: scrollTarget, behavior: 'smooth' });
                     }
                 }
@@ -184,8 +178,57 @@
         if (e.deltaY !== 0) { e.preventDefault(); carousel.scrollLeft += e.deltaY; }
     }, { passive: false });
 
+    // === НОВОЕ ПРЕМИАЛЬНОЕ МЕНЮ ===
     window.openMenu = function() { 
-        openModal(`<div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="openSettings()"><span class="menu-icon">⚙️</span>Настройки</button><button class="menu-item" onclick="window.openSecuritySettings()"><span class="menu-icon">🔒</span>Безопасность</button><button class="menu-item" onclick="window.openCatAndDebtsMenu()"><span class="menu-icon">📂</span>Категории и Долги</button><button class="menu-item" onclick="window.openBackupMenu()"><span class="menu-icon">💾</span>Резервные копии</button><button class="menu-item warn" onclick="window.clearLocalData()"><span class="menu-icon">🗑</span>Очистить данные</button></div>`); 
+        openModal(`
+            <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+            
+            <div class="menu-section">
+                <div class="menu-section-title">Управление</div>
+                <button class="menu-item-premium" onclick="openSettings()">
+                    <div class="menu-icon-wrap">⚙️</div>Настройки<span class="chevron">›</span>
+                </button>
+                <button class="menu-item-premium" onclick="window.openSecuritySettings()">
+                    <div class="menu-icon-wrap">🔒</div>Безопасность и Токены<span class="chevron">›</span>
+                </button>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-section-title">Справочники</div>
+                <button class="menu-item-premium" onclick="openCategoryEditor()">
+                    <div class="menu-icon-wrap">📑</div>Категории<span class="chevron">›</span>
+                </button>
+                <button class="menu-item-premium" onclick="openCounterparties()">
+                    <div class="menu-icon-wrap">👥</div>Контрагенты (Долги)<span class="chevron">›</span>
+                </button>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-section-title">Синхронизация данных</div>
+                <button class="menu-item-premium" onclick="window.backupToYandexDisk()">
+                    <div class="menu-icon-wrap">☁️</div>Сохранить в облако<span class="chevron">›</span>
+                </button>
+                <button class="menu-item-premium" onclick="window.syncTInvest()">
+                    <div class="menu-icon-wrap">🔄</div>Обновить балансы (Т-Инвест)<span class="chevron">›</span>
+                </button>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-section-title">Данные</div>
+                <button class="menu-item-premium" onclick="exportJSON()">
+                    <div class="menu-icon-wrap">📥</div>Скачать бэкап (JSON)<span class="chevron">›</span>
+                </button>
+                <button class="menu-item-premium" onclick="importJSON()">
+                    <div class="menu-icon-wrap">📤</div>Восстановить из JSON<span class="chevron">›</span>
+                </button>
+            </div>
+
+            <div class="menu-section" style="margin-top:24px;">
+                <button class="menu-item-premium warn" onclick="window.clearLocalData()">
+                    <div class="menu-icon-wrap">🗑</div>Очистить данные<span class="chevron">›</span>
+                </button>
+            </div>
+        `); 
     };
     
     setTimeout(() => { const menuBtn = document.getElementById('menuBtn'); if (menuBtn) menuBtn.onclick = window.openMenu; }, 100);
