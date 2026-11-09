@@ -13,15 +13,8 @@
 
     window.openModal = function(html) {
         if (origOpenModal) origOpenModal(html);
-        
-        // Запоминаем, какое меню открыто под модалкой
-        let prevMenu = null;
-        if (isMenuOpen && history.state) {
-            if (history.state.menu === 2) prevMenu = { menu: 2, type: history.state.type };
-            else if (history.state.menu === 1) prevMenu = { menu: 1 };
-        }
-
-        history.pushState({ modal: true, prevMenu: prevMenu }, '', location.pathname + '#modal');
+        // Каждая модалка делает шаг в истории
+        history.pushState({ modal: true, tab: activeTab }, '', location.pathname + '#modal');
         
         setTimeout(() => {
             document.querySelectorAll('.modal').forEach(modal => {
@@ -50,22 +43,22 @@
         e.stopImmediatePropagation(); // Блокируем app.js
         const state = e.state;
         const backdrop = document.getElementById('modalBackdrop');
-        const isModalActive = backdrop.classList.contains('active') || backdrop.classList.contains('visible');
+        const isModalActive = backdrop.classList.contains('active');
 
         // 1. Если открыта модалка (Настройки, Счет, Операция)
         if (isModalActive) {
             if (origCloseModal) origCloseModal();
             backdrop.classList.remove('active');
-            
-            // Восстанавливаем меню, из которого пришли
-            if (state && state.prevMenu) {
+
+            // Возвращаемся в меню, если оно было открыто под модалкой
+            if (state && state.menu === 2) {
                 isMenuOpen = true;
                 backdrop.classList.add('visible');
-                if (state.prevMenu.menu === 2) {
-                    window.renderMenuContent('sub', state.prevMenu.type);
-                } else if (state.prevMenu.menu === 1) {
-                    window.renderMenuContent('main');
-                }
+                window.renderMenuContent('sub', state.type);
+            } else if (state && state.menu === 1) {
+                isMenuOpen = true;
+                backdrop.classList.add('visible');
+                window.renderMenuContent('main');
             } else {
                 isMenuOpen = false;
                 backdrop.classList.remove('visible');
@@ -86,14 +79,13 @@
                 
                 if (isClosingByButton) {
                     isClosingByButton = false;
-                    return;
                 }
-                if (activeTab === 'home') handleExit();
+                return; // Не вызываем тост, мы просто закрыли меню
             }
             return;
         }
 
-        // 3. Обработка вкладок и выхода с главной
+        // 3. Обработка вкладок и выхода с главной страницы
         const tab = (state && state.tab) || 'home';
         if (activeTab !== tab) {
             window.setActiveTab(tab, true);
