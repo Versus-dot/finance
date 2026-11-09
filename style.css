@@ -219,6 +219,34 @@ input[type="date"]{color-scheme:dark}:root[data-theme="light"] input[type="date"
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .modal-header h2{margin:0;font-size:18px;font-weight:700}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
+/* НОВОЕ ПРЕМИАЛЬНОЕ МЕНЮ */
+.menu-section { margin-bottom: 20px; }
+.menu-section-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 12px; }
+.menu-item-premium {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--card2);
+    border-radius: 16px;
+    color: var(--text);
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+    font-size: 15px;
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
+}
+.menu-item-premium:hover { border-color: var(--border); background: var(--card); }
+.menu-item-premium:active { transform: scale(0.98); }
+.menu-icon-wrap { width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--card); color: var(--accent); flex-shrink: 0; font-size: 18px; border: 1px solid var(--border); }
+.menu-item-premium .chevron { margin-left: auto; color: var(--muted); font-size: 16px; }
+.menu-item-premium.warn { color: var(--red); }
+.menu-item-premium.warn .menu-icon-wrap { color: var(--red); background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); }
+
 /* ПРОЧЕЕ */
 .bank-section{background:var(--card);border-radius:20px;margin-bottom:16px;border:1px solid var(--border);overflow:hidden}
 .bank-header{padding:16px;background:var(--card2);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:14px}
@@ -242,10 +270,6 @@ input[type="date"]{color-scheme:dark}:root[data-theme="light"] input[type="date"
 .tx-item .amount{font-weight:800;white-space:nowrap;font-size:15px}
 .tx-item .amount.income{color:var(--green)}.tx-item .amount.expense{color:var(--red)}.tx-item .amount.transfer{color:var(--accent2)}.tx-item .amount.debt{color:var(--yellow)}
 
-.menu-list{display:flex;flex-direction:column;gap:8px}
-.menu-item{display:flex;align-items:center;gap:14px;padding:16px;background:var(--card2);border-radius:16px;color:var(--text);font-weight:500;cursor:pointer;border:none;text-align:left;width:100%;font-family:inherit;font-size:15px;transition:background 0.2s}
-.menu-item:active{background:var(--border)}
-.menu-item .menu-icon{font-size:22px}.menu-item.warn{color:var(--red)}
 .toast{position:fixed;bottom:calc(100px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--card2);color:var(--text);padding:12px 24px;border-radius:16px;font-size:14px;font-weight:600;z-index:300;opacity:0;transition:all .3s;pointer-events:none;border:1px solid var(--border);max-width:90%;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3)}
 :root[data-theme="light"] .toast{box-shadow:0 8px 24px rgba(15,23,42,0.1)}
 .toast.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(-10px)}
