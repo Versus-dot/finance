@@ -1,4 +1,4 @@
-const CACHE = 'finance-v151';
+const CACHE = 'finance-v152';
 const ASSETS = [
   './',
   './index.html',
@@ -41,7 +41,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
 
-  // Network-First для HTML и JS/CSS (чтобы всегда подтягивать свежий код)
+  // Network-First для HTML, JS и CSS (чтобы всегда подтягивать свежий код)
   if (e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
     e.respondWith(
       fetch(e.request).then(resp => {
@@ -53,7 +53,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Cache-First для остальных ресурсов (картинки и т.д.)
+  // Cache-First для остальных ресурсов
   e.respondWith(
     caches.match(e.request).then(r => {
       if (r) return r;
