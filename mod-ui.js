@@ -2,23 +2,70 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v156)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v157)");
 
-    // 💥 ПАТЧ: Изолируем модальные окна от старого кода в app.js
+    // 💥 ПАТЧ: Изолируем модальные окна от старого кода в app.js для скролла
     const originalOpenModal = window.openModal;
     window.openModal = function(html) {
         if (originalOpenModal) originalOpenModal(html);
+        
+        // Добавляем состояние в историю для работы свайпа назад
+        if (!history.state || !history.state.modal) {
+            history.pushState({ modal: 'generic' }, '');
+        }
+
         setTimeout(() => {
             document.querySelectorAll('.modal').forEach(modal => {
-                // Убираем старый обработчик, если он был
                 modal.ontouchmove = null;
-                // Вешаем новый, который не пускает событие наверх
-                modal.addEventListener('touchmove', (e) => {
-                    e.stopPropagation();
-                }, { passive: true });
+                modal.addEventListener('touchmove', (e) => { e.stopPropagation(); }, { passive: true });
             });
         }, 50);
     };
+
+    // Перехват закрытия модалки, чтобы история не ломалась
+    const originalCloseModal = window.closeModal;
+    window.closeModal = function() {
+        if (history.state && history.state.modal) {
+            history.back(); // Вызываем шаг назад, это вызовет popstate
+        } else {
+            if (originalCloseModal) originalCloseModal();
+        }
+    };
+
+    // Управление историей (Свайп назад)
+    let lastBackPress = 0;
+    window.addEventListener('popstate', (e) => {
+        const modalActive = document.querySelector('.modal-backdrop.active');
+        
+        if (modalActive) {
+            const state = history.state;
+            if (state && state.modal === 'main') {
+                renderMenuContent('main'); // Вернулись в главное меню
+            } else if (state && state.modal === 'sub') {
+                renderMenuContent('sub', state.type); // Вернулись в подменю
+            } else {
+                if (originalCloseModal) originalCloseModal(); // Закрываем модалку
+            }
+        } else {
+            // Мы на главном экране
+            if (Date.now() - lastBackPress < 2000) {
+                // Разрешаем браузеру закрыть приложение (ничего не делаем)
+            } else {
+                history.pushState({ app: true }, '');
+                if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
+                lastBackPress = Date.now();
+            }
+        }
+    });
+
+    // Инициализация истории при старте
+    setTimeout(() => {
+        if (!history.state || !history.state.app) {
+            history.replaceState({ app: true }, '');
+            history.pushState({ app: true }, '');
+        }
+    }, 500);
+
 
     let prevCollapsedState = null;
 
@@ -237,69 +284,93 @@
         if (e.deltaY !== 0) { e.preventDefault(); carousel.scrollLeft += e.deltaY; }
     }, { passive: false });
 
-    window.openMenu = function() { 
-        openModal(`
-            <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
-            
-            <div class="menu-section">
-                <div class="menu-section-title">Данные и Синхронизация</div>
-                <button class="menu-item-premium" onclick="window.backupToYandexDisk()">
-                    <div class="menu-icon-wrap">☁️</div>Сохранить в облако<span class="chevron">›</span>
-                </button>
-                <button class="menu-item-premium" onclick="window.restoreFromYandexDisk()">
-                    <div class="menu-icon-wrap">⬇️</div>Восстановить из облака<span class="chevron">›</span>
-                </button>
-                <button class="menu-item-premium" onclick="exportJSON()">
-                    <div class="menu-icon-wrap">📥</div>Скачать бэкап (JSON)<span class="chevron">›</span>
-                </button>
-                <button class="menu-item-premium" onclick="importJSON()">
-                    <div class="menu-icon-wrap">📤</div>Восстановить из JSON<span class="chevron">›</span>
-                </button>
-                <button class="menu-item-premium" onclick="window.openSnapshotFreqModal()">
-                    <div class="menu-icon-wrap">📸</div>Частота снимков<span class="chevron">›</span>
-                </button>
-                <button class="menu-item-premium" onclick="fetchUSDT()">
-                    <div class="menu-icon-wrap">💱</div>Обновить курс USDT<span class="chevron">›</span>
-                </button>
-            </div>
+    // === ДВУХЭТАЖНОЕ МЕНЮ ===
+    window.renderMenuContent = function(level, type = '') {
+        const content = document.getElementById('modalContent');
+        if (!content) return;
 
-            <div class="menu-section">
-                <div class="menu-section-title">Оформление</div>
-                <button class="menu-item-premium" onclick="window.openSettings()">
-                    <div class="menu-icon-wrap">🎨</div>Настройки приложения<span class="chevron">›</span>
-                </button>
-            </div>
+        if (level === 'main') {
+            content.innerHTML = `
+                <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+                <div class="menu-section">
+                    <button class="menu-item-premium" onclick="window.openSubMenu('sync')"><div class="menu-icon-wrap">☁️</div>Данные и Синхронизация<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('appearance')"><div class="menu-icon-wrap">🎨</div>Оформление<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('invest')"><div class="menu-icon-wrap">📈</div>Инвестиции<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('directories')"><div class="menu-icon-wrap">📑</div>Справочники<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('security')"><div class="menu-icon-wrap">🔒</div>Безопасность и Опасная зона<span class="chevron">›</span></button>
+                </div>
+            `;
+        } else if (level === 'sub') {
+            let title = '';
+            let items = '';
 
-            <div class="menu-section">
-                <div class="menu-section-title">Инвестиции</div>
-                <button class="menu-item-premium" onclick="window.syncTInvest()">
-                    <div class="menu-icon-wrap">📈</div>Обновить балансы (Т-Инвест)<span class="chevron">›</span>
-                </button>
-            </div>
+            if (type === 'sync') {
+                title = 'Данные и Синхронизация';
+                items = `
+                    <button class="menu-item-premium" onclick="window.backupToYandexDisk()"><div class="menu-icon-wrap">☁️</div>Сохранить в облако<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.restoreFromYandexDisk()"><div class="menu-icon-wrap">⬇️</div>Восстановить из облака<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="exportJSON()"><div class="menu-icon-wrap">📥</div>Скачать бэкап (JSON)<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="importJSON()"><div class="menu-icon-wrap">📤</div>Восстановить из JSON<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSnapshotFreqModal()"><div class="menu-icon-wrap">📸</div>Частота снимков<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="fetchUSDT()"><div class="menu-icon-wrap">💱</div>Обновить курс USDT<span class="chevron">›</span></button>
+                `;
+            } else if (type === 'appearance') {
+                title = 'Оформление';
+                items = `
+                    <button class="menu-item-premium" onclick="window.openSettings()"><div class="menu-icon-wrap">🎨</div>Настройки приложения<span class="chevron">›</span></button>
+                `;
+            } else if (type === 'invest') {
+                title = 'Инвестиции';
+                items = `
+                    <button class="menu-item-premium" onclick="window.syncTInvest()"><div class="menu-icon-wrap">📈</div>Обновить балансы (Т-Инвест)<span class="chevron">›</span></button>
+                `;
+            } else if (type === 'directories') {
+                title = 'Справочники';
+                items = `
+                    <button class="menu-item-premium" onclick="openCategoryEditor()"><div class="menu-icon-wrap">📑</div>Категории<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="openCounterparties()"><div class="menu-icon-wrap">👥</div>Контрагенты (Долги)<span class="chevron">›</span></button>
+                `;
+            } else if (type === 'security') {
+                title = 'Безопасность';
+                items = `
+                    <button class="menu-item-premium" onclick="window.openSecuritySettings()"><div class="menu-icon-wrap">🔒</div>Пароли и Опасная зона<span class="chevron">›</span></button>
+                `;
+            }
 
-            <div class="menu-section">
-                <div class="menu-section-title">Справочники</div>
-                <button class="menu-item-premium" onclick="openCategoryEditor()">
-                    <div class="menu-icon-wrap">📑</div>Категории<span class="chevron">›</span>
-                </button>
-                <button class="menu-item-premium" onclick="openCounterparties()">
-                    <div class="menu-icon-wrap">👥</div>Контрагенты (Долги)<span class="chevron">›</span>
-                </button>
-            </div>
+            content.innerHTML = `
+                <div class="modal-header" style="align-items:center;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <button class="btn-icon" onclick="history.back()" style="background:var(--card2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:20px; padding-bottom:4px;">‹</button>
+                        <h2>${title}</h2>
+                    </div>
+                    <button class="btn-icon" onclick="closeModal()">✕</button>
+                </div>
+                <div class="menu-section">${items}</div>
+            `;
+        }
 
-            <div class="menu-section" style="margin-bottom:0;">
-                <div class="menu-section-title">Безопасность</div>
-                <button class="menu-item-premium" onclick="window.openSecuritySettings()">
-                    <div class="menu-icon-wrap">🔒</div>Пароли и Опасная зона<span class="chevron">›</span>
-                </button>
-            </div>
-        `); 
+        setTimeout(() => {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.ontouchmove = null;
+                modal.addEventListener('touchmove', (e) => { e.stopPropagation(); }, { passive: true });
+            });
+        }, 50);
+    };
+
+    window.openSubMenu = function(type) {
+        window.renderMenuContent('sub', type);
+        history.pushState({ modal: 'sub', type: type }, '');
+    };
+
+    window.openMenu = function() {
+        window.renderMenuContent('main');
+        history.pushState({ modal: 'main' }, '');
     };
 
     window.openSnapshotFreqModal = function() {
         const currentFreq = S.settings.snapshotFreq || 'monthly';
         openModal(`
-            <div class="modal-header"><h2>Частота снимков</h2><button class="btn-icon" onclick="openMenu()">✕</button></div>
+            <div class="modal-header"><h2>Частота снимков</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
             <div class="form-group">
                 <label>Как часто сохранять историю капитала</label>
                 <select id="newSnapFreq">
@@ -322,7 +393,7 @@
     
     setTimeout(() => { const menuBtn = document.getElementById('menuBtn'); if (menuBtn) menuBtn.onclick = window.openMenu; }, 100);
     
-    window.openCatAndDebtsMenu = function() { openModal(`<div class="modal-header"><h2>Категории и Долги</h2><button class="btn-icon" onclick="openMenu()">✕</button></div><div class="menu-list"><button class="menu-item" onclick="openCategoryEditor()"><span class="menu-icon">📑</span>Редактор категорий</button><button class="menu-item" onclick="openCounterparties()"><span class="menu-icon">👥</span>Контрагенты (Долги)</button></div>`); };
+    window.openCatAndDebtsMenu = function() { window.openMenu(); };
     
     setTimeout(() => {
         const navTabs = {
