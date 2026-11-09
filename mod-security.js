@@ -4,9 +4,6 @@
 (function() {
     console.log("✅ Модуль безопасности (mod-security.js) загружен");
 
-    // ==========================================
-    // СТИЛИ ЭКРАНА БЛОКИРОВКИ
-    // ==========================================
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -23,9 +20,6 @@
     `;
     document.head.appendChild(styleEl);
 
-    // ==========================================
-    // ЛОГИКА PIN-КОДА
-    // ==========================================
     let pinBuffer = '';
     let lastActiveTime = Date.now();
 
@@ -79,20 +73,34 @@
     setTimeout(checkLock, 500);
 
     // ==========================================
-    // ОКНО БЕЗОПАСНОСТИ (ТОКЕНЫ)
+    // ОКНО БЕЗОПАСНОСТИ
     // ==========================================
     window.openSecuritySettings = function() {
         openModal(`
         <div class="modal-header"><h2>Безопасность</h2><button class="btn-icon" onclick="openMenu()">✕</button></div>
+        
         <div class="form-group"><label>PIN-код (4 цифры, пусто = отключен)</label><input type="text" id="secPin" maxlength="4" value="${S.settings.pinCode || ''}" placeholder="****"></div>
+        
         <hr style="border-color:var(--border); margin: 16px 0;">
-        <div style="font-weight:700; margin-bottom:10px;">💾 Токен облачного бэкапа</div>
-        <div class="form-group"><label>Токен доступа</label><input type="password" id="secYandexToken" value="${S.settings.yandexToken || ''}" placeholder="Вставьте токен"></div>
+        
+        <div style="font-weight:700; margin-bottom:10px;">☁️ Токен облачного бэкапа (Яндекс)</div>
+        <div class="form-group"><input type="password" id="secYandexToken" value="${S.settings.yandexToken || ''}" placeholder="Вставьте токен"></div>
+        
         <hr style="border-color:var(--border); margin: 16px 0;">
-        <div style="font-weight:700; margin-bottom:10px;">📈 Синхронизация с Т-Инвестиции</div>
-        <div class="form-group"><label>Токен доступа (Read-only)</label><input type="password" id="secTInvestToken" value="${S.settings.tInvestToken || ''}" placeholder="Вставьте токен"></div>
-        <button class="btn-secondary btn-block" style="margin-bottom:8px" onclick="syncTInvest()">🔄 Запросить баланс из Т-Инвестиций</button>
-        <button class="btn-primary btn-block" onclick="window.saveSecuritySettings()">Сохранить всё</button>`);
+        
+        <div style="font-weight:700; margin-bottom:10px;">📈 Токен Т-Инвестиций</div>
+        <div class="form-group"><input type="password" id="secTInvestToken" value="${S.settings.tInvestToken || ''}" placeholder="Вставьте токен (Read-only)"></div>
+        
+        <button class="btn-primary btn-block" onclick="window.saveSecuritySettings()">Сохранить всё</button>
+
+        <hr style="border-color:var(--border); margin: 24px 0 16px;">
+        
+        <div style="font-weight:700; color:var(--red); margin-bottom:8px;">⚠️ Опасная зона</div>
+        <div style="font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.4;">Перед сбросом настоятельно рекомендуем сохранить резервную копию в облако. Эти действия нельзя отменить.</div>
+        
+        <button class="btn-secondary btn-block" style="margin-bottom:8px; border-color:var(--red); color:var(--red);" onclick="window.softReset()">Очистить историю (сохранить счета)</button>
+        <button class="btn-danger btn-block" onclick="window.hardReset()">Полный сброс (удалить всё)</button>
+        `);
     };
 
     window.saveSecuritySettings = function() {
@@ -107,7 +115,32 @@
         if (typeof syncSmart === 'function') syncSmart(true); 
     };
 
-    // Прячем старые поля из окна "Настройки", так как они теперь в "Безопасности"
+    window.softReset = function() {
+        if (!confirm('Удалить ВСЕ операции, бюджеты и снимки капитала?\n\nСчета и банки останутся, но их балансы сбросятся к начальным значениям.')) return;
+        S.transactions = [];
+        S.budgets = [];
+        S.snapshots = [];
+        S.accounts.forEach(a => a.balance = a.initialBalance || 0);
+        save();
+        renderAll();
+        if (typeof syncSmart === 'function') syncSmart(true);
+        toast('История очищена');
+        closeModal();
+    };
+
+    window.hardReset = function() {
+        if (!confirm('ПОЛНЫЙ СБРОС. Удалить ВСЕ данные: счета, банки, операции, настройки?\n\nЭто действие НЕЛЬЗЯ отменить.')) return;
+        if (prompt('Для подтверждения введите слово "УДАЛИТЬ" заглавными буквами:') !== 'УДАЛИТЬ') {
+            toast('Сброс отменен');
+            return;
+        }
+        localStorage.setItem('financeApp_isReset', 'true');
+        localStorage.removeItem('financeApp_v25');
+        localStorage.removeItem('financeApp_lastSync');
+        localStorage.removeItem('financeApp_localChange');
+        location.reload();
+    };
+
     const prevOpenSettings = window.openSettings;
     window.openSettings = function() {
         if (prevOpenSettings) prevOpenSettings();
