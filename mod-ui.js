@@ -2,19 +2,44 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v167)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v168)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
-    let isClosingByButton = false;
+    let isClosingModal = false;
 
     const origOpenModal = window.openModal;
     const origCloseModal = window.closeModal;
+    const origSetActiveTab = window.setActiveTab;
+
+    // 1. Защита от двойного закрытия
+    window.closeModal = function() {
+        if (isClosingModal) return;
+        isClosingModal = true;
+        setTimeout(() => { isClosingModal = false; }, 250);
+        history.back();
+    };
+
+    // 2. Блокируем app.js переключать вкладки, пока открыто меню
+    window.setActiveTab = function(tab, fromPop) {
+        const backdrop = document.getElementById('modalBackdrop');
+        if (fromPop && (isMenuOpen || backdrop.classList.contains('active') || backdrop.classList.contains('visible'))) {
+            return; // Игнорируем app.js, пока мы в меню
+        }
+        if (origSetActiveTab) origSetActiveTab(tab, fromPop);
+        const fab = document.getElementById('fabBtn');
+        if (fab) fab.style.display = (tab === 'home') ? 'none' : 'flex';
+    };
 
     window.openModal = function(html) {
         if (origOpenModal) origOpenModal(html);
-        // Каждая модалка делает шаг в истории
-        history.pushState({ modal: true, tab: activeTab }, '', location.pathname + '#modal');
+        // Запоминаем, какое меню открыто под модалкой
+        let prevMenu = null;
+        if (isMenuOpen && history.state) {
+            if (history.state.menu === 2) prevMenu = { menu: 2, type: history.state.type };
+            else if (history.state.menu === 1) prevMenu = { menu: 1 };
+        }
+        history.pushState({ modal: true, prevMenu: prevMenu, tab: activeTab }, '', location.pathname + '#modal');
         
         setTimeout(() => {
             document.querySelectorAll('.modal').forEach(modal => {
@@ -22,11 +47,6 @@
                 modal.addEventListener('touchmove', (e) => { e.stopPropagation(); }, { passive: true });
             });
         }, 50);
-    };
-
-    window.closeModal = function() {
-        isClosingByButton = true;
-        history.back();
     };
 
     function handleExit() {
@@ -40,34 +60,31 @@
     }
 
     window.addEventListener('popstate', function(e) {
-        e.stopImmediatePropagation(); // Блокируем app.js
+        e.stopImmediatePropagation(); // Полностью блокируем app.js popstate
+        
         const state = e.state;
         const backdrop = document.getElementById('modalBackdrop');
-        const isModalActive = backdrop.classList.contains('active');
+        const isModalActive = backdrop.classList.contains('active') || backdrop.classList.contains('visible');
 
-        // 1. Если открыта модалка (Настройки, Счет, Операция)
+        // 1. Закрываем модалку (Настройки, Счет, Операция)
         if (isModalActive) {
             if (origCloseModal) origCloseModal();
             backdrop.classList.remove('active');
-
-            // Возвращаемся в меню, если оно было открыто под модалкой
-            if (state && state.menu === 2) {
+            backdrop.classList.remove('visible'); // На всякий случай
+            
+            if (state && state.prevMenu) {
                 isMenuOpen = true;
                 backdrop.classList.add('visible');
-                window.renderMenuContent('sub', state.type);
-            } else if (state && state.menu === 1) {
-                isMenuOpen = true;
-                backdrop.classList.add('visible');
-                window.renderMenuContent('main');
+                if (state.prevMenu.menu === 2) window.renderMenuContent('sub', state.prevMenu.type);
+                else if (state.prevMenu.menu === 1) window.renderMenuContent('main');
             } else {
                 isMenuOpen = false;
                 backdrop.classList.remove('visible');
             }
-            isClosingByButton = false;
             return;
         }
 
-        // 2. Если мы в меню
+        // 2. Закрываем меню
         if (isMenuOpen) {
             if (state && state.menu === 2) {
                 window.renderMenuContent('sub', state.type);
@@ -76,20 +93,14 @@
             } else {
                 isMenuOpen = false;
                 backdrop.classList.remove('visible');
-                
-                if (isClosingByButton) {
-                    isClosingByButton = false;
-                }
-                return; // Не вызываем тост, мы просто закрыли меню
             }
             return;
         }
 
-        // 3. Обработка вкладок и выхода с главной страницы
-        const tab = (state && state.tab) || 'home';
-        if (activeTab !== tab) {
-            window.setActiveTab(tab, true);
-        } else if (tab === 'home') {
+        // 3. Главная страница
+        if (activeTab !== 'home') {
+            if (origSetActiveTab) origSetActiveTab('home', true);
+        } else {
             handleExit();
         }
     }, true);
@@ -283,13 +294,6 @@
                 }
             });
         }, 100);
-    };
-
-    const originalSetActiveTab = window.setActiveTab;
-    window.setActiveTab = function(tab, fromPop) {
-        if (originalSetActiveTab) originalSetActiveTab(tab, fromPop);
-        const fab = document.getElementById('fabBtn');
-        if (fab) fab.style.display = (tab === 'home') ? 'none' : 'flex';
     };
 
     document.addEventListener('DOMContentLoaded', () => {
