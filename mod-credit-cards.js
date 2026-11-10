@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v3
+// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v4
 // ==========================================
 (function() {
     const prevOpenAccountModal = window.openAccountModal;
@@ -18,7 +18,6 @@
         const accBalanceGroup = accBalanceInput.closest('.form-group');
         const acc = id ? getAcc(id) : null;
 
-        // Находим элементы для скрытия (Валюта и Верхний блок с балансом)
         const accCurrency = document.getElementById('accCurrency');
         const currencyGroup = accCurrency ? accCurrency.closest('.form-group') : null;
         
@@ -39,7 +38,6 @@
             const isCredit = (typeSel.value === 'credit');
             
             if (isCredit) {
-                // Прячем стандартное поле баланса, валюту и верхний блок
                 if (accBalanceGroup) accBalanceGroup.style.display = 'none'; 
                 if (currencyGroup) currencyGroup.style.display = 'none';
                 if (topBalanceBlock) topBalanceBlock.style.display = 'none';
@@ -47,10 +45,9 @@
                 creditFields.style.display = 'block';
                 buildUI();
             } else {
-                // Возвращаем всё на место для других типов счетов
                 if (accBalanceGroup) accBalanceGroup.style.display = 'block';
                 if (currencyGroup) currencyGroup.style.display = 'block';
-                if (topBalanceBlock) topBalanceBlock.style.display = 'flex'; // У блока flex-верстка
+                if (topBalanceBlock) topBalanceBlock.style.display = 'flex';
                 
                 const ccUI = document.getElementById('ccCustomUI');
                 if (ccUI) ccUI.style.display = 'none';
@@ -70,13 +67,16 @@
                 ccUI.id = 'ccCustomUI';
                 ccUI.className = 'form-row';
                 ccUI.style.marginTop = '0'; 
+                ccUI.style.alignItems = 'flex-end'; // Жесткое выравнивание по низу
+                ccUI.style.gap = '12px';
+                
                 ccUI.innerHTML = `
-                    <div class="form-group">
-                        <label>Текущая задолженность (₽)</label>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="white-space: nowrap; font-size: 11px;">Задолженность (₽)</label>
                         <input type="number" step="0.01" id="ccDebt" value="${debt.toFixed(2)}">
                     </div>
-                    <div class="form-group">
-                        <label>Доступный остаток (₽)</label>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="white-space: nowrap; font-size: 11px;">Текущий баланс (₽)</label>
                         <input type="number" step="0.01" id="ccAvailable" value="${avail.toFixed(2)}">
                     </div>
                 `;
@@ -88,10 +88,8 @@
                 const debtInp = document.getElementById('ccDebt');
                 const availInp = document.getElementById('ccAvailable');
 
-                // Записываем значение в скрытое поле для app.js
                 accBalanceInput.value = avail.toFixed(2);
 
-                // Меняем лимит -> пересчитываем остаток
                 limitInp.addEventListener('input', () => {
                     const L = parseFloat(limitInp.value) || 0;
                     const D = parseFloat(debtInp.value) || 0;
@@ -100,7 +98,6 @@
                     accBalanceInput.value = A;
                 });
 
-                // Меняем долг -> пересчитываем остаток
                 debtInp.addEventListener('input', () => {
                     const L = parseFloat(limitInp.value) || 0;
                     const D = parseFloat(debtInp.value) || 0;
@@ -109,7 +106,6 @@
                     accBalanceInput.value = A;
                 });
 
-                // Меняем остаток -> пересчитываем долг
                 availInp.addEventListener('input', () => {
                     const L = parseFloat(limitInp.value) || 0;
                     const A = parseFloat(availInp.value) || 0;
@@ -118,7 +114,6 @@
                     accBalanceInput.value = A;
                 });
 
-                // Страховка при сохранении
                 form.addEventListener('submit', () => {
                     accBalanceInput.value = availInp.value;
                 });
