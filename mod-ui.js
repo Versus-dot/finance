@@ -2,16 +2,52 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v172)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v173)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
 
     const origOpenModal = window.openModal;
     const origSetActiveTab = window.setActiveTab;
+    const origSetDashFilter = window.setDashFilter;
 
-    // 1. Перехватываем открытие модалки. Вместо .active ставим .visible.
-    // Теперь старый код app.js НЕ ВИДИТ наши модалки и не сбрасывает историю.
+    // 1. Фильтр банков теперь записывается в историю
+    window.setDashFilter = function(bankId) {
+        if (typeof S !== 'undefined' && S.ui) {
+            if (bankId === 'all') { S.ui.collapsedBanks = S.banks.map(b => b.id); } 
+            else {
+                const idx = S.ui.collapsedBanks.indexOf(bankId);
+                if (idx > -1) S.ui.collapsedBanks.splice(idx, 1);
+            }
+            if (typeof save === 'function') save(false);
+        }
+        if (origSetDashFilter) origSetDashFilter(bankId);
+
+        if (bankId !== 'all') {
+            history.pushState({ bankFilter: bankId }, '', location.pathname + '#bank');
+        }
+
+        setTimeout(() => {
+            requestAnimationFrame(() => {
+                const carousel = document.querySelector('.banks-carousel');
+                if (!carousel) return;
+                if (bankId === 'all') {
+                    carousel.scrollTo({ left: 0, behavior: 'smooth' });
+                } else {
+                    const targetChip = carousel.querySelector(`.bank-chip[data-bank-id="${bankId}"]`);
+                    if (targetChip) {
+                        const carouselRect = carousel.getBoundingClientRect();
+                        const targetRect = targetChip.getBoundingClientRect();
+                        const offset = targetRect.left - carouselRect.left;
+                        const scrollTarget = carousel.scrollLeft + offset - (carouselRect.width / 2) + (targetRect.width / 2);
+                        carousel.scrollTo({ left: scrollTarget, behavior: 'smooth' });
+                    }
+                }
+            });
+        }, 100);
+    };
+
+    // 2. Перехватываем открытие модалки (скрываем от app.js)
     window.openModal = function(html) {
         const content = document.getElementById('modalContent');
         if (content) content.innerHTML = html;
@@ -37,12 +73,12 @@
         }, 50);
     };
 
-    // 2. Универсальное закрытие
+    // 3. Универсальное закрытие
     window.closeModal = function() {
         history.back();
     };
 
-    // 3. Блокируем app.js переключать вкладки, пока открыто меню
+    // 4. Блокируем app.js переключать вкладки
     window.setActiveTab = function(tab, fromPop) {
         const backdrop = document.getElementById('modalBackdrop');
         if (fromPop && (isMenuOpen || backdrop.classList.contains('visible'))) {
@@ -63,21 +99,20 @@
         }
     }
 
-    // 4. Главный диспетчер свайпов
+    // 5. Главный диспетчер свайпов
     window.addEventListener('popstate', function(e) {
-        e.stopImmediatePropagation(); // Полностью отключаем app.js на этом событии
+        e.stopImmediatePropagation();
         
         const state = e.state || {};
         const backdrop = document.getElementById('modalBackdrop');
         const isModalActive = backdrop.classList.contains('visible');
 
-        // УРОВЕНЬ 1: Закрываем модалку (Настройки, Счет)
+        // УРОВЕНЬ 1: Закрываем модалку
         if (isModalActive) {
             backdrop.classList.remove('visible');
             const content = document.getElementById('modalContent');
             if (content) content.innerHTML = ''; 
             
-            // Возвращаем меню, из которого пришли
             if (state.menu === 'sub') {
                 isMenuOpen = true;
                 backdrop.classList.add('visible');
@@ -92,7 +127,7 @@
             return;
         }
 
-        // УРОВЕНЬ 2: Мы в меню (возврат из подменю в главное)
+        // УРОВЕНЬ 2: Закрываем меню
         if (isMenuOpen) {
             if (state.menu === 'sub') {
                 window.renderMenuContent('sub', state.type);
@@ -105,17 +140,28 @@
             return;
         }
 
-        // УРОВЕНЬ 3: Мы на вкладке (возврат на главную)
+        // УРОВЕНЬ 3: Сброс фильтра банка (возврат в "Все банки")
+        if (state.bankFilter) {
+            dashFilterBank = state.bankFilter;
+            if (typeof renderDashboard === 'function') renderDashboard();
+            return;
+        } else if (typeof dashFilterBank !== 'undefined' && dashFilterBank !== 'all') {
+            dashFilterBank = 'all';
+            if (typeof renderDashboard === 'function') renderDashboard();
+            return;
+        }
+
+        // УРОВЕНЬ 4: Возврат на главную
         if (activeTab !== 'home') {
             if (origSetActiveTab) origSetActiveTab('home', true);
             return;
         }
 
-        // УРОВЕНЬ 4: Мы на главной (защита от выхода)
+        // УРОВЕНЬ 5: Защита от выхода
         handleExit();
     }, true);
 
-    // Инициализация буфера для двойного свайпа
+    // Инициализация буфера
     setTimeout(() => {
         if (!history.state || !history.state.buffer) {
             history.replaceState({ tab: 'home', root: true }, '', location.pathname + '#home');
@@ -273,38 +319,6 @@
                 else if (problemBanks.has(bankId)) chip.classList.add('grace-bank-warning');
             }
         });
-    };
-
-    const originalSetDashFilter = window.setDashFilter;
-    window.setDashFilter = function(bankId) {
-        if (typeof S !== 'undefined' && S.ui) {
-            if (bankId === 'all') { S.ui.collapsedBanks = S.banks.map(b => b.id); } 
-            else {
-                const idx = S.ui.collapsedBanks.indexOf(bankId);
-                if (idx > -1) S.ui.collapsedBanks.splice(idx, 1);
-            }
-            if (typeof save === 'function') save(false);
-        }
-        if (originalSetDashFilter) originalSetDashFilter(bankId);
-
-        setTimeout(() => {
-            requestAnimationFrame(() => {
-                const carousel = document.querySelector('.banks-carousel');
-                if (!carousel) return;
-                if (bankId === 'all') {
-                    carousel.scrollTo({ left: 0, behavior: 'smooth' });
-                } else {
-                    const targetChip = carousel.querySelector(`.bank-chip[data-bank-id="${bankId}"]`);
-                    if (targetChip) {
-                        const carouselRect = carousel.getBoundingClientRect();
-                        const targetRect = targetChip.getBoundingClientRect();
-                        const offset = targetRect.left - carouselRect.left;
-                        const scrollTarget = carousel.scrollLeft + offset - (carouselRect.width / 2) + (targetRect.width / 2);
-                        carousel.scrollTo({ left: scrollTarget, behavior: 'smooth' });
-                    }
-                }
-            });
-        }, 100);
     };
 
     document.addEventListener('DOMContentLoaded', () => {
