@@ -2,25 +2,67 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v175)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v176)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
+    let isHandlingPopState = false;
+    window._currentBankFilter = 'all';
 
     const origOpenModal = window.openModal;
     const origSetActiveTab = window.setActiveTab;
+    const origSetDashFilter = window.setDashFilter;
 
-    // 1. Делегирование кликов по карточкам банков для истории
-    document.addEventListener('click', function(e) {
-        const chip = e.target.closest('.bank-chip');
-        if (chip) {
-            if (chip.dataset.bankId && chip.dataset.bankId !== 'all') {
-                history.pushState({ bankFilter: chip.dataset.bankId }, '', location.pathname + '#bank');
+    // 1. Перехват фильтра банков (без дублей)
+    window.setDashFilter = function(bankId) {
+        const wasAll = window._currentBankFilter === 'all';
+        window._currentBankFilter = bankId;
+        
+        if (typeof S !== 'undefined' && S.ui) {
+            if (bankId === 'all') { S.ui.collapsedBanks = S.banks.map(b => b.id); } 
+            else {
+                const idx = S.ui.collapsedBanks.indexOf(bankId);
+                if (idx > -1) S.ui.collapsedBanks.splice(idx, 1);
+            }
+            if (typeof save === 'function') save(false);
+        }
+        if (origSetDashFilter) origSetDashFilter(bankId);
+
+        if (!isHandlingPopState) {
+            if (bankId !== 'all') {
+                if (wasAll) {
+                    history.pushState({ bankFilter: bankId }, '', location.pathname + '#bank');
+                } else {
+                    history.replaceState({ bankFilter: bankId }, '', location.pathname + '#bank');
+                }
+            } else {
+                if (history.state && history.state.bankFilter) {
+                    history.replaceState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
+                }
             }
         }
-    }, true);
 
-    // 2. Перехватываем открытие модалки (скрываем от app.js)
+        setTimeout(() => {
+            requestAnimationFrame(() => {
+                const carousel = document.querySelector('.banks-carousel');
+                if (!carousel) return;
+                if (bankId === 'all') {
+                    carousel.scrollTo({ left: 0, behavior: 'smooth' });
+                } else {
+                    const targetChip = carousel.querySelector(`.bank-chip[data-bank-id="${bankId}"]`);
+                    if (targetChip) {
+                        const carouselRect = carousel.getBoundingClientRect();
+                        const targetRect = targetChip.getBoundingClientRect();
+                        const offset = targetRect.left - carouselRect.left;
+                        const scrollTarget = carousel.scrollLeft + offset - (carouselRect.width / 2) + (targetRect.width / 2);
+                        carousel.scrollTo({ left: scrollTarget, behavior: 'smooth' });
+                    }
+                }
+            });
+        }, 100);
+    };
+
+    // 2. Перехватываем открытие модалки
     window.openModal = function(html) {
         const content = document.getElementById('modalContent');
         if (content) content.innerHTML = html;
@@ -75,6 +117,7 @@
     // 5. Главный диспетчер свайпов
     window.addEventListener('popstate', function(e) {
         e.stopImmediatePropagation();
+        isHandlingPopState = true;
         
         const state = e.state || {};
         const backdrop = document.getElementById('modalBackdrop');
@@ -97,6 +140,7 @@
             } else {
                 isMenuOpen = false;
             }
+            isHandlingPopState = false;
             return;
         }
 
@@ -110,24 +154,27 @@
                 isMenuOpen = false;
                 backdrop.classList.remove('visible');
             }
+            isHandlingPopState = false;
             return;
         }
 
         // УРОВЕНЬ 3: Возврат на главную вкладку
         if (activeTab !== 'home') {
             if (origSetActiveTab) origSetActiveTab('home', true);
+            isHandlingPopState = false;
             return;
         }
 
-        // УРОВЕНЬ 4: Сброс фильтра банка (проверяем активную карточку)
-        const activeChip = document.querySelector('.bank-chip.active');
-        if (activeChip && activeChip.dataset.bankId && activeChip.dataset.bankId !== 'all') {
+        // УРОВЕНЬ 4: Сброс фильтра банка
+        if (window._currentBankFilter !== 'all') {
             window.setDashFilter('all');
+            isHandlingPopState = false;
             return;
         }
 
         // УРОВЕНЬ 5: Защита от выхода
         handleExit();
+        isHandlingPopState = false;
     }, true);
 
     // Инициализация буфера
@@ -137,6 +184,26 @@
             history.pushState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
         }
     }, 100);
+
+    // Очистка при восстановлении из bfcache
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) {
+            document.querySelectorAll('.modal-backdrop').forEach(b => {
+                b.classList.remove('visible');
+                b.classList.remove('active');
+            });
+            isMenuOpen = false;
+            
+            history.replaceState({ tab: 'home', root: true }, '', location.pathname + '#home');
+            history.pushState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
+
+            if (window._currentBankFilter !== 'all') {
+                window.setDashFilter('all');
+            } else if (typeof renderDashboard === 'function') {
+                renderDashboard();
+            }
+        }
+    });
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
