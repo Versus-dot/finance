@@ -2,34 +2,22 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v169)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v170)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
 
-    const origOpenModal = window.openModal;
-    const origCloseModal = window.closeModal;
     const origSetActiveTab = window.setActiveTab;
 
-    // 1. Кнопка "Х" (и программное закрытие) просто делает шаг назад
-    window.closeModal = function() {
-        history.back();
-    };
-
-    // 2. Блокируем app.js переключать вкладки, пока открыто меню или модалка
-    window.setActiveTab = function(tab, fromPop) {
-        const backdrop = document.getElementById('modalBackdrop');
-        if (fromPop && (isMenuOpen || backdrop.classList.contains('active') || backdrop.classList.contains('visible'))) {
-            return; 
-        }
-        if (origSetActiveTab) origSetActiveTab(tab, fromPop);
-        const fab = document.getElementById('fabBtn');
-        if (fab) fab.style.display = (tab === 'home') ? 'none' : 'flex';
-    };
-
-    // 3. При открытии любой модалки запоминаем, какое меню под ней
+    // 1. Перехватываем openModal, чтобы ставить класс .visible, который app.js не видит
     window.openModal = function(html) {
-        if (origOpenModal) origOpenModal(html);
+        const content = document.getElementById('modalContent');
+        if (content) content.innerHTML = html;
+        const backdrop = document.getElementById('modalBackdrop');
+        if (backdrop) {
+            backdrop.classList.remove('active'); // Убираем класс app.js
+            backdrop.classList.add('visible');   // Ставим наш класс
+        }
         
         let prevMenu = null;
         if (isMenuOpen && history.state) {
@@ -47,6 +35,22 @@
         }, 50);
     };
 
+    // 2. Универсальное закрытие
+    window.closeModal = function() {
+        history.back();
+    };
+
+    // 3. Блокируем app.js переключать вкладки, пока открыто меню/модалка
+    window.setActiveTab = function(tab, fromPop) {
+        const backdrop = document.getElementById('modalBackdrop');
+        if (fromPop && (isMenuOpen || backdrop.classList.contains('visible'))) {
+            return; 
+        }
+        if (origSetActiveTab) origSetActiveTab(tab, fromPop);
+        const fab = document.getElementById('fabBtn');
+        if (fab) fab.style.display = (tab === 'home') ? 'none' : 'flex';
+    };
+
     function handleExit() {
         if (Date.now() - lastBackPress < 2000) {
             // Разрешаем браузеру закрыть приложение
@@ -57,21 +61,19 @@
         }
     }
 
-    // 4. Главный диспетчер свайпов
+    // 4. Главный диспетчер свайпов (полностью изолирован от app.js)
     window.addEventListener('popstate', function(e) {
-        e.stopImmediatePropagation(); // Полностью блокируем app.js popstate
+        e.stopImmediatePropagation(); 
         
         const state = e.state || {};
         const backdrop = document.getElementById('modalBackdrop');
-        const isModalActive = backdrop.classList.contains('active') || backdrop.classList.contains('visible');
+        const isModalActive = backdrop.classList.contains('visible');
 
-        // УРОВЕНЬ 1: Закрываем модалку (Настройки, Счет, Операция)
         if (isModalActive) {
-            if (origCloseModal) origCloseModal();
-            backdrop.classList.remove('active');
             backdrop.classList.remove('visible');
+            const content = document.getElementById('modalContent');
+            if (content) content.innerHTML = ''; 
             
-            // Восстанавливаем меню, из которого пришли
             if (state.menu === 'sub') {
                 isMenuOpen = true;
                 backdrop.classList.add('visible');
@@ -86,7 +88,6 @@
             return;
         }
 
-        // УРОВЕНЬ 2: Мы в меню (возвращаемся из подменю в главное)
         if (isMenuOpen) {
             if (state.menu === 'sub') {
                 window.renderMenuContent('sub', state.type);
@@ -99,17 +100,14 @@
             return;
         }
 
-        // УРОВЕНЬ 3: Мы на вкладке (возвращаемся на Главную)
-        if (activeTab !== 'home') {
+        if (activeTab !== 'home' && state.tab !== 'home') {
             if (origSetActiveTab) origSetActiveTab('home', true);
-            return;
+        } else if (activeTab === 'home' || state.tab === 'home') {
+            handleExit();
         }
-
-        // УРОВЕНЬ 4: Мы на Главной странице (защита от выхода)
-        handleExit();
     }, true);
 
-    // Инициализация буфера для двойного свайпа
+    // Инициализация буфера
     setTimeout(() => {
         if (!history.state || !history.state.buffer) {
             history.replaceState({ tab: 'home', root: true }, '', location.pathname + '#home');
