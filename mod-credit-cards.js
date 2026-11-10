@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v5
+// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v6
 // ==========================================
 (function() {
     const prevOpenAccountModal = window.openAccountModal;
@@ -67,17 +67,17 @@
                 ccUI.id = 'ccCustomUI';
                 ccUI.className = 'form-row';
                 ccUI.style.marginTop = '0'; 
-                ccUI.style.alignItems = 'flex-end';
+                ccUI.style.marginBottom = '16px'; // Принудительный отступ снизу
                 ccUI.style.gap = '12px';
                 
-                // Вернул стандартный margin-bottom для полей
+                // Убрал nowrap и жесткий размер шрифта, чтобы вернуть стандартный вид
                 ccUI.innerHTML = `
-                    <div class="form-group">
-                        <label style="white-space: nowrap; font-size: 11px;">Задолженность (₽)</label>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Задолженность (₽)</label>
                         <input type="number" step="0.01" id="ccDebt" value="${debt.toFixed(2)}">
                     </div>
-                    <div class="form-group">
-                        <label style="white-space: nowrap; font-size: 11px;">Текущий баланс (₽)</label>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Текущий баланс (₽)</label>
                         <input type="number" step="0.01" id="ccAvailable" value="${avail.toFixed(2)}">
                     </div>
                 `;
