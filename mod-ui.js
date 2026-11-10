@@ -2,7 +2,7 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v176)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v177)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -13,7 +13,7 @@
     const origSetActiveTab = window.setActiveTab;
     const origSetDashFilter = window.setDashFilter;
 
-    // 1. Перехват фильтра банков (без дублей)
+    // 1. Перехват фильтра банков
     window.setDashFilter = function(bankId) {
         const wasAll = window._currentBankFilter === 'all';
         window._currentBankFilter = bankId;
@@ -165,8 +165,8 @@
             return;
         }
 
-        // УРОВЕНЬ 4: Сброс фильтра банка
-        if (window._currentBankFilter !== 'all') {
+        // УРОВЕНЬ 4: Сброс фильтра банка (проверяем ОБА индикатора)
+        if (window._currentBankFilter !== 'all' || (typeof dashFilterBank !== 'undefined' && dashFilterBank !== 'all')) {
             window.setDashFilter('all');
             isHandlingPopState = false;
             return;
@@ -177,12 +177,16 @@
         isHandlingPopState = false;
     }, true);
 
-    // Инициализация буфера
+    // Инициализация буфера и принудительный сброс фильтра при загрузке
     setTimeout(() => {
         if (!history.state || !history.state.buffer) {
             history.replaceState({ tab: 'home', root: true }, '', location.pathname + '#home');
             history.pushState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
         }
+        // Принудительный сброс фильтра
+        if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
+        window._currentBankFilter = 'all';
+        if (typeof renderDashboard === 'function') renderDashboard();
     }, 100);
 
     // Очистка при восстановлении из bfcache
@@ -197,11 +201,9 @@
             history.replaceState({ tab: 'home', root: true }, '', location.pathname + '#home');
             history.pushState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
 
-            if (window._currentBankFilter !== 'all') {
-                window.setDashFilter('all');
-            } else if (typeof renderDashboard === 'function') {
-                renderDashboard();
-            }
+            if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
+            window._currentBankFilter = 'all';
+            if (typeof renderDashboard === 'function') renderDashboard();
         }
     });
 
