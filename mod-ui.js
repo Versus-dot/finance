@@ -2,67 +2,104 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v178)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v179) - Hash Router");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
-    let isHandlingPopState = false;
+    let currentRoute = location.hash.replace('#', '') || 'home';
     window._currentBankFilter = 'all';
 
     const origOpenModal = window.openModal;
     const origSetActiveTab = window.setActiveTab;
     const origSetDashFilter = window.setDashFilter;
 
-    // 1. Перехват фильтра банков
-    window.setDashFilter = function(bankId) {
-        const wasAll = window._currentBankFilter === 'all';
-        window._currentBankFilter = bankId;
+    // 1. Полный перехват истории через Hash
+    window.addEventListener('popstate', function(e) {
+        e.stopImmediatePropagation(); // Блокируем старый код app.js
         
-        if (typeof S !== 'undefined' && S.ui) {
-            if (bankId === 'all') { S.ui.collapsedBanks = S.banks.map(b => b.id); } 
-            else {
-                const idx = S.ui.collapsedBanks.indexOf(bankId);
-                if (idx > -1) S.ui.collapsedBanks.splice(idx, 1);
-            }
-            if (typeof save === 'function') save(false);
-        }
-        if (origSetDashFilter) origSetDashFilter(bankId);
-
-        if (!isHandlingPopState) {
-            if (bankId !== 'all') {
-                if (wasAll) {
-                    history.pushState({ bankFilter: bankId }, '', location.pathname + '#bank');
-                } else {
-                    history.replaceState({ bankFilter: bankId }, '', location.pathname + '#bank');
-                }
+        // Если мы на главной и история пуста (свайп на выход)
+        if (currentRoute === 'home' && (location.hash === '#home' || location.hash === '')) {
+            if (Date.now() - lastBackPress < 2000) {
+                // Разрешаем выход
             } else {
-                if (history.state && history.state.bankFilter) {
-                    history.replaceState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
-                }
+                history.pushState({ buffer: true }, '', '#home');
+                if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
+                lastBackPress = Date.now();
+            }
+        }
+    }, true);
+
+    // 2. Роутер (обработка хэша)
+    function handleRoute() {
+        const newRoute = location.hash.replace('#', '') || 'home';
+
+        // Если это вкладка (Главная, Счета, Операции, Статистика)
+        if (['home', 'accounts', 'transactions', 'stats'].includes(newRoute)) {
+            if (window.activeTab !== newRoute) {
+                if (origSetActiveTab) origSetActiveTab(newRoute, true);
             }
         }
 
-        setTimeout(() => {
-            requestAnimationFrame(() => {
-                const carousel = document.querySelector('.banks-carousel');
-                if (!carousel) return;
-                if (bankId === 'all') {
-                    carousel.scrollTo({ left: 0, behavior: 'smooth' });
-                } else {
-                    const targetChip = carousel.querySelector(`.bank-chip[data-bank-id="${bankId}"]`);
-                    if (targetChip) {
-                        const carouselRect = carousel.getBoundingClientRect();
-                        const targetRect = targetChip.getBoundingClientRect();
-                        const offset = targetRect.left - carouselRect.left;
-                        const scrollTarget = carousel.scrollLeft + offset - (carouselRect.width / 2) + (targetRect.width / 2);
-                        carousel.scrollTo({ left: scrollTarget, behavior: 'smooth' });
-                    }
-                }
+        // Закрываем модалки и меню, если ушли с их роутов
+        if (newRoute !== 'modal') {
+            document.querySelectorAll('.modal-backdrop').forEach(b => {
+                b.classList.remove('visible');
+                b.classList.remove('active');
             });
-        }, 100);
+            isMenuOpen = false;
+        }
+
+        if (newRoute === 'home') {
+            if (window._currentBankFilter !== 'all') {
+                window._currentBankFilter = 'all';
+                if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
+                if (typeof renderDashboard === 'function') renderDashboard();
+            }
+        } else if (newRoute.startsWith('bank/')) {
+            const bankId = newRoute.split('/')[1];
+            window._currentBankFilter = bankId;
+            if (typeof dashFilterBank !== 'undefined') dashFilterBank = bankId;
+            if (typeof renderDashboard === 'function') renderDashboard();
+        } else if (newRoute === 'menu') {
+            isMenuOpen = true;
+            document.getElementById('modalBackdrop').classList.add('visible');
+            window.renderMenuContent('main');
+        } else if (newRoute.startsWith('menu/')) {
+            const type = newRoute.split('/')[1];
+            isMenuOpen = true;
+            document.getElementById('modalBackdrop').classList.add('visible');
+            window.renderMenuContent('sub', type);
+        } else if (newRoute === 'modal') {
+            // Модалка уже отрисована тем, кто её вызвал
+        }
+
+        currentRoute = newRoute;
+    }
+    
+    window.addEventListener('hashchange', handleRoute);
+
+    // 3. Перехват функций app.js
+    window.setActiveTab = function(tab, fromPop) {
+        if (origSetActiveTab) origSetActiveTab(tab, fromPop);
+        if (!fromPop) location.hash = tab;
     };
 
-    // 2. Перехватываем открытие модалки
+    window.setDashFilter = function(bankId) {
+        if (bankId === 'all') {
+            location.hash = 'home';
+        } else {
+            location.hash = 'bank/' + bankId;
+        }
+    };
+
+    window.openMenu = function() {
+        location.hash = 'menu';
+    };
+
+    window.openSubMenu = function(type) {
+        location.hash = 'menu/' + type;
+    };
+
     window.openModal = function(html) {
         const content = document.getElementById('modalContent');
         if (content) content.innerHTML = html;
@@ -71,157 +108,37 @@
             backdrop.classList.remove('active'); 
             backdrop.classList.add('visible');   
         }
-        
-        let prevMenu = null;
-        if (isMenuOpen && history.state) {
-            if (history.state.menu === 'sub') prevMenu = { menu: 'sub', type: history.state.type };
-            else if (history.state.menu === 'main') prevMenu = { menu: 'main' };
-        }
-        
-        history.pushState({ modal: true, prevMenu: prevMenu }, '', location.pathname + '#modal');
-        
-        setTimeout(() => {
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.ontouchmove = null;
-                modal.addEventListener('touchmove', (e) => { e.stopPropagation(); }, { passive: true });
-            });
-        }, 50);
+        location.hash = 'modal';
     };
 
-    // 3. Универсальное закрытие
     window.closeModal = function() {
         history.back();
     };
 
-    // 4. Блокируем app.js переключать вкладки
-    window.setActiveTab = function(tab, fromPop) {
-        const backdrop = document.getElementById('modalBackdrop');
-        if (fromPop && (isMenuOpen || backdrop.classList.contains('visible'))) {
-            return; 
-        }
-        if (origSetActiveTab) origSetActiveTab(tab, fromPop);
-        const fab = document.getElementById('fabBtn');
-        if (fab) fab.style.display = (tab === 'home') ? 'none' : 'flex';
-    };
-
-    function handleExit() {
-        if (Date.now() - lastBackPress < 2000) {
-            // Разрешаем браузеру закрыть приложение
-        } else {
-            history.pushState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
-            if (typeof toast === 'function') toast('Свайпните назад ещё раз для выхода');
-            lastBackPress = Date.now();
-        }
-    }
-
-    // 5. Главный диспетчер свайпов
-    window.addEventListener('popstate', function(e) {
-        e.stopImmediatePropagation();
-        isHandlingPopState = true;
-        
-        try {
-            const state = e.state || {};
-            const backdrop = document.getElementById('modalBackdrop');
-            const isModalActive = backdrop.classList.contains('visible');
-
-            // УРОВЕНЬ 1: Закрываем модалку
-            if (isModalActive) {
-                backdrop.classList.remove('visible');
-                const content = document.getElementById('modalContent');
-                if (content) content.innerHTML = ''; 
-                
-                if (state.menu === 'sub') {
-                    isMenuOpen = true;
-                    backdrop.classList.add('visible');
-                    window.renderMenuContent('sub', state.type);
-                } else if (state.menu === 'main') {
-                    isMenuOpen = true;
-                    backdrop.classList.add('visible');
-                    window.renderMenuContent('main');
-                } else {
-                    isMenuOpen = false;
-                }
-                return;
-            }
-
-            // УРОВЕНЬ 2: Закрываем меню
-            if (isMenuOpen) {
-                if (state.menu === 'sub') {
-                    window.renderMenuContent('sub', state.type);
-                } else if (state.menu === 'main') {
-                    window.renderMenuContent('main');
-                } else {
-                    isMenuOpen = false;
-                    backdrop.classList.remove('visible');
-                }
-                return;
-            }
-
-            // УРОВЕНЬ 3: Возврат на главную вкладку
-            if (activeTab !== 'home') {
-                if (origSetActiveTab) origSetActiveTab('home', true);
-                return;
-            }
-
-            // УРОВЕНЬ 4: Сброс фильтра банка
-            if (window._currentBankFilter !== 'all' || (typeof dashFilterBank !== 'undefined' && dashFilterBank !== 'all')) {
-                window.setDashFilter('all');
-                return;
-            }
-
-            // УРОВЕНЬ 5: Защита от выхода
-            handleExit();
-        } finally {
-            isHandlingPopState = false;
-        }
-    }, true);
-
-    // Инициализация и принудительный сброс
-    setTimeout(() => {
-        if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
-        window._currentBankFilter = 'all';
-        document.querySelectorAll('.modal-backdrop').forEach(b => b.classList.remove('visible', 'active'));
-        isMenuOpen = false;
-        if (typeof renderDashboard === 'function') renderDashboard();
-
-        if (!history.state || !history.state.buffer) {
-            history.replaceState({ tab: 'home', root: true }, '', location.pathname + '#home');
-            history.pushState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
-        }
-    }, 100);
-
-    // Очистка при восстановлении из bfcache
-    window.addEventListener('pageshow', function(e) {
-        if (e.persisted) {
-            document.querySelectorAll('.modal-backdrop').forEach(b => {
-                b.classList.remove('visible');
-                b.classList.remove('active');
-            });
-            isMenuOpen = false;
-            
-            history.replaceState({ tab: 'home', root: true }, '', location.pathname + '#home');
-            history.pushState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
-
-            if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
-            window._currentBankFilter = 'all';
-            if (typeof renderDashboard === 'function') renderDashboard();
-        }
-    });
-
-    // Очистка при возвращении в приложение (visibilitychange)
+    // 4. Очистка при возвращении в приложение
     document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'visible') {
-            document.querySelectorAll('.modal-backdrop').forEach(b => {
-                b.classList.remove('visible');
-                b.classList.remove('active');
-            });
-            isMenuOpen = false;
-            
-            if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
-            window._currentBankFilter = 'all';
-            if (typeof renderDashboard === 'function') renderDashboard();
+            if (location.hash !== '#home') {
+                location.replace('#home');
+                handleRoute();
+            }
         }
     });
+
+    // Инициализация при старте
+    setTimeout(() => {
+        if (location.hash !== '#home') {
+            history.replaceState({ buffer: false }, '', '#home');
+            history.pushState({ buffer: true }, '', '#home');
+        } else {
+            history.replaceState({ buffer: false }, '', '#home');
+            history.pushState({ buffer: true }, '', '#home');
+        }
+        
+        if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
+        window._currentBankFilter = 'all';
+        if (typeof renderDashboard === 'function') renderDashboard();
+    }, 100);
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
@@ -474,20 +391,6 @@
                 modal.addEventListener('touchmove', (e) => { e.stopPropagation(); }, { passive: true });
             });
         }, 50);
-    };
-
-    window.openSubMenu = function(type) {
-        window.renderMenuContent('sub', type);
-        history.pushState({ menu: 'sub', type: type }, '', location.pathname + '#menu-sub');
-    };
-
-    window.openMenu = function() {
-        isMenuOpen = true;
-        const backdrop = document.getElementById('modalBackdrop');
-        backdrop.classList.remove('active');
-        backdrop.classList.add('visible');
-        window.renderMenuContent('main');
-        history.pushState({ menu: 'main' }, '', location.pathname + '#menu');
     };
 
     window.openSnapshotFreqModal = function() {
