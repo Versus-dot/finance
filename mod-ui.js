@@ -2,52 +2,23 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v174)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v175)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
-    window._currentBankFilter = 'all'; // Наш глобальный трекер фильтра
 
     const origOpenModal = window.openModal;
     const origSetActiveTab = window.setActiveTab;
-    const origSetDashFilter = window.setDashFilter;
 
-    // 1. Перехват фильтра банков
-    window.setDashFilter = function(bankId) {
-        window._currentBankFilter = bankId;
-        if (typeof S !== 'undefined' && S.ui) {
-            if (bankId === 'all') { S.ui.collapsedBanks = S.banks.map(b => b.id); } 
-            else {
-                const idx = S.ui.collapsedBanks.indexOf(bankId);
-                if (idx > -1) S.ui.collapsedBanks.splice(idx, 1);
+    // 1. Делегирование кликов по карточкам банков для истории
+    document.addEventListener('click', function(e) {
+        const chip = e.target.closest('.bank-chip');
+        if (chip) {
+            if (chip.dataset.bankId && chip.dataset.bankId !== 'all') {
+                history.pushState({ bankFilter: chip.dataset.bankId }, '', location.pathname + '#bank');
             }
-            if (typeof save === 'function') save(false);
         }
-        if (origSetDashFilter) origSetDashFilter(bankId);
-
-        if (bankId !== 'all') {
-            history.pushState({ bankFilter: bankId }, '', location.pathname + '#bank');
-        }
-
-        setTimeout(() => {
-            requestAnimationFrame(() => {
-                const carousel = document.querySelector('.banks-carousel');
-                if (!carousel) return;
-                if (bankId === 'all') {
-                    carousel.scrollTo({ left: 0, behavior: 'smooth' });
-                } else {
-                    const targetChip = carousel.querySelector(`.bank-chip[data-bank-id="${bankId}"]`);
-                    if (targetChip) {
-                        const carouselRect = carousel.getBoundingClientRect();
-                        const targetRect = targetChip.getBoundingClientRect();
-                        const offset = targetRect.left - carouselRect.left;
-                        const scrollTarget = carousel.scrollLeft + offset - (carouselRect.width / 2) + (targetRect.width / 2);
-                        carousel.scrollTo({ left: scrollTarget, behavior: 'smooth' });
-                    }
-                }
-            });
-        }, 100);
-    };
+    }, true);
 
     // 2. Перехватываем открытие модалки (скрываем от app.js)
     window.openModal = function(html) {
@@ -148,14 +119,10 @@
             return;
         }
 
-        // УРОВЕНЬ 4: Сброс фильтра банка (возврат в "Все банки")
-        if (window._currentBankFilter !== 'all') {
-            const origPush = history.pushState;
-            history.pushState = function() {}; // Отключаем пуш, чтобы не зациклиться
-            
-            window.setDashFilter('all'); 
-            
-            history.pushState = origPush;
+        // УРОВЕНЬ 4: Сброс фильтра банка (проверяем активную карточку)
+        const activeChip = document.querySelector('.bank-chip.active');
+        if (activeChip && activeChip.dataset.bankId && activeChip.dataset.bankId !== 'all') {
+            window.setDashFilter('all');
             return;
         }
 
