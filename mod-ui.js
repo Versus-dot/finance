@@ -2,17 +2,19 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v173)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v174)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
+    window._currentBankFilter = 'all'; // Наш глобальный трекер фильтра
 
     const origOpenModal = window.openModal;
     const origSetActiveTab = window.setActiveTab;
     const origSetDashFilter = window.setDashFilter;
 
-    // 1. Фильтр банков теперь записывается в историю
+    // 1. Перехват фильтра банков
     window.setDashFilter = function(bankId) {
+        window._currentBankFilter = bankId;
         if (typeof S !== 'undefined' && S.ui) {
             if (bankId === 'all') { S.ui.collapsedBanks = S.banks.map(b => b.id); } 
             else {
@@ -140,20 +142,20 @@
             return;
         }
 
-        // УРОВЕНЬ 3: Сброс фильтра банка (возврат в "Все банки")
-        if (state.bankFilter) {
-            dashFilterBank = state.bankFilter;
-            if (typeof renderDashboard === 'function') renderDashboard();
-            return;
-        } else if (typeof dashFilterBank !== 'undefined' && dashFilterBank !== 'all') {
-            dashFilterBank = 'all';
-            if (typeof renderDashboard === 'function') renderDashboard();
+        // УРОВЕНЬ 3: Возврат на главную вкладку
+        if (activeTab !== 'home') {
+            if (origSetActiveTab) origSetActiveTab('home', true);
             return;
         }
 
-        // УРОВЕНЬ 4: Возврат на главную
-        if (activeTab !== 'home') {
-            if (origSetActiveTab) origSetActiveTab('home', true);
+        // УРОВЕНЬ 4: Сброс фильтра банка (возврат в "Все банки")
+        if (window._currentBankFilter !== 'all') {
+            const origPush = history.pushState;
+            history.pushState = function() {}; // Отключаем пуш, чтобы не зациклиться
+            
+            window.setDashFilter('all'); 
+            
+            history.pushState = origPush;
             return;
         }
 
