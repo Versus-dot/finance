@@ -2,7 +2,7 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v177)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v178)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -119,74 +119,75 @@
         e.stopImmediatePropagation();
         isHandlingPopState = true;
         
-        const state = e.state || {};
-        const backdrop = document.getElementById('modalBackdrop');
-        const isModalActive = backdrop.classList.contains('visible');
+        try {
+            const state = e.state || {};
+            const backdrop = document.getElementById('modalBackdrop');
+            const isModalActive = backdrop.classList.contains('visible');
 
-        // УРОВЕНЬ 1: Закрываем модалку
-        if (isModalActive) {
-            backdrop.classList.remove('visible');
-            const content = document.getElementById('modalContent');
-            if (content) content.innerHTML = ''; 
-            
-            if (state.menu === 'sub') {
-                isMenuOpen = true;
-                backdrop.classList.add('visible');
-                window.renderMenuContent('sub', state.type);
-            } else if (state.menu === 'main') {
-                isMenuOpen = true;
-                backdrop.classList.add('visible');
-                window.renderMenuContent('main');
-            } else {
-                isMenuOpen = false;
-            }
-            isHandlingPopState = false;
-            return;
-        }
-
-        // УРОВЕНЬ 2: Закрываем меню
-        if (isMenuOpen) {
-            if (state.menu === 'sub') {
-                window.renderMenuContent('sub', state.type);
-            } else if (state.menu === 'main') {
-                window.renderMenuContent('main');
-            } else {
-                isMenuOpen = false;
+            // УРОВЕНЬ 1: Закрываем модалку
+            if (isModalActive) {
                 backdrop.classList.remove('visible');
+                const content = document.getElementById('modalContent');
+                if (content) content.innerHTML = ''; 
+                
+                if (state.menu === 'sub') {
+                    isMenuOpen = true;
+                    backdrop.classList.add('visible');
+                    window.renderMenuContent('sub', state.type);
+                } else if (state.menu === 'main') {
+                    isMenuOpen = true;
+                    backdrop.classList.add('visible');
+                    window.renderMenuContent('main');
+                } else {
+                    isMenuOpen = false;
+                }
+                return;
             }
-            isHandlingPopState = false;
-            return;
-        }
 
-        // УРОВЕНЬ 3: Возврат на главную вкладку
-        if (activeTab !== 'home') {
-            if (origSetActiveTab) origSetActiveTab('home', true);
-            isHandlingPopState = false;
-            return;
-        }
+            // УРОВЕНЬ 2: Закрываем меню
+            if (isMenuOpen) {
+                if (state.menu === 'sub') {
+                    window.renderMenuContent('sub', state.type);
+                } else if (state.menu === 'main') {
+                    window.renderMenuContent('main');
+                } else {
+                    isMenuOpen = false;
+                    backdrop.classList.remove('visible');
+                }
+                return;
+            }
 
-        // УРОВЕНЬ 4: Сброс фильтра банка (проверяем ОБА индикатора)
-        if (window._currentBankFilter !== 'all' || (typeof dashFilterBank !== 'undefined' && dashFilterBank !== 'all')) {
-            window.setDashFilter('all');
-            isHandlingPopState = false;
-            return;
-        }
+            // УРОВЕНЬ 3: Возврат на главную вкладку
+            if (activeTab !== 'home') {
+                if (origSetActiveTab) origSetActiveTab('home', true);
+                return;
+            }
 
-        // УРОВЕНЬ 5: Защита от выхода
-        handleExit();
-        isHandlingPopState = false;
+            // УРОВЕНЬ 4: Сброс фильтра банка
+            if (window._currentBankFilter !== 'all' || (typeof dashFilterBank !== 'undefined' && dashFilterBank !== 'all')) {
+                window.setDashFilter('all');
+                return;
+            }
+
+            // УРОВЕНЬ 5: Защита от выхода
+            handleExit();
+        } finally {
+            isHandlingPopState = false;
+        }
     }, true);
 
-    // Инициализация буфера и принудительный сброс фильтра при загрузке
+    // Инициализация и принудительный сброс
     setTimeout(() => {
+        if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
+        window._currentBankFilter = 'all';
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.classList.remove('visible', 'active'));
+        isMenuOpen = false;
+        if (typeof renderDashboard === 'function') renderDashboard();
+
         if (!history.state || !history.state.buffer) {
             history.replaceState({ tab: 'home', root: true }, '', location.pathname + '#home');
             history.pushState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
         }
-        // Принудительный сброс фильтра
-        if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
-        window._currentBankFilter = 'all';
-        if (typeof renderDashboard === 'function') renderDashboard();
     }, 100);
 
     // Очистка при восстановлении из bfcache
@@ -201,6 +202,21 @@
             history.replaceState({ tab: 'home', root: true }, '', location.pathname + '#home');
             history.pushState({ tab: 'home', buffer: true }, '', location.pathname + '#home');
 
+            if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
+            window._currentBankFilter = 'all';
+            if (typeof renderDashboard === 'function') renderDashboard();
+        }
+    });
+
+    // Очистка при возвращении в приложение (visibilitychange)
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            document.querySelectorAll('.modal-backdrop').forEach(b => {
+                b.classList.remove('visible');
+                b.classList.remove('active');
+            });
+            isMenuOpen = false;
+            
             if (typeof dashFilterBank !== 'undefined') dashFilterBank = 'all';
             window._currentBankFilter = 'all';
             if (typeof renderDashboard === 'function') renderDashboard();
