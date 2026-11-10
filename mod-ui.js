@@ -2,7 +2,7 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v180) - Hash Router");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v181) - Hash Router");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -35,8 +35,8 @@
     function handleRoute() {
         const hash = location.hash.replace('#', '') || 'home';
 
-        // Закрываем всё по умолчанию, если ушли с модалки
-        if (hash !== 'modal') {
+        // Закрываем всё ТОЛЬКО если переходим на вкладки (страницы)
+        if (['home', 'accounts', 'transactions', 'stats'].includes(hash)) {
             if (origCloseModal) origCloseModal();
             document.querySelectorAll('.modal-backdrop').forEach(b => b.classList.remove('active'));
             isMenuOpen = false;
