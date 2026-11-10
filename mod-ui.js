@@ -2,43 +2,32 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v171)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v172)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
-    let isHandlingPopState = false;
-
-    // 💥 ГЛУШИЛКА: Блокируем app.js менять историю во время наших свайпов
-    const origPushState = history.pushState;
-    history.pushState = function(state, title, url) {
-        if (isHandlingPopState) return; 
-        origPushState.apply(history, arguments);
-    };
 
     const origOpenModal = window.openModal;
-    const origCloseModal = window.closeModal;
     const origSetActiveTab = window.setActiveTab;
 
-    // 1. Кнопка "Х" и закрытие модалки
-    window.closeModal = function() {
-        history.back();
-    };
-
-    // 2. Блокируем app.js переключать вкладки, пока мы в меню
-    window.setActiveTab = function(tab, fromPop) {
-        const backdrop = document.getElementById('modalBackdrop');
-        if (fromPop && (isMenuOpen || backdrop.classList.contains('active'))) {
-            return; 
-        }
-        if (origSetActiveTab) origSetActiveTab(tab, fromPop);
-        const fab = document.getElementById('fabBtn');
-        if (fab) fab.style.display = (tab === 'home') ? 'none' : 'flex';
-    };
-
-    // 3. Открытие модалки
+    // 1. Перехватываем открытие модалки. Вместо .active ставим .visible.
+    // Теперь старый код app.js НЕ ВИДИТ наши модалки и не сбрасывает историю.
     window.openModal = function(html) {
-        if (origOpenModal) origOpenModal(html);
-        history.pushState({ modal: true }, '', location.pathname + '#modal');
+        const content = document.getElementById('modalContent');
+        if (content) content.innerHTML = html;
+        const backdrop = document.getElementById('modalBackdrop');
+        if (backdrop) {
+            backdrop.classList.remove('active'); 
+            backdrop.classList.add('visible');   
+        }
+        
+        let prevMenu = null;
+        if (isMenuOpen && history.state) {
+            if (history.state.menu === 'sub') prevMenu = { menu: 'sub', type: history.state.type };
+            else if (history.state.menu === 'main') prevMenu = { menu: 'main' };
+        }
+        
+        history.pushState({ modal: true, prevMenu: prevMenu }, '', location.pathname + '#modal');
         
         setTimeout(() => {
             document.querySelectorAll('.modal').forEach(modal => {
@@ -46,6 +35,22 @@
                 modal.addEventListener('touchmove', (e) => { e.stopPropagation(); }, { passive: true });
             });
         }, 50);
+    };
+
+    // 2. Универсальное закрытие
+    window.closeModal = function() {
+        history.back();
+    };
+
+    // 3. Блокируем app.js переключать вкладки, пока открыто меню
+    window.setActiveTab = function(tab, fromPop) {
+        const backdrop = document.getElementById('modalBackdrop');
+        if (fromPop && (isMenuOpen || backdrop.classList.contains('visible'))) {
+            return; 
+        }
+        if (origSetActiveTab) origSetActiveTab(tab, fromPop);
+        const fab = document.getElementById('fabBtn');
+        if (fab) fab.style.display = (tab === 'home') ? 'none' : 'flex';
     };
 
     function handleExit() {
@@ -58,29 +63,28 @@
         }
     }
 
-    // 4. УМНЫЙ ДИСПЕТЧЕР СВАЙПОВ
+    // 4. Главный диспетчер свайпов
     window.addEventListener('popstate', function(e) {
-        isHandlingPopState = true;
-        setTimeout(() => { isHandlingPopState = false; }, 50);
-
-        e.stopImmediatePropagation(); // Блокируем app.js
+        e.stopImmediatePropagation(); // Полностью отключаем app.js на этом событии
         
         const state = e.state || {};
         const backdrop = document.getElementById('modalBackdrop');
-        const isModalActive = backdrop.classList.contains('active');
+        const isModalActive = backdrop.classList.contains('visible');
 
         // УРОВЕНЬ 1: Закрываем модалку (Настройки, Счет)
         if (isModalActive) {
-            if (origCloseModal) origCloseModal();
-            backdrop.classList.remove('active');
+            backdrop.classList.remove('visible');
+            const content = document.getElementById('modalContent');
+            if (content) content.innerHTML = ''; 
             
+            // Возвращаем меню, из которого пришли
             if (state.menu === 'sub') {
                 isMenuOpen = true;
-                backdrop.classList.add('active');
+                backdrop.classList.add('visible');
                 window.renderMenuContent('sub', state.type);
             } else if (state.menu === 'main') {
                 isMenuOpen = true;
-                backdrop.classList.add('active');
+                backdrop.classList.add('visible');
                 window.renderMenuContent('main');
             } else {
                 isMenuOpen = false;
@@ -96,7 +100,7 @@
                 window.renderMenuContent('main');
             } else {
                 isMenuOpen = false;
-                backdrop.classList.remove('active');
+                backdrop.classList.remove('visible');
             }
             return;
         }
@@ -122,7 +126,7 @@
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .modal-backdrop { display: none; }
-        .modal-backdrop.active { display: flex; }
+        .modal-backdrop.visible { display: flex; }
         .modal, #modalBackdrop2 { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; touch-action: pan-y !important; }
         .account-row { transition: all 0.2s ease; }
         body.style-stripe .account-row { border-left: 4px solid var(--bank-color) !important; background: var(--card) !important; margin: 0 6px 0 10px !important; border-radius: 0 8px 8px 0 !important; border-bottom: 1px solid var(--border) !important; }
@@ -412,7 +416,8 @@
     window.openMenu = function() {
         isMenuOpen = true;
         const backdrop = document.getElementById('modalBackdrop');
-        backdrop.classList.add('active');
+        backdrop.classList.remove('active');
+        backdrop.classList.add('visible');
         window.renderMenuContent('main');
         history.pushState({ menu: 'main' }, '', location.pathname + '#menu');
     };
