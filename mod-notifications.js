@@ -1,47 +1,57 @@
 // ==========================================
-// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js) v3
+// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js) v4
 // ==========================================
 (function() {
     if (typeof S !== 'undefined') {
         if (S.settings.graceYellowDays === undefined) S.settings.graceYellowDays = 7;
         if (S.settings.graceRedDays === undefined) S.settings.graceRedDays = 3;
+        if (S.settings.graceGlowIntensity === undefined) S.settings.graceGlowIntensity = 60;
     }
 
-    // Добавляем стили для СВЕЧЕНИЯ (без заливки фона)
+    // Функция обновления CSS-переменных для яркости
+    function applyGlowIntensity() {
+        const intensity = (S.settings.graceGlowIntensity || 60) / 100;
+        // Базовая прозрачность (при 100% яркости)
+        document.documentElement.style.setProperty('--glow-alpha', (intensity * 0.8).toFixed(2));
+        document.documentElement.style.setProperty('--glow-alpha-inner', (intensity * 0.4).toFixed(2));
+    }
+    setTimeout(applyGlowIntensity, 100);
+
+    // Добавляем стили с использованием CSS-переменных для яркости
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         /* Свечение для карточек банков (карусель) */
         .bank-chip.bg-warning { 
             background: var(--card) !important;
             border-color: var(--yellow) !important; 
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4), inset 0 0 0 1px rgba(245, 158, 11, 0.2) !important; 
+            box-shadow: 0 0 15px rgba(245, 158, 11, var(--glow-alpha, 0.5)), inset 0 0 0 1px rgba(245, 158, 11, var(--glow-alpha-inner, 0.25)) !important; 
         }
         .bank-chip.bg-danger { 
             background: var(--card) !important;
             border-color: var(--red) !important; 
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4), inset 0 0 0 1px rgba(239, 68, 68, 0.2) !important; 
+            box-shadow: 0 0 15px rgba(239, 68, 68, var(--glow-alpha, 0.5)), inset 0 0 0 1px rgba(239, 68, 68, var(--glow-alpha-inner, 0.25)) !important; 
         }
         
         /* Свечение для ВСЕГО блока банка (группы) */
         .bank-group.bg-warning { 
             border-color: var(--yellow) !important; 
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3) !important;
+            box-shadow: 0 0 15px rgba(245, 158, 11, var(--glow-alpha, 0.5)) !important;
         }
         .bank-group.bg-danger { 
             border-color: var(--red) !important; 
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3) !important;
+            box-shadow: 0 0 15px rgba(239, 68, 68, var(--glow-alpha, 0.5)) !important;
         }
 
         /* Пульсация свечения */
         @keyframes pulse-glow {
-            0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3), inset 0 0 0 1px rgba(239, 68, 68, 0.2); }
-            50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7), inset 0 0 0 2px rgba(239, 68, 68, 0.4); }
-            100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3), inset 0 0 0 1px rgba(239, 68, 68, 0.2); }
+            0% { box-shadow: 0 0 10px rgba(239, 68, 68, var(--glow-alpha-inner, 0.3)), inset 0 0 0 1px rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 25px rgba(239, 68, 68, var(--glow-alpha, 0.7)), inset 0 0 0 2px rgba(239, 68, 68, var(--glow-alpha-inner, 0.4)); }
+            100% { box-shadow: 0 0 10px rgba(239, 68, 68, var(--glow-alpha-inner, 0.3)), inset 0 0 0 1px rgba(239, 68, 68, 0.2); }
         }
         @keyframes pulse-glow-group {
-            0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); }
-            50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); border-color: var(--red); }
-            100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); }
+            0% { box-shadow: 0 0 10px rgba(239, 68, 68, var(--glow-alpha-inner, 0.2)); border-color: rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(239, 68, 68, var(--glow-alpha, 0.6)); border-color: var(--red); }
+            100% { box-shadow: 0 0 10px rgba(239, 68, 68, var(--glow-alpha-inner, 0.2)); border-color: rgba(239, 68, 68, 0.5); }
         }
 
         .bank-chip.bg-danger.pulse-bg { animation: pulse-glow 1.5s infinite !important; }
@@ -98,6 +108,8 @@
     window.openGraceSettings = function() {
         const y = S.settings.graceYellowDays || 7;
         const r = S.settings.graceRedDays || 3;
+        const b = S.settings.graceGlowIntensity || 60;
+        
         openModal(`
             <div class="modal-header"><h2>Сигнализатор</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
             <div class="form-group">
@@ -108,6 +120,10 @@
                 <label>За сколько дней включать красный контур?</label>
                 <input type="number" id="graceRedInp" value="${r}" min="1" max="30">
             </div>
+            <div class="form-group">
+                <label>Яркость свечения (1-100%)</label>
+                <input type="number" id="graceGlowInp" value="${b}" min="1" max="100">
+            </div>
             <button class="btn-primary btn-block" onclick="window.saveGraceSettings()">Сохранить</button>
         `);
     };
@@ -115,12 +131,18 @@
     window.saveGraceSettings = function() {
         const y = parseInt(document.getElementById('graceYellowInp').value) || 7;
         const r = parseInt(document.getElementById('graceRedInp').value) || 3;
+        const b = parseInt(document.getElementById('graceGlowInp').value) || 60;
+        
         if (y <= r) { toast('Желтый порог должен быть больше красного'); return; }
+        if (b < 1 || b > 100) { toast('Яркость должна быть от 1 до 100'); return; }
         
         S.settings.graceYellowDays = y;
         S.settings.graceRedDays = r;
+        S.settings.graceGlowIntensity = b;
         save();
         closeModal();
+        
+        applyGlowIntensity(); // Мгновенно применяем новую яркость
         
         if (typeof renderDashboard === 'function') renderDashboard();
         if (typeof renderAccounts === 'function') renderAccounts();
@@ -204,7 +226,6 @@
             }
         });
         
-        // Карусель банков
         document.querySelectorAll('.bank-chip').forEach(chip => {
             const bankId = chip.dataset.bankId;
             chip.classList.remove('bg-warning', 'bg-danger', 'pulse-bg');
@@ -215,7 +236,6 @@
             }
         });
 
-        // Группы счетов (весь блок)
         document.querySelectorAll('.bank-group').forEach(group => {
             const bankId = group.dataset.bankId;
             group.classList.remove('bg-warning', 'bg-danger', 'pulse-bg');
