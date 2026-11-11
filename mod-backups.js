@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js) v2
+// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js) v3
 // ==========================================
 (function() {
     if (typeof S !== 'undefined') {
@@ -13,8 +13,13 @@
         const token = S.settings.yandexToken;
         if (!token) { if (isManual) toast('❌ Укажите токен в настройках'); return; }
 
-        const todayStr = new Date().toISOString().slice(0, 10);
-        const fileName = `backup-${todayStr}.json`;
+        const now = new Date();
+        const todayStr = now.toISOString().slice(0, 10);
+        const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        
+        // Формируем уникальное имя файла с точностью до минуты
+        const timeForFile = now.toTimeString().slice(0, 5).replace(':', '-');
+        const fileName = `backup-${todayStr}_${timeForFile}.json`;
 
         // Защита от пустой базы
         const isEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
@@ -23,7 +28,6 @@
         try {
             if (isManual) toast('⏳ Создание точки...');
             
-            // Копируем состояние, убирая чувствительные настройки (они не должны перезаписываться при откате)
             const cloudS = JSON.parse(JSON.stringify(S));
             const localSettings = ['theme', 'badgeStyle', 'pinCode', 'yandexToken', 'tInvestToken', 'appTitle'];
             localSettings.forEach(k => delete cloudS.settings[k]);
@@ -41,21 +45,22 @@
 
             if (!res.ok) throw new Error('Ошибка облака');
 
-            // Обновляем список точек (теперь сохраняем и баланс, и кредиты)
             const totals = computeTotals();
             const newPoint = { 
                 date: todayStr, 
+                time: timeStr,
+                timestamp: now.getTime(), // Для точной сортировки
                 fileName: fileName, 
                 balance: totals.totalCap,
                 debt: totals.debt 
             };
             
-            const idx = S.settings.backupPoints.findIndex(p => p.date === todayStr);
-            if (idx >= 0) S.settings.backupPoints[idx] = newPoint;
-            else S.settings.backupPoints.push(newPoint);
+            // Убираем дубликат, если он случайно был создан в ту же минуту
+            S.settings.backupPoints = S.settings.backupPoints.filter(p => p.fileName !== fileName);
+            S.settings.backupPoints.push(newPoint);
 
-            // Сортируем от новых к старым и оставляем только 7
-            S.settings.backupPoints.sort((a, b) => b.date.localeCompare(a.date));
+            // Сортируем по времени (новые сверху) и оставляем только 7
+            S.settings.backupPoints.sort((a, b) => b.timestamp - a.timestamp);
             if (S.settings.backupPoints.length > 7) {
                 S.settings.backupPoints = S.settings.backupPoints.slice(0, 7);
             }
@@ -63,7 +68,7 @@
             save(false);
             if (isManual) {
                 toast('✅ Точка создана');
-                window.openRestorePointsModal(); // Обновляем окно, если оно открыто
+                window.openRestorePointsModal();
             }
         } catch (e) {
             console.error(e);
@@ -78,12 +83,13 @@
         const todayStr = now.toISOString().slice(0, 10);
         
         if (hour >= 6) {
+            // Проверяем, есть ли уже точка за сегодня
             const hasToday = S.settings.backupPoints.some(p => p.date === todayStr);
             if (!hasToday) {
                 createBackupPoint(false);
             }
         }
-    }, 5000); // Проверяем через 5 секунд после загрузки
+    }, 5000);
 
     // 3. Перехват меню синхронизации
     const origRenderMenu = window.renderMenuContent;
@@ -106,7 +112,6 @@
                     btnManual.innerHTML = `<div class="menu-icon-wrap">📸</div>Создать точку сейчас<span class="chevron">›</span>`;
                     btnManual.onclick = () => { closeModal(); createBackupPoint(true); };
 
-                    // Вставляем после кнопки "Восстановить из облака" (или в конец)
                     const importBtn = Array.from(menuSection.children).find(el => el.textContent.includes('Восстановить из JSON'));
                     if (importBtn) {
                         menuSection.insertBefore(btnRestore, importBtn);
@@ -126,21 +131,21 @@
         let html = `<div class="modal-header"><h2>Точки восстановления</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
         
         if (points.length === 0) {
-            html += `<div class="empty">У вас пока нет сохраненных точек. Они создаются автоматически после 6:00 утра, либо вы можете создать их вручную в меню.</div>`;
+            html += `<div class="empty">У вас пока нет сохраненных точек.</div>`;
         } else {
-            html += `<div style="font-size:12px; color:var(--muted); margin-bottom:16px;">Выберите дату для отката. Текущие данные будут заменены.</div>`;
+            html += `<div style="font-size:12px; color:var(--muted); margin-bottom:16px;">Выберите дату и время для отката. Текущие данные будут заменены.</div>`;
             points.forEach(p => {
                 const d = new Date(p.date);
                 const dateStr = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+                const timeHtml = p.time ? `, <span style="color:var(--accent); font-weight:700;">${p.time}</span>` : '';
                 
-                // Если у старой точки нет данных о долге, не выводим его
                 const debtHtml = (p.debt !== undefined) ? ` | Кредиты: <span style="color:var(--red); font-weight:700;">${fmt(p.debt)}</span>` : '';
 
                 html += `
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--card2); border-radius:12px; margin-bottom:8px; border:1px solid var(--border);">
                         <div>
-                            <div style="font-weight:600; font-size:14px;">${dateStr}</div>
-                            <div style="font-size:12px; color:var(--muted);">Баланс: ${fmt(p.balance)}${debtHtml}</div>
+                            <div style="font-weight:600; font-size:14px;">${dateStr}${timeHtml}</div>
+                            <div style="font-size:12px; color:var(--muted); margin-top:4px;">Баланс: ${fmt(p.balance)}${debtHtml}</div>
                         </div>
                         <button class="btn-secondary btn-small" onclick="window.restoreFromPoint('${p.fileName}')">Восстановить</button>
                     </div>
@@ -169,7 +174,6 @@
             const text = await res.text();
             const data = JSON.parse(text);
 
-            // Сохраняем текущий токен и визуальные настройки, чтобы не слетели
             const localVisual = {
                 theme: S.settings.theme,
                 badgeStyle: S.settings.badgeStyle,
@@ -180,11 +184,11 @@
                 graceYellowDays: S.settings.graceYellowDays,
                 graceRedDays: S.settings.graceRedDays,
                 graceGlowIntensity: S.settings.graceGlowIntensity,
-                backupPoints: S.settings.backupPoints // сохраняем историю точек
+                backupPoints: S.settings.backupPoints
             };
 
             S = Object.assign(defaultState(), data);
-            S.settings = { ...S.settings, ...localVisual }; // Возвращаем настройки
+            S.settings = { ...S.settings, ...localVisual };
 
             save(false);
             location.reload();
