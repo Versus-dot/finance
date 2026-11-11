@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js) v5
+// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js) v6
 // ==========================================
 (function() {
     if (typeof S !== 'undefined') {
@@ -25,7 +25,7 @@
             }
         } else {
             const hasAutoToday = S.settings.backupPoints.some(p => p.date === todayStr && p.type === 'auto');
-            if (hasAutoToday) return; // Утренняя точка уже есть
+            if (hasAutoToday) return;
         }
 
         const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -77,7 +77,7 @@
             save(false);
             if (isManual) {
                 toast('✅ Точка создана');
-                window.openRestorePointsModal();
+                window.openRestorePointsModal(); // Обновляем модалку, если она открыта
             }
         } catch (e) {
             console.error(e);
@@ -97,6 +97,9 @@
     window.openRestorePointsModal = function() {
         const points = S.settings.backupPoints || [];
         let html = `<div class="modal-header"><h2>Точки восстановления</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
+        
+        // НОВАЯ КНОПКА ВВЕРХУ
+        html += `<button class="btn-primary btn-block" style="margin-bottom: 20px;" onclick="window.createBackupPoint(true)">📸 Создать точку сейчас</button>`;
         
         if (points.length === 0) {
             html += `<div class="empty">У вас пока нет сохраненных точек.</div>`;
