@@ -2,7 +2,7 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v197)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v198)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -254,7 +254,6 @@
         .menu-item-premium.warn { color: var(--red); }
         .menu-item-premium.warn .menu-icon-wrap { color: var(--red); background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); }
         
-        /* ИСПРАВЛЕНА КНОПКА НАЗАД */
         .menu-back-btn { 
             background: var(--card2); 
             border-radius: 50%; 
@@ -371,7 +370,7 @@
         if (e.deltaY !== 0) { e.preventDefault(); carousel.scrollLeft += e.deltaY; }
     }, { passive: false });
 
-    // === ДВУХЭТАЖНОЕ МЕНЮ (ТЕПЕРЬ ТРЕХЭТАЖНОЕ) ===
+    // === ТРЕХЭТАЖНОЕ МЕНЮ ===
     window.renderMenuContent = function(level, type = '') {
         const content = document.getElementById('modalContent');
         if (!content) return;
@@ -441,7 +440,6 @@
                     <button class="menu-item-premium" onclick="window.syncSmart(true)"><div class="menu-icon-wrap">☁️</div>Сохранить в облако<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.syncSmart(true)"><div class="menu-icon-wrap">⬇️</div>Восстановить из облака<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openRestorePointsModal()"><div class="menu-icon-wrap">⏪</div>Точки восстановления<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="closeModal(); window.createBackupPoint(true)"><div class="menu-icon-wrap">📸</div>Создать точку сейчас<span class="chevron">›</span></button>
                 `;
             } else if (type === 'local_files') {
                 title = 'Локальные файлы';
