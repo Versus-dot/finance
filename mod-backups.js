@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js)
+// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js) v2
 // ==========================================
 (function() {
     if (typeof S !== 'undefined') {
@@ -41,9 +41,14 @@
 
             if (!res.ok) throw new Error('Ошибка облака');
 
-            // Обновляем список точек
+            // Обновляем список точек (теперь сохраняем и баланс, и кредиты)
             const totals = computeTotals();
-            const newPoint = { date: todayStr, fileName: fileName, balance: totals.totalCap };
+            const newPoint = { 
+                date: todayStr, 
+                fileName: fileName, 
+                balance: totals.totalCap,
+                debt: totals.debt 
+            };
             
             const idx = S.settings.backupPoints.findIndex(p => p.date === todayStr);
             if (idx >= 0) S.settings.backupPoints[idx] = newPoint;
@@ -127,11 +132,15 @@
             points.forEach(p => {
                 const d = new Date(p.date);
                 const dateStr = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+                
+                // Если у старой точки нет данных о долге, не выводим его
+                const debtHtml = (p.debt !== undefined) ? ` | Кредиты: <span style="color:var(--red); font-weight:700;">${fmt(p.debt)}</span>` : '';
+
                 html += `
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--card2); border-radius:12px; margin-bottom:8px; border:1px solid var(--border);">
                         <div>
                             <div style="font-weight:600; font-size:14px;">${dateStr}</div>
-                            <div style="font-size:12px; color:var(--muted);">Баланс: ${fmt(p.balance)}</div>
+                            <div style="font-size:12px; color:var(--muted);">Баланс: ${fmt(p.balance)}${debtHtml}</div>
                         </div>
                         <button class="btn-secondary btn-small" onclick="window.restoreFromPoint('${p.fileName}')">Восстановить</button>
                     </div>
