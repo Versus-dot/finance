@@ -1,22 +1,51 @@
 // ==========================================
-// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js)
+// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js) v3
 // ==========================================
 (function() {
-    // Инициализация настроек по умолчанию
     if (typeof S !== 'undefined') {
         if (S.settings.graceYellowDays === undefined) S.settings.graceYellowDays = 7;
         if (S.settings.graceRedDays === undefined) S.settings.graceRedDays = 3;
     }
 
-    // Добавляем стили для мягкой подсветки банков
+    // Добавляем стили для СВЕЧЕНИЯ (без заливки фона)
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
-        .bank-chip.bg-warning { background: rgba(245, 158, 11, 0.15) !important; border-color: rgba(245, 158, 11, 0.5) !important; }
-        .bank-chip.bg-danger { background: rgba(239, 68, 68, 0.15) !important; border-color: rgba(239, 68, 68, 0.5) !important; }
-        .bank-group-header.bg-warning { background: rgba(245, 158, 11, 0.1) !important; color: var(--yellow) !important; }
-        .bank-group-header.bg-danger { background: rgba(239, 68, 68, 0.1) !important; color: var(--red) !important; }
-        @keyframes pulse-bg { 0% { background: rgba(239, 68, 68, 0.15); } 50% { background: rgba(239, 68, 68, 0.4); } 100% { background: rgba(239, 68, 68, 0.15); } }
-        .pulse-bg { animation: pulse-bg 1.5s infinite !important; }
+        /* Свечение для карточек банков (карусель) */
+        .bank-chip.bg-warning { 
+            background: var(--card) !important;
+            border-color: var(--yellow) !important; 
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4), inset 0 0 0 1px rgba(245, 158, 11, 0.2) !important; 
+        }
+        .bank-chip.bg-danger { 
+            background: var(--card) !important;
+            border-color: var(--red) !important; 
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4), inset 0 0 0 1px rgba(239, 68, 68, 0.2) !important; 
+        }
+        
+        /* Свечение для ВСЕГО блока банка (группы) */
+        .bank-group.bg-warning { 
+            border-color: var(--yellow) !important; 
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3) !important;
+        }
+        .bank-group.bg-danger { 
+            border-color: var(--red) !important; 
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3) !important;
+        }
+
+        /* Пульсация свечения */
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3), inset 0 0 0 1px rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7), inset 0 0 0 2px rgba(239, 68, 68, 0.4); }
+            100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3), inset 0 0 0 1px rgba(239, 68, 68, 0.2); }
+        }
+        @keyframes pulse-glow-group {
+            0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); border-color: var(--red); }
+            100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); }
+        }
+
+        .bank-chip.bg-danger.pulse-bg { animation: pulse-glow 1.5s infinite !important; }
+        .bank-group.bg-danger.pulse-bg { animation: pulse-glow-group 1.5s infinite !important; }
     `;
     document.head.appendChild(styleEl);
 
@@ -103,7 +132,6 @@
     window.renderAccountRow = function(a, bank) {
         let html = prevRenderAccRow(a, bank);
         
-        // Убираем старую жестко зашитую логику из mod-ui.js
         html = html.replace(/<span class="grace-text[^>]*>.*?<\/span>/g, '');
         html = html.replace(/class="account-row\s*(grace-warning|grace-danger|grace-overdue)"/g, 'class="account-row"');
 
@@ -176,7 +204,7 @@
             }
         });
         
-        // Красим карусель банков
+        // Карусель банков
         document.querySelectorAll('.bank-chip').forEach(chip => {
             const bankId = chip.dataset.bankId;
             chip.classList.remove('bg-warning', 'bg-danger', 'pulse-bg');
@@ -187,17 +215,14 @@
             }
         });
 
-        // Красим заголовки групп (список счетов)
+        // Группы счетов (весь блок)
         document.querySelectorAll('.bank-group').forEach(group => {
             const bankId = group.dataset.bankId;
-            const header = group.querySelector('.bank-group-header');
-            if (header) {
-                header.classList.remove('bg-warning', 'bg-danger', 'pulse-bg');
-                if (bankStatus[bankId]) {
-                    if (bankStatus[bankId] === 'pulse') header.classList.add('bg-danger', 'pulse-bg');
-                    else if (bankStatus[bankId] === 'red') header.classList.add('bg-danger');
-                    else if (bankStatus[bankId] === 'yellow') header.classList.add('bg-warning');
-                }
+            group.classList.remove('bg-warning', 'bg-danger', 'pulse-bg');
+            if (bankStatus[bankId]) {
+                if (bankStatus[bankId] === 'pulse') group.classList.add('bg-danger', 'pulse-bg');
+                else if (bankStatus[bankId] === 'red') group.classList.add('bg-danger');
+                else if (bankStatus[bankId] === 'yellow') group.classList.add('bg-warning');
             }
         });
     };
