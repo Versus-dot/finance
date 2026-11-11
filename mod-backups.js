@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js) v4
+// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js) v5
 // ==========================================
 (function() {
     if (typeof S !== 'undefined') {
@@ -8,8 +8,8 @@
 
     const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
 
-    // 1. Функция создания точки
-    async function createBackupPoint(isManual) {
+    // 1. Функция создания точки (глобальная)
+    window.createBackupPoint = async function(isManual) {
         const token = S.settings.yandexToken;
         if (!token) { if (isManual) toast('❌ Укажите токен в настройках'); return; }
 
@@ -25,7 +25,7 @@
             }
         } else {
             const hasAutoToday = S.settings.backupPoints.some(p => p.date === todayStr && p.type === 'auto');
-            if (hasAutoToday) return; // Утренняя точка уже есть, выходим
+            if (hasAutoToday) return; // Утренняя точка уже есть
         }
 
         const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -33,7 +33,6 @@
         const typePrefix = isManual ? 'man' : 'auto';
         const fileName = `backup-${typePrefix}-${todayStr}_${timeForFile}.json`;
 
-        // Защита от пустой базы
         const isEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
         if (isEmpty) { if (isManual) toast('Отправка пустых данных заблокирована'); return; }
 
@@ -70,7 +69,6 @@
             
             S.settings.backupPoints.push(newPoint);
 
-            // Сортируем по времени (новые сверху) и оставляем только 7
             S.settings.backupPoints.sort((a, b) => b.timestamp - a.timestamp);
             if (S.settings.backupPoints.length > 7) {
                 S.settings.backupPoints = S.settings.backupPoints.slice(0, 7);
@@ -85,51 +83,17 @@
             console.error(e);
             if (isManual) toast('❌ Ошибка создания точки');
         }
-    }
+    };
 
     // 2. Автоматическая проверка (после 6:00 утра)
     setTimeout(() => {
         const now = new Date();
         if (now.getHours() >= 6) {
-            createBackupPoint(false);
+            window.createBackupPoint(false);
         }
     }, 5000);
 
-    // 3. Перехват меню синхронизации
-    const origRenderMenu = window.renderMenuContent;
-    window.renderMenuContent = function(level, type = '') {
-        if (origRenderMenu) origRenderMenu(level, type);
-        
-        if (level === 'sub' && type === 'sync') {
-            const content = document.getElementById('modalContent');
-            if (content) {
-                const menuSection = content.querySelector('.menu-section');
-                if (menuSection && !document.getElementById('menuBtnRestore')) {
-                    const btnRestore = document.createElement('button');
-                    btnRestore.id = 'menuBtnRestore';
-                    btnRestore.className = 'menu-item-premium';
-                    btnRestore.innerHTML = `<div class="menu-icon-wrap">⏪</div>Точки восстановления<span class="chevron">›</span>`;
-                    btnRestore.onclick = () => window.openRestorePointsModal();
-                    
-                    const btnManual = document.createElement('button');
-                    btnManual.className = 'menu-item-premium';
-                    btnManual.innerHTML = `<div class="menu-icon-wrap">📸</div>Создать точку сейчас<span class="chevron">›</span>`;
-                    btnManual.onclick = () => { closeModal(); createBackupPoint(true); };
-
-                    const importBtn = Array.from(menuSection.children).find(el => el.textContent.includes('Восстановить из JSON'));
-                    if (importBtn) {
-                        menuSection.insertBefore(btnRestore, importBtn);
-                        menuSection.insertBefore(btnManual, importBtn);
-                    } else {
-                        menuSection.appendChild(btnRestore);
-                        menuSection.appendChild(btnManual);
-                    }
-                }
-            }
-        }
-    };
-
-    // 4. Окно со списком точек
+    // 3. Окно со списком точек
     window.openRestorePointsModal = function() {
         const points = S.settings.backupPoints || [];
         let html = `<div class="modal-header"><h2>Точки восстановления</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
@@ -143,7 +107,6 @@
                 const dateStr = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
                 const timeHtml = p.time ? `, <span style="color:var(--accent); font-weight:700;">${p.time}</span>` : '';
                 
-                // Бейдж Авто/Ручная (для старых точек, где нет type, считаем ручной)
                 const isAuto = p.type === 'auto';
                 const badgeText = isAuto ? 'Авто' : 'Ручная';
                 const badgeColor = isAuto ? 'var(--accent)' : 'var(--green)';
@@ -171,7 +134,7 @@
         openModal(html);
     };
 
-    // 5. Логика удаления точки из списка
+    // 4. Логика удаления
     window.deleteBackupPoint = function(fileName) {
         if (!confirm('Удалить эту точку из списка восстановления?\n(Файл останется в облаке, но здесь его больше не будет)')) return;
         S.settings.backupPoints = S.settings.backupPoints.filter(p => p.fileName !== fileName);
@@ -180,7 +143,7 @@
         toast('Точка удалена');
     };
 
-    // 6. Логика восстановления
+    // 5. Логика восстановления
     window.restoreFromPoint = async function(fileName) {
         if (!confirm('Вы уверены? Текущие данные будут заменены версией из этой точки.')) return;
         
