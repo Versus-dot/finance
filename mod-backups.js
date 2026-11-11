@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js) v3
+// МОДУЛЬ ТОЧЕК ВОССТАНОВЛЕНИЯ (mod-backups.js) v4
 // ==========================================
 (function() {
     if (typeof S !== 'undefined') {
@@ -15,11 +15,23 @@
 
         const now = new Date();
         const todayStr = now.toISOString().slice(0, 10);
-        const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
         
-        // Формируем уникальное имя файла с точностью до минуты
+        // ПРОВЕРКА ЛИМИТОВ
+        if (isManual) {
+            const manualCount = S.settings.backupPoints.filter(p => p.date === todayStr && p.type === 'manual').length;
+            if (manualCount >= 3) {
+                toast('❌ Лимит ручных точек на сегодня (3)');
+                return;
+            }
+        } else {
+            const hasAutoToday = S.settings.backupPoints.some(p => p.date === todayStr && p.type === 'auto');
+            if (hasAutoToday) return; // Утренняя точка уже есть, выходим
+        }
+
+        const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
         const timeForFile = now.toTimeString().slice(0, 5).replace(':', '-');
-        const fileName = `backup-${todayStr}_${timeForFile}.json`;
+        const typePrefix = isManual ? 'man' : 'auto';
+        const fileName = `backup-${typePrefix}-${todayStr}_${timeForFile}.json`;
 
         // Защита от пустой базы
         const isEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
@@ -49,14 +61,13 @@
             const newPoint = { 
                 date: todayStr, 
                 time: timeStr,
-                timestamp: now.getTime(), // Для точной сортировки
+                timestamp: now.getTime(),
+                type: isManual ? 'manual' : 'auto',
                 fileName: fileName, 
                 balance: totals.totalCap,
                 debt: totals.debt 
             };
             
-            // Убираем дубликат, если он случайно был создан в ту же минуту
-            S.settings.backupPoints = S.settings.backupPoints.filter(p => p.fileName !== fileName);
             S.settings.backupPoints.push(newPoint);
 
             // Сортируем по времени (новые сверху) и оставляем только 7
@@ -79,15 +90,8 @@
     // 2. Автоматическая проверка (после 6:00 утра)
     setTimeout(() => {
         const now = new Date();
-        const hour = now.getHours();
-        const todayStr = now.toISOString().slice(0, 10);
-        
-        if (hour >= 6) {
-            // Проверяем, есть ли уже точка за сегодня
-            const hasToday = S.settings.backupPoints.some(p => p.date === todayStr);
-            if (!hasToday) {
-                createBackupPoint(false);
-            }
+        if (now.getHours() >= 6) {
+            createBackupPoint(false);
         }
     }, 5000);
 
@@ -133,21 +137,33 @@
         if (points.length === 0) {
             html += `<div class="empty">У вас пока нет сохраненных точек.</div>`;
         } else {
-            html += `<div style="font-size:12px; color:var(--muted); margin-bottom:16px;">Выберите дату и время для отката. Текущие данные будут заменены.</div>`;
+            html += `<div style="font-size:12px; color:var(--muted); margin-bottom:16px;">Выберите дату и время для отката. (Хранится 7 последних)</div>`;
             points.forEach(p => {
                 const d = new Date(p.date);
-                const dateStr = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+                const dateStr = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
                 const timeHtml = p.time ? `, <span style="color:var(--accent); font-weight:700;">${p.time}</span>` : '';
+                
+                // Бейдж Авто/Ручная (для старых точек, где нет type, считаем ручной)
+                const isAuto = p.type === 'auto';
+                const badgeText = isAuto ? 'Авто' : 'Ручная';
+                const badgeColor = isAuto ? 'var(--accent)' : 'var(--green)';
+                const badgeBg = isAuto ? 'rgba(99,102,241,0.1)' : 'rgba(16,185,129,0.1)';
                 
                 const debtHtml = (p.debt !== undefined) ? ` | Кредиты: <span style="color:var(--red); font-weight:700;">${fmt(p.debt)}</span>` : '';
 
                 html += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--card2); border-radius:12px; margin-bottom:8px; border:1px solid var(--border);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--card2); border-radius:12px; margin-bottom:8px; border:1px solid var(--border);">
                         <div>
-                            <div style="font-weight:600; font-size:14px;">${dateStr}${timeHtml}</div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-weight:600; font-size:14px;">${dateStr}${timeHtml}</span>
+                                <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:${badgeBg}; color:${badgeColor}; font-weight:700;">${badgeText}</span>
+                            </div>
                             <div style="font-size:12px; color:var(--muted); margin-top:4px;">Баланс: ${fmt(p.balance)}${debtHtml}</div>
                         </div>
-                        <button class="btn-secondary btn-small" onclick="window.restoreFromPoint('${p.fileName}')">Восстановить</button>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn-icon" style="color:var(--red); background:rgba(239,68,68,0.1); padding:6px; border-radius:8px;" onclick="window.deleteBackupPoint('${p.fileName}')" title="Удалить точку">🗑</button>
+                            <button class="btn-secondary btn-small" onclick="window.restoreFromPoint('${p.fileName}')">Откат</button>
+                        </div>
                     </div>
                 `;
             });
@@ -155,7 +171,16 @@
         openModal(html);
     };
 
-    // 5. Логика восстановления
+    // 5. Логика удаления точки из списка
+    window.deleteBackupPoint = function(fileName) {
+        if (!confirm('Удалить эту точку из списка восстановления?\n(Файл останется в облаке, но здесь его больше не будет)')) return;
+        S.settings.backupPoints = S.settings.backupPoints.filter(p => p.fileName !== fileName);
+        save(false);
+        window.openRestorePointsModal();
+        toast('Точка удалена');
+    };
+
+    // 6. Логика восстановления
     window.restoreFromPoint = async function(fileName) {
         if (!confirm('Вы уверены? Текущие данные будут заменены версией из этой точки.')) return;
         
