@@ -2,7 +2,7 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v182)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v197)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -72,7 +72,8 @@
         
         let prevMenu = null;
         if (isMenuOpen && history.state) {
-            if (history.state.menu === 'sub') prevMenu = { menu: 'sub', type: history.state.type };
+            if (history.state.menu === 'sub2') prevMenu = { menu: 'sub2', type: history.state.type };
+            else if (history.state.menu === 'sub') prevMenu = { menu: 'sub', type: history.state.type };
             else if (history.state.menu === 'main') prevMenu = { menu: 'main' };
         }
         
@@ -124,7 +125,11 @@
                 const content = document.getElementById('modalContent');
                 if (content) content.innerHTML = ''; 
                 
-                if (state.menu === 'sub') {
+                if (state.menu === 'sub2') {
+                    isMenuOpen = true;
+                    backdrop.classList.add('visible');
+                    window.renderMenuContent('sub2', state.type);
+                } else if (state.menu === 'sub') {
                     isMenuOpen = true;
                     backdrop.classList.add('visible');
                     window.renderMenuContent('sub', state.type);
@@ -139,7 +144,9 @@
             }
 
             if (isMenuOpen) {
-                if (state.menu === 'sub') {
+                if (state.menu === 'sub2') {
+                    window.renderMenuContent('sub2', state.type);
+                } else if (state.menu === 'sub') {
                     window.renderMenuContent('sub', state.type);
                 } else if (state.menu === 'main') {
                     window.renderMenuContent('main');
@@ -247,7 +254,22 @@
         .menu-item-premium.warn { color: var(--red); }
         .menu-item-premium.warn .menu-icon-wrap { color: var(--red); background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); }
         
-        .menu-back-btn { background: var(--card2); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 20px; padding-bottom: 4px; color: var(--text); cursor: pointer; border: none; }
+        /* ИСПРАВЛЕНА КНОПКА НАЗАД */
+        .menu-back-btn { 
+            background: var(--card2); 
+            border-radius: 50%; 
+            width: 32px; 
+            height: 32px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 20px; 
+            padding: 0; 
+            color: var(--text); 
+            cursor: pointer; 
+            border: none; 
+            line-height: 1;
+        }
     `;
     document.head.appendChild(styleEl);
 
@@ -313,53 +335,12 @@
         if (html.includes('class="account-row"')) {
             html = html.replace('class="account-row"', `class="account-row" data-acc-type="${a.type}"`);
         }
-        if (a.type === 'credit' && a.gracePeriod && !a.archived) {
-            const limit = a.creditLimit || 0;
-            const val = accValue(a);
-            const debt = Math.max(0, limit - val);
-            if (debt > 0) {
-                const today = new Date(); today.setHours(0,0,0,0);
-                const gp = new Date(a.gracePeriod); gp.setHours(0,0,0,0);
-                const diffTime = gp - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                let graceClass = ''; let textHtml = '';
-                if (diffDays < 0) { graceClass = 'grace-overdue'; textHtml = `<span class="grace-text overdue">⏰ Просрочка ${Math.abs(diffDays)} дн.</span>`; } 
-                else if (diffDays === 0) { graceClass = 'grace-overdue'; textHtml = `<span class="grace-text danger">⏰ Сегодня!</span>`; } 
-                else if (diffDays <= 3) { graceClass = 'grace-danger'; textHtml = `<span class="grace-text danger">⏰ Осталось ${diffDays} дн.</span>`; } 
-                else if (diffDays <= 7) { graceClass = 'grace-warning'; textHtml = `<span class="grace-text warning">⏳ Осталось ${diffDays} дн.</span>`; }
-                if (graceClass) {
-                    html = html.replace('class="account-row"', `class="account-row ${graceClass}"`);
-                    html = html.replace('Задолженность:', `${textHtml} Задолженность:`);
-                }
-            }
-        }
         return html;
     };
 
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDashboard) prevRenderDashboard();
-        const today = new Date(); today.setHours(0,0,0,0);
-        const problemBanks = new Set(); const overdueBanks = new Set();
-        S.accounts.forEach(a => {
-            if (a.type === 'credit' && a.gracePeriod && !a.archived) {
-                const limit = a.creditLimit || 0; const val = accValue(a); const debt = Math.max(0, limit - val);
-                if (debt > 0) {
-                    const gp = new Date(a.gracePeriod); gp.setHours(0,0,0,0);
-                    const diffDays = Math.ceil((gp - today) / (1000 * 60 * 60 * 24));
-                    if (diffDays <= 3) problemBanks.add(a.bankId);
-                    if (diffDays <= 0) overdueBanks.add(a.bankId);
-                }
-            }
-        });
-        document.querySelectorAll('.bank-chip').forEach(chip => {
-            const bankId = chip.dataset.bankId;
-            chip.classList.remove('grace-bank-warning', 'grace-bank-overdue');
-            if (bankId) {
-                if (overdueBanks.has(bankId)) chip.classList.add('grace-bank-overdue');
-                else if (problemBanks.has(bankId)) chip.classList.add('grace-bank-warning');
-            }
-        });
     };
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -390,7 +371,7 @@
         if (e.deltaY !== 0) { e.preventDefault(); carousel.scrollLeft += e.deltaY; }
     }, { passive: false });
 
-    // === ДВУХЭТАЖНОЕ МЕНЮ ===
+    // === ДВУХЭТАЖНОЕ МЕНЮ (ТЕПЕРЬ ТРЕХЭТАЖНОЕ) ===
     window.renderMenuContent = function(level, type = '') {
         const content = document.getElementById('modalContent');
         if (!content) return;
@@ -399,11 +380,11 @@
             content.innerHTML = `
                 <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
                 <div class="menu-section">
-                    <button class="menu-item-premium" onclick="window.openSubMenu('sync')"><div class="menu-icon-wrap">☁️</div>Данные и Синхронизация<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="window.openSubMenu('appearance')"><div class="menu-icon-wrap">🎨</div>Оформление<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="window.openSubMenu('invest')"><div class="menu-icon-wrap">📈</div>Инвестиции<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="window.openSubMenu('directories')"><div class="menu-icon-wrap">📑</div>Справочники<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="window.openSubMenu('security')"><div class="menu-icon-wrap">🔒</div>Безопасность и Опасная зона<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('sync', 'sub')"><div class="menu-icon-wrap">☁️</div>Данные и Синхронизация<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('appearance', 'sub')"><div class="menu-icon-wrap">🎨</div>Оформление<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('invest', 'sub')"><div class="menu-icon-wrap">📈</div>Инвестиции<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('directories', 'sub')"><div class="menu-icon-wrap">📑</div>Справочники<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('security', 'sub')"><div class="menu-icon-wrap">🔒</div>Безопасность и Опасная зона<span class="chevron">›</span></button>
                 </div>
             `;
         } else if (level === 'sub') {
@@ -413,12 +394,9 @@
             if (type === 'sync') {
                 title = 'Данные и Синхронизация';
                 items = `
-                    <button class="menu-item-premium" onclick="window.syncSmart(true)"><div class="menu-icon-wrap">☁️</div>Сохранить в облако<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="window.syncSmart(true)"><div class="menu-icon-wrap">⬇️</div>Восстановить из облака<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="exportJSON()"><div class="menu-icon-wrap">📥</div>Скачать бэкап (JSON)<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="importJSON()"><div class="menu-icon-wrap">📤</div>Восстановить из JSON<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="window.openSnapshotFreqModal()"><div class="menu-icon-wrap">📸</div>Частота снимков<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="fetchUSDT()"><div class="menu-icon-wrap">💱</div>Обновить курс USDT<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('cloud_backups', 'sub2')"><div class="menu-icon-wrap">☁️</div>Облако и Бэкапы<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('local_files', 'sub2')"><div class="menu-icon-wrap">📂</div>Локальные файлы<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openSubMenu('data_settings', 'sub2')"><div class="menu-icon-wrap">⚙️</div>Настройки данных<span class="chevron">›</span></button>
                 `;
             } else if (type === 'appearance') {
                 title = 'Оформление';
@@ -453,6 +431,42 @@
                 </div>
                 <div class="menu-section">${items}</div>
             `;
+        } else if (level === 'sub2') {
+            let title = '';
+            let items = '';
+
+            if (type === 'cloud_backups') {
+                title = 'Облако и Бэкапы';
+                items = `
+                    <button class="menu-item-premium" onclick="window.syncSmart(true)"><div class="menu-icon-wrap">☁️</div>Сохранить в облако<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.syncSmart(true)"><div class="menu-icon-wrap">⬇️</div>Восстановить из облака<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openRestorePointsModal()"><div class="menu-icon-wrap">⏪</div>Точки восстановления<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="closeModal(); window.createBackupPoint(true)"><div class="menu-icon-wrap">📸</div>Создать точку сейчас<span class="chevron">›</span></button>
+                `;
+            } else if (type === 'local_files') {
+                title = 'Локальные файлы';
+                items = `
+                    <button class="menu-item-premium" onclick="exportJSON()"><div class="menu-icon-wrap">📥</div>Скачать бэкап (JSON)<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="importJSON()"><div class="menu-icon-wrap">📤</div>Восстановить из JSON<span class="chevron">›</span></button>
+                `;
+            } else if (type === 'data_settings') {
+                title = 'Настройки данных';
+                items = `
+                    <button class="menu-item-premium" onclick="window.openSnapshotFreqModal()"><div class="menu-icon-wrap">📸</div>Частота снимков<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="fetchUSDT()"><div class="menu-icon-wrap">💱</div>Обновить курс USDT<span class="chevron">›</span></button>
+                `;
+            }
+
+            content.innerHTML = `
+                <div class="modal-header" style="align-items:center;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <button class="menu-back-btn" onclick="history.back()">‹</button>
+                        <h2>${title}</h2>
+                    </div>
+                    <button class="btn-icon" onclick="closeModal()">✕</button>
+                </div>
+                <div class="menu-section">${items}</div>
+            `;
         }
 
         setTimeout(() => {
@@ -463,9 +477,9 @@
         }, 50);
     };
 
-    window.openSubMenu = function(type) {
-        window.renderMenuContent('sub', type);
-        history.pushState({ menu: 'sub', type: type }, '', location.pathname + '#menu-sub');
+    window.openSubMenu = function(type, level = 'sub') {
+        window.renderMenuContent(level, type);
+        history.pushState({ menu: level, type: type }, '', location.pathname + '#menu-' + level);
     };
 
     window.openMenu = function() {
