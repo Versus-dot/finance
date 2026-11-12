@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v5
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v6
 // ==========================================
 (function() {
     console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) загружен");
@@ -87,9 +87,10 @@
 
     // --- НЕЗАВИСИМЫЙ РАСЧЕТ КАПИТАЛА (Единая правда) ---
     window.getCustomCapital = function() {
-        let assets = 0, debt = 0;
+        let assets = 0, debt = 0, coveredDebt = 0;
         let cushion = 0, pds = 0, investments = 0, deposits = 0, cash = 0, crypto = 0, other = 0;
 
+        // 1. Считаем общий долг и активы (без хеджей)
         S.accounts.filter(a => !a.archived).forEach(a => {
             const v = accValue(a);
             if (a.type === 'credit') {
@@ -97,29 +98,36 @@
                 if (v > limit) assets += (v - limit); // Переплата в активы
                 if (v < limit) debt += (limit - v);   // Долг
             } else {
-                // Хеджи не считаем в капитале (они служат для покрытия долга)
-                if (a.hedgeFor) return; 
+                if (a.hedgeFor) return; // Хеджи не добавляем в активы, они пойдут в вычет долга
                 
-                if (a.inCushion) {
-                    cushion += v;
-                } else if (a.type === 'pds') {
-                    pds += v;
-                } else if (['brokerage', 'iis', 'invest_kopilka'].includes(a.type)) {
-                    investments += v;
-                } else if (['deposit', 'savings', 'finu_wallet'].includes(a.type)) {
-                    deposits += v;
-                } else if (a.type === 'cash') {
-                    cash += v;
-                } else if (['crypto_wallet', 'crypto_exchange'].includes(a.type)) {
-                    crypto += v;
-                } else {
-                    other += v;
-                }
+                if (a.inCushion) cushion += v;
+                else if (a.type === 'pds') pds += v;
+                else if (['brokerage', 'iis', 'invest_kopilka'].includes(a.type)) investments += v;
+                else if (['deposit', 'savings', 'finu_wallet'].includes(a.type)) deposits += v;
+                else if (a.type === 'cash') cash += v;
+                else if (['crypto_wallet', 'crypto_exchange'].includes(a.type)) crypto += v;
+                else other += v;
+                
                 assets += v;
             }
         });
 
-        return { net: assets - debt, assets, debt, cushion, pds, investments, deposits, cash, crypto, other };
+        // 2. Считаем сумму покрытого долга (хеджи)
+        S.accounts.filter(a => a.hedgeFor && !a.archived).forEach(dep => {
+            const card = S.accounts.find(c => c.id === dep.hedgeFor && c.type === 'credit' && !c.archived);
+            if (card) {
+                const depVal = accValue(dep);
+                const limit = card.creditLimit || 0;
+                const currentBalance = accValue(card);
+                const currentDebt = Math.max(0, limit - currentBalance);
+                coveredDebt += Math.min(depVal, currentDebt);
+            }
+        });
+
+        // 3. Вычитаем покрытый долг из общей суммы долга
+        debt = Math.max(0, debt - coveredDebt);
+
+        return { net: assets - debt, assets, debt, coveredDebt, cushion, pds, investments, deposits, cash, crypto, other };
     };
 
     // --- УТИЛИТЫ ДЛЯ ДАТ ---
@@ -298,6 +306,7 @@
                 ${c.crypto > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🪙 Крипта</span> <b>${fmt(c.crypto)}</b></div>` : ''}
                 ${c.other > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🗂 Прочее</span> <b>${fmt(c.other)}</b></div>` : ''}
                 <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>🔴 Долги по кредитам</span> <b style="color:var(--red)">-${fmt(c.debt)}</b></div>
+                ${c.coveredDebt > 0 ? `<div style="font-size:12px; color:var(--muted); text-align:right;">(в т.ч. покрыто хеджем: ${fmt(c.coveredDebt)})</div>` : ''}
                 <hr style="border-color: var(--border); margin: 12px 0;">
                 <div style="display:flex; justify-content:space-between; font-size: 18px; font-weight: 800;">
                     <span>Итого</span> <span>${fmt(c.net)}</span>
