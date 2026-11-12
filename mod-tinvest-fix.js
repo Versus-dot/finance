@@ -1,8 +1,8 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v6
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v7
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v6 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v7 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
@@ -75,10 +75,10 @@
                     }
                 } catch (e) { console.warn('Ошибка портфеля', e); }
 
-                // 2. СИНХРОНИЗАЦИЯ ИСТОРИИ ОПЕРАЦИЙ
+                // 2. СИНХРОНИЗАЦИЯ ИСТОРИИ ОПЕРАЦИЙ (только за последние 3 месяца, чтобы не падал прокси)
                 toast(`⏳ Запрашиваем операции (${apiAcc.name || 'Брокерский'})...`);
                 const now = new Date();
-                const fromDate = new Date(now.getFullYear(), 0, 1).toISOString(); 
+                const fromDate = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString(); 
                 const toDate = now.toISOString();
 
                 try {
@@ -92,22 +92,23 @@
                         opData.operations.forEach(op => {
                             if (S.transactions.some(t => t.tinvestOpId === op.id)) return;
 
-                            // ИСПРАВЛЕНИЕ: Сначала берем технический код operationType!
-                            const opType = op.operationType || op.type; 
+                            const opTypeRaw = op.operationType || op.type || '';
+                            const opType = opTypeRaw.toLowerCase(); // Приводим к нижнему регистру для удобства
+                            
                             const amount = Math.abs(qv(op.payment));
                             
-                            if (amount > 0) {
-                                console.log('Tinkoff Op:', op.date, '|', opType, '|', amount);
-                            }
-
                             let type = null, catId = null, note = '';
                             
-                            // Расширенный список типов (включая русские названия на всякий случай)
-                            if (opType === 'OPERATION_TYPE_COUPON' || opType === 'COUPON' || opType === 'Выплата купона') { type = 'income'; catId = 'c_coupon'; note = 'Купон (авто)'; }
-                            else if (opType === 'OPERATION_TYPE_DIVIDEND' || opType === 'DIVIDEND' || opType === 'Выплата дивидендов') { type = 'income'; catId = 'c_dividend'; note = 'Дивиденды (авто)'; }
-                            else if (opType === 'OPERATION_TYPE_TAX' || opType === 'TAX' || opType === 'OPERATION_TYPE_DIVIDEND_TAX' || opType === 'OPERATION_TYPE_BOND_TAX' || opType === 'Налог') { type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; }
-                            else return; 
-
+                            // Ищем по ключевым словам! Теперь поймаем и "Выплата купонов", и "Выплата купона"
+                            if (opType.includes('купон') || opType.includes('coupon')) { 
+                                type = 'income'; catId = 'c_coupon'; note = 'Купон (авто)'; 
+                            } else if (opType.includes('дивиденд') || opType.includes('dividend')) { 
+                                type = 'income'; catId = 'c_dividend'; note = 'Дивиденды (авто)'; 
+                            } else if (opType.includes('налог') || opType.includes('tax')) { 
+                                type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; 
+                            }
+                            
+                            if (!type) return; 
                             if (amount <= 0.01) return; 
 
                             if (!getCat(catId)) catId = type === 'income' ? 'c_other_inc' : 'c_other_exp';
