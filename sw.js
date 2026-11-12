@@ -1,4 +1,4 @@
-const CACHE = 'finance-v203';
+const CACHE = 'finance-v204';
 const ASSETS = [
   './',
   './index.html',
@@ -21,7 +21,8 @@ const ASSETS = [
   './mod-credit-cards.js',
   './mod-notifications.js',
   './mod-backups.js',
-  './mod-analytics-widget.js'
+  './mod-analytics-widget.js',
+  './mod-stats-fix.js'
 ];
 
 self.addEventListener('install', e => {
