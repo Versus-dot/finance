@@ -1,46 +1,12 @@
 // ==========================================
-// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v5
+// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v7
 // ==========================================
 (function() {
-    console.log("✅ Фикс Статистики (mod-stats-fix.js) v5 загружен");
+    console.log("✅ Фикс Статистики (mod-stats-fix.js) v7 загружен");
 
-    // 1. Добавляем CSS-маску, которая скроет старый текст, если он нарисуется на холсте
-    const styleEl = document.createElement('style');
-    styleEl.innerHTML = `
-        .chart-container > div:not(#capitalCenterOverlay),
-        .chart-container > span:not(#capitalCenterOverlay) {
-            display: none !important;
-        }
-        #capitalCenterOverlay {
-            background: var(--card);
-            padding: 15px;
-            border-radius: 50%;
-            box-shadow: 0 0 15px 15px var(--card);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-        }
-    `;
-    document.head.appendChild(styleEl);
-
+    window._doughnutCanvas = null;
     const OriginalChart = window.Chart;
     if (!OriginalChart) return;
-
-    // 2. Блокируем отрисовку старого текста на холсте (Canvas)
-    if (!window._fillTextPatched) {
-        const origFillText = CanvasRenderingContext2D.prototype.fillText;
-        CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
-            if (this.canvas && this.canvas.closest('#page-stats')) {
-                if (typeof text === 'string' && (text.includes('Общий капитал') || text.includes('₽'))) {
-                    return; // Блокируем старый текст
-                }
-            }
-            return origFillText.apply(this, arguments);
-        };
-        window._fillTextPatched = true;
-    }
 
     window.Chart = new Proxy(OriginalChart, {
         construct(target, args) {
@@ -49,6 +15,10 @@
             if (config.type === 'doughnut' && config.data && config.data.labels) {
                 const labelsStr = config.data.labels.join(',');
                 if (labelsStr.includes('Фондовый рынок') || labelsStr.includes('Свободные средства') || labelsStr.includes('ПДС')) {
+                    
+                    if (ctx && ctx.canvas) window._doughnutCanvas = ctx.canvas;
+                    else if (ctx) window._doughnutCanvas = ctx;
+
                     const c = window.getCustomCapital ? window.getCustomCapital() : null;
                     if (c) {
                         const newLabels = [];
@@ -70,12 +40,10 @@
                         config.options = config.options || {};
                         config.options.plugins = config.options.plugins || {};
                         
-                        // УДАЛЯЕМ ВСЕ КАСТОМНЫЕ ПЛАГИНЫ (типа centerText)
-                        Object.keys(config.options.plugins).forEach(k => {
-                            if (k !== 'legend' && k !== 'tooltip') delete config.options.plugins[k];
-                        });
+                        // Отключаем старый центральный текст (плагин), но оставляем тултипы!
                         delete config.options.plugins.centerText;
-
+                        config.options.plugins.tooltip = { enabled: true };
+                        
                         config.options.plugins.legend = {
                             display: true,
                             position: 'right',
@@ -87,6 +55,8 @@
                                 font: { family: 'inherit', size: 12 }
                             }
                         };
+                        
+                        setTimeout(cleanChartContainer, 50);
                     }
                 }
             }
@@ -94,13 +64,26 @@
         }
     });
 
+    function cleanChartContainer() {
+        if (!window._doughnutCanvas) return;
+        const container = window._doughnutCanvas.parentNode;
+        if (!container) return;
+
+        // Прячем старые HTML-элементы (легенды), но не трогаем наш оверлей
+        Array.from(container.children).forEach(child => {
+            if (child !== window._doughnutCanvas && child.id !== 'capitalCenterOverlay') {
+                child.style.display = 'none'; 
+            }
+        });
+    }
+
     function updateCenterText() {
         const pageStats = document.getElementById('page-stats');
         if (!pageStats || !pageStats.classList.contains('active')) return;
+        if (!window._doughnutCanvas) return;
 
-        const canvas = pageStats.querySelector('canvas');
-        if (!canvas) return;
-        const container = canvas.parentNode;
+        const container = window._doughnutCanvas.parentNode;
+        if (!container) return;
 
         let overlay = document.getElementById('capitalCenterOverlay');
         if (!overlay) {
@@ -110,6 +93,8 @@
             overlay.style.top = '50%';
             overlay.style.left = '50%';
             overlay.style.transform = 'translate(-50%, -50%)';
+            overlay.style.textAlign = 'center';
+            overlay.style.pointerEvents = 'none';
             overlay.style.zIndex = '10';
             if (container.style.position !== 'relative') {
                 container.style.position = 'relative';
@@ -120,6 +105,7 @@
         const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
         const mainBal = document.querySelector('.total-val');
         const isPrivacyMode = (mainBal && (mainBal.textContent.includes('❄️') || mainBal.textContent.includes('***')));
+        
         const valStr = isPrivacyMode ? '*** ₽' : fmt(c.net);
 
         overlay.innerHTML = `
@@ -128,22 +114,12 @@
         `;
     }
 
-    // Безопасный обсервер: если контейнер очистился при перерисовке, возвращаем наш текст
-    const obs = new MutationObserver(() => {
-        const pageStats = document.getElementById('page-stats');
-        if (pageStats && pageStats.classList.contains('active')) {
-            if (!document.getElementById('capitalCenterOverlay')) {
-                updateCenterText();
-            }
-        }
-    });
-    
-    setTimeout(() => {
-        const pageStats = document.getElementById('page-stats');
-        if (pageStats) obs.observe(pageStats, { childList: true, subtree: true });
-    }, 1000);
+    // Безопасное обновление
+    setInterval(() => {
+        cleanChartContainer();
+        updateCenterText();
+    }, 500);
 
-    setInterval(updateCenterText, 1000);
     document.addEventListener('click', (e) => {
         if (e.target.closest('#globalPrivacyBtn')) setTimeout(updateCenterText, 100);
     });
