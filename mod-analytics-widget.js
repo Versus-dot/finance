@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v6
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v6 (v205)
 // ==========================================
 (function() {
     console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) загружен");
@@ -90,15 +90,14 @@
         let assets = 0, debt = 0, coveredDebt = 0;
         let cushion = 0, pds = 0, investments = 0, deposits = 0, cash = 0, crypto = 0, other = 0;
 
-        // 1. Считаем общий долг и активы (без хеджей)
         S.accounts.filter(a => !a.archived).forEach(a => {
             const v = accValue(a);
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;
-                if (v > limit) assets += (v - limit); // Переплата в активы
-                if (v < limit) debt += (limit - v);   // Долг
+                if (v > limit) assets += (v - limit);
+                if (v < limit) debt += (limit - v);
             } else {
-                if (a.hedgeFor) return; // Хеджи не добавляем в активы, они пойдут в вычет долга
+                if (a.hedgeFor) return; 
                 
                 if (a.inCushion) cushion += v;
                 else if (a.type === 'pds') pds += v;
@@ -112,7 +111,6 @@
             }
         });
 
-        // 2. Считаем сумму покрытого долга (хеджи)
         S.accounts.filter(a => a.hedgeFor && !a.archived).forEach(dep => {
             const card = S.accounts.find(c => c.id === dep.hedgeFor && c.type === 'credit' && !c.archived);
             if (card) {
@@ -124,13 +122,11 @@
             }
         });
 
-        // 3. Вычитаем покрытый долг из общей суммы долга
         debt = Math.max(0, debt - coveredDebt);
 
         return { net: assets - debt, assets, debt, coveredDebt, cushion, pds, investments, deposits, cash, crypto, other };
     };
 
-    // --- УТИЛИТЫ ДЛЯ ДАТ ---
     function getPeriodDates(period, isPrev = false) {
         let start = new Date(), end = new Date();
         end.setHours(23,59,59,999);
@@ -202,7 +198,6 @@
         return `<div class="trend ${colorClass}">${isUp ? '↑' : '↓'} ${absDelta}%</div>`;
     }
 
-    // --- UI ФУНКЦИИ ---
     window.setAnalyticsPeriod = function(val) {
         window._analyticsPeriod = val;
         if (val === 'custom') window.openCustomPeriodModal();
@@ -234,7 +229,6 @@
     window.toggleDebtsBody = function() { S.ui.collapsedDebts = !S.ui.collapsedDebts; save(false); renderDashboard(); };
     window.toggleDebtsEye = function(e) { e.stopPropagation(); S.ui.hideDebtsNumbers = !S.ui.hideDebtsNumbers; save(false); renderDashboard(); };
 
-    // --- МОДАЛКИ ДЕТАЛИЗАЦИИ ---
     window.openAnalyticsList = function(type) {
         const dates = getPeriodDates(window._analyticsPeriod);
         let list = S.transactions.filter(t => {
@@ -392,7 +386,6 @@
         window.openAnalyticsList(listType);
     };
 
-    // --- ГЛАВНЫЙ РЕНДЕР ---
     const origRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (origRenderDashboard) origRenderDashboard();
