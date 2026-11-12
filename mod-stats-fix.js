@@ -1,27 +1,21 @@
 // ==========================================
-// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v3
+// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v1 (Stable)
 // ==========================================
 (function() {
-    console.log("✅ Фикс Статистики (mod-stats-fix.js) v3 загружен");
-
     const OriginalChart = window.Chart;
     if (!OriginalChart) return;
 
-    // Перехватываем создание графиков
     window.Chart = new Proxy(OriginalChart, {
         construct(target, args) {
             let [ctx, config] = args;
-            
             if (config.type === 'doughnut' && config.data && config.data.labels) {
                 const labelsStr = config.data.labels.join(',');
-                // Если это график капитала
-                if (labelsStr.includes('Фондовый рынок') || labelsStr.includes('ПДС') || labelsStr.includes('Свободные средства')) {
+                if (labelsStr.includes('Фондовый рынок') || labelsStr.includes('Свободные средства') || labelsStr.includes('ПДС')) {
                     const c = window.getCustomCapital ? window.getCustomCapital() : null;
                     if (c) {
                         const newLabels = [];
                         const newData = [];
                         const newColors = [];
-
                         if (c.cushion > 0) { newLabels.push('Подушка'); newData.push(c.cushion); newColors.push('#10B981'); }
                         if (c.pds > 0) { newLabels.push('ПДС'); newData.push(c.pds); newColors.push('#8B5CF6'); }
                         if (c.investments > 0) { newLabels.push('Фондовый рынок'); newData.push(c.investments); newColors.push('#4d7fff'); }
@@ -32,44 +26,6 @@
                         config.data.labels = newLabels;
                         config.data.datasets[0].data = newData;
                         config.data.datasets[0].backgroundColor = newColors;
-                        config.data.datasets[0].borderWidth = 0;
-
-                        // Настройка легенды
-                        config.options = config.options || {};
-                        config.options.plugins = config.options.plugins || {};
-                        config.options.plugins.legend = {
-                            display: true,
-                            position: 'right',
-                            labels: {
-                                color: getComputedStyle(document.body).getPropertyValue('--text') || '#fff',
-                                usePointStyle: true,
-                                boxWidth: 8,
-                                padding: 15,
-                                font: { family: 'inherit', size: 12 }
-                            }
-                        };
-
-                        // Клики по секторам
-                        config.options.onClick = (evt, elements, chart) => {
-                            const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-                            if (points.length) {
-                                const idx = points[0].index;
-                                const label = chart.data.labels[idx];
-                                window.handleCapitalChartClick(label);
-                            }
-                        };
-                        
-                        // Скрываем старую HTML-легенду
-                        setTimeout(() => {
-                            const canvas = ctx.canvas || ctx;
-                            if (canvas && canvas.parentNode) {
-                                Array.from(canvas.parentNode.children).forEach(child => {
-                                    if (child.tagName === 'DIV' && child !== canvas && (child.textContent.includes('Фондовый рынок') || child.textContent.includes('ПДС')) && !child.id.includes('Overlay')) {
-                                        child.style.display = 'none';
-                                    }
-                                });
-                            }
-                        }, 100);
                     }
                 }
             }
@@ -77,35 +33,10 @@
         }
     });
 
-    window.handleCapitalChartClick = function(label) {
-        let accs = [];
-        let title = '';
-        if (label === 'ПДС') {
-            accs = S.accounts.filter(a => a.type === 'pds' && !a.archived);
-            title = 'ПДС';
-        } else if (label === 'Фондовый рынок') {
-            accs = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived);
-            title = 'Фондовый рынок';
-        } else if (label === 'Подушка') {
-            accs = S.accounts.filter(a => a.inCushion && !a.archived);
-            title = 'Подушка безопасности';
-        } else {
-            toast(label + ' (детализация в разработке)');
-            return;
-        }
-
-        let html = `<div class="modal-header"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="max-height: 60vh; overflow-y: auto;">`;
-        if (accs.length === 0) html += `<div class="empty">Нет счетов</div>`;
-        else accs.forEach(a => html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(a.name)}</div><div style="font-size:12px; color:var(--muted);">${esc(getBank(a.bankId)?.name||'')}</div></div><div style="font-weight:700;">${fmt(accValue(a))}</div></div>`);
-        html += `</div>`;
-        openModal(html);
-    };
-
-    // Безопасное обновление текста без MutationObserver (чтобы не было зависаний)
-    function updateCenterText() {
+    // Обновление центрального текста (без MutationObserver, чтобы не вешать браузер)
+    setInterval(() => {
         const pageStats = document.getElementById('page-stats');
         if (!pageStats || !pageStats.classList.contains('active')) return;
-
         const canvas = pageStats.querySelector('canvas');
         if (!canvas) return;
 
@@ -120,30 +51,18 @@
             overlay.style.textAlign = 'center';
             overlay.style.pointerEvents = 'none';
             overlay.style.zIndex = '10';
-            if (canvas.parentNode.style.position !== 'relative') {
-                canvas.parentNode.style.position = 'relative';
-            }
+            if (canvas.parentNode.style.position !== 'relative') canvas.parentNode.style.position = 'relative';
             canvas.parentNode.appendChild(overlay);
         }
 
         const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
         const mainBal = document.querySelector('.total-val');
         const isPrivacyMode = (mainBal && (mainBal.textContent.includes('❄️') || mainBal.textContent.includes('***')));
-
         const valStr = isPrivacyMode ? '*** ₽' : fmt(c.net);
-        const labelStr = 'Капитал (без долгов)';
 
         overlay.innerHTML = `
-            <div style="font-size: 20px; font-weight: 800; color: var(--text); letter-spacing: -0.5px;">${valStr}</div>
-            <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">${labelStr}</div>
+            <div style="font-size: 20px; font-weight: 800; color: var(--text);">${valStr}</div>
+            <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Капитал</div>
         `;
-    }
-
-    // Просто обновляем текст раз в секунду, если мы на вкладке статистики
-    setInterval(updateCenterText, 1000);
-
-    // И при клике на "Глаз"
-    document.addEventListener('click', (e) => {
-        if (e.target.closest('#globalPrivacyBtn')) setTimeout(updateCenterText, 100);
-    });
+    }, 1000);
 })();
