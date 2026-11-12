@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v123
+// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v124
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v123)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v124)");
 
     let myChart = null;
 
@@ -14,7 +14,6 @@
             const centerX = left + width / 2;
             const centerY = top + height / 2;
 
-            // Берем данные из нашей новой функции
             const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
             const isPrivacyMode = (typeof S !== 'undefined' && S.ui && S.ui.globalHideBalances);
             
@@ -28,7 +27,7 @@
 
             ctx.font = '11px -apple-system, system-ui, sans-serif';
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#888';
-            ctx.fillText('Капитал (без долгов)', centerX, centerY + 14);
+            ctx.fillText('Чистый капитал', centerX, centerY + 14);
             ctx.restore();
         }
     };
@@ -113,7 +112,8 @@
                                 if (typeof S !== 'undefined' && S.ui && S.ui.globalHideBalances) return ' *** ₽';
                                 const val = context.raw;
                                 const pct = ((val / totalSum) * 100).toFixed(1);
-                                return ` ${fmt(val)} (${pct}%)`;
+                                const prefix = context.label.includes('Долги') ? ' -' : ' ';
+                                return `${prefix}${fmt(val)} (${pct}%)`;
                             }
                         }
                     }
@@ -137,17 +137,46 @@
             stocks: { label: '📈 Фондовый рынок', value: 0, color: '#4d7fff', accounts: [] },
             savings: { label: '🏦 Вклады', value: 0, color: '#F59E0B', accounts: [] },
             crypto: { label: '🪙 Крипта', value: 0, color: '#FF9F43', accounts: [] },
-            cash: { label: '💵 Наличные', value: 0, color: '#64748B', accounts: [] }
+            cash: { label: '💵 Наличные', value: 0, color: '#64748B', accounts: [] },
+            debts: { label: '🔴 Долги', value: 0, color: '#EF4444', accounts: [] } // НОВЫЙ СЕКТОР
         };
 
         S.accounts.forEach(a => {
-            if (a.archived || a.hedgeFor) return;
+            if (a.archived) return;
+
             const val = accValue(a);
-            let contribution = val;
+
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;
-                contribution = Math.max(0, val - limit);
+                let debt = Math.max(0, limit - val);
+                
+                // Учитываем хеджи (покрытие долга)
+                let covered = 0;
+                if (S.settings.hedgingEnabled) {
+                    S.accounts.filter(h => h.hedgeFor === a.id && !h.archived).forEach(h => {
+                        covered += Math.min(accValue(h), debt);
+                    });
+                }
+                
+                const unhedgedDebt = Math.max(0, debt - covered);
+                if (unhedgedDebt > 0) {
+                    sectors.debts.value += unhedgedDebt;
+                    sectors.debts.accounts.push({ ...a, _chartContribution: unhedgedDebt });
+                }
+                
+                // Если есть переплата (свои деньги), добавляем в наличные
+                if (val > limit) {
+                    const overpay = val - limit;
+                    sectors.cash.value += overpay;
+                    sectors.cash.accounts.push({ ...a, _chartContribution: overpay });
+                }
+                return; 
             }
+
+            if (a.hedgeFor) return; // Обычные хеджи не добавляем в активы
+
+            let contribution = val;
+
             if (contribution > 0) {
                 let target = null;
                 if (a.inCushion) target = sectors.cushion;
@@ -155,7 +184,8 @@
                 else if (['brokerage', 'iis', 'invest_kopilka'].includes(a.type)) target = sectors.stocks;
                 else if (['crypto_wallet', 'crypto_exchange'].includes(a.type)) target = sectors.crypto;
                 else if (['deposit', 'savings', 'finu_wallet'].includes(a.type)) target = sectors.savings;
-                else if (['debit', 'cash', 'credit'].includes(a.type)) target = sectors.cash;
+                else if (['debit', 'cash'].includes(a.type)) target = sectors.cash;
+                
                 if (target) {
                     target.value += contribution;
                     target.accounts.push({ ...a, _chartContribution: contribution });
@@ -171,13 +201,14 @@
             const val = acc._chartContribution;
             const bank = S.banks.find(b => b.id === acc.bankId);
             const bankName = bank ? bank.name : 'Банк';
+            
             listHtml += `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border);">
                     <div>
                         <div style="font-weight:600; font-size:14px;">${esc(acc.name)}</div>
                         <div style="font-size:11px; color:var(--muted);">${esc(bankName)}</div>
                     </div>
-                    <div style="font-weight:700;">${fmt(val)}</div>
+                    <div style="font-weight:700; color:${category.label.includes('Долги') ? 'var(--red)' : 'inherit'};">${fmt(val)}</div>
                 </div>
             `;
         });
