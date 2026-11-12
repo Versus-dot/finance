@@ -2,14 +2,13 @@
 // МОДУЛЬ ФИКСОВ (mod-fixes.js)
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов (mod-fixes.js) загружен");
+    console.log("✅ Модуль фиксов (mod-fixes.js) загружен v216");
 
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
         if (!S.meta.deletedIds) S.meta.deletedIds = [];
     }
 
-    // Стиль для архивных счетов
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .account-row.archived-acc { opacity: 0.5; filter: grayscale(100%); transition: opacity 0.2s; }
@@ -51,13 +50,11 @@
 
         const cushionLabel = form.querySelector('input[id="accCushion"]').closest('.form-group');
         
-        // Чекбокс "Исключить из баланса"
         const ignoreDiv = document.createElement('div'); 
         ignoreDiv.className = 'form-group';
         ignoreDiv.innerHTML = `<label><input type="checkbox" id="accIgnoreBalance" style="width:auto;margin-right:8px" ${acc && acc.ignoreBalance ? 'checked' : ''}>👁️‍🗨️ Исключить из общего баланса</label>`;
         cushionLabel.after(ignoreDiv);
 
-        // Чекбокс "Отправить в архив"
         const archiveDiv = document.createElement('div');
         archiveDiv.className = 'form-group';
         archiveDiv.innerHTML = `<label><input type="checkbox" id="accArchived" style="width:auto;margin-right:8px" ${acc && acc.archived ? 'checked' : ''}>🗄️ Отправить в архив (скрыть из списка)</label>`;
@@ -90,13 +87,55 @@
         }, 100);
     };
 
-    // ФИКС СОХРАНЕНИЯ ГАЛОЧЕК (Игнор и Архив)
+    // ==========================================
+    // ФИКС ОКНА ОПЕРАЦИЙ (Не учитывать в аналитике)
+    // ==========================================
+    const prevOpenTxModal = window.openTxModal;
+    window.openTxModal = function(id) {
+        if (prevOpenTxModal) prevOpenTxModal(id);
+        window._currentEditingTxId = id || null;
+        
+        const form = document.getElementById('txForm');
+        if (!form) return;
+        
+        const tx = id ? S.transactions.find(t => t.id === id) : null;
+        const isChecked = tx && tx.ignoreInStats ? 'checked' : '';
+
+        const ignoreDiv = document.createElement('div');
+        ignoreDiv.className = 'form-group';
+        ignoreDiv.innerHTML = `<label style="color:var(--muted);"><input type="checkbox" id="txIgnoreInStats" style="width:auto;margin-right:8px" ${isChecked}>🙈 Не учитывать в аналитике</label>`;
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.before(ignoreDiv);
+        else form.appendChild(ignoreDiv);
+    };
+
+    // ФИКС ОКНА КОРРЕКТИРОВКИ БАЛАНСА (Reconcile)
+    const prevOpenReconcileModal = window.openReconcileModal;
+    window.openReconcileModal = function(accId) {
+        if (prevOpenReconcileModal) prevOpenReconcileModal(accId);
+        
+        const modal = document.getElementById('modalContent');
+        if (!modal) return;
+        const form = modal.querySelector('form');
+        if (!form) return;
+        
+        const ignoreDiv = document.createElement('div');
+        ignoreDiv.className = 'form-group';
+        ignoreDiv.innerHTML = `<label style="color:var(--muted);"><input type="checkbox" id="recIgnoreInStats" style="width:auto;margin-right:8px">🙈 Переоценка (не в аналитику)</label>`;
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.before(ignoreDiv);
+        else form.appendChild(ignoreDiv);
+    };
+
+    // ФИКС СОХРАНЕНИЯ ГАЛОЧЕК
     const prevSaveWithIgnore = window.save;
     window.save = function(isUserAction = true) {
+        // 1. Сохранение настроек счета
         const accForm = document.getElementById('accForm');
         const ignoreCb = document.getElementById('accIgnoreBalance');
         const archCb = document.getElementById('accArchived');
-        
         if (accForm) {
             if (window._currentEditingAccId) {
                 const acc = S.accounts.find(a => a.id === window._currentEditingAccId);
@@ -112,6 +151,27 @@
                 }
             }
         }
+
+        // 2. Сохранение транзакции
+        const txForm = document.getElementById('txForm');
+        const txIgnoreCb = document.getElementById('txIgnoreInStats');
+        if (txForm && txIgnoreCb) {
+            if (window._currentEditingTxId) {
+                const tx = S.transactions.find(t => t.id === window._currentEditingTxId);
+                if (tx) tx.ignoreInStats = txIgnoreCb.checked;
+            } else {
+                const lastTx = S.transactions[S.transactions.length - 1];
+                if (lastTx) lastTx.ignoreInStats = txIgnoreCb.checked;
+            }
+        }
+
+        // 3. Сохранение корректировки баланса
+        const recIgnoreCb = document.getElementById('recIgnoreInStats');
+        if (recIgnoreCb) {
+            const lastTx = S.transactions[S.transactions.length - 1];
+            if (lastTx) lastTx.ignoreInStats = recIgnoreCb.checked;
+        }
+
         if (prevSaveWithIgnore) prevSaveWithIgnore.call(this, isUserAction);
     };
 
@@ -120,7 +180,6 @@
     window.renderAccountRow = function(a, bank) {
         let html = prevRenderAccRowForArch(a, bank);
         if (a.archived) {
-            // Ищем класс account-row и добавляем класс archived-acc
             if (html.includes('class="account-row ')) {
                 html = html.replace('class="account-row ', 'class="account-row archived-acc ');
             } else {
