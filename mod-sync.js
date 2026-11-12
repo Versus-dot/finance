@@ -1,10 +1,9 @@
 // ==========================================
-// МОДУЛЬ СИНХРОНИЗАЦИИ (mod-sync.js)
+// МОДУЛЬ СИНХРОНИЗАЦИИ (mod-sync.js) v2
 // ==========================================
 (function() {
-    console.log("✅ Модуль синхронизации (mod-sync.js) загружен");
+    console.log("✅ Модуль синхронизации (mod-sync.js) v2 загружен");
 
-    // 🚫 ТИХАЯ ГЛУШИЛКА СТАРОГО КОДА
     const originalFetch = window.fetch;
     window.fetch = function(url, options) {
         if (typeof url === 'string' && url.includes('cloud-api.yandex.net')) {
@@ -15,14 +14,13 @@
         return originalFetch.apply(this, arguments);
     };
 
-    // Блокируем старый бэкап-менеджер
     window.checkDailyBackup = async function() {};
     window.queueSmartSync = function() {}; 
     window.performSmartSync = function() {};
     window.checkCloudSync = function() {};
     window.silentAutoSave = function() {};
 
-    // Защита от отправки пустой базы
+    // Исправлено: теперь вызываем новый умный syncSmart, а не старый
     const originalBackup = window.backupToYandexDisk; 
     window.backupToYandexDisk = async function(silent = false) { 
         if (typeof S !== 'undefined') { 
@@ -33,10 +31,11 @@
                 return; 
             } 
         } 
-        if (originalBackup) return originalBackup(silent); 
+        if (typeof window.syncSmart === 'function') {
+            await window.syncSmart(false);
+        }
     };
 
-    // Баннер восстановления после сброса
     setTimeout(() => { 
         if (localStorage.getItem('financeApp_isReset') === 'true') { 
             const banner = document.createElement('div'); 
@@ -47,14 +46,12 @@
         } 
     }, 1000);
 
-    // ОТСЛЕЖИВАНИЕ ИЗМЕНЕНИЙ (_prevState)
     if (!window._prevState && typeof S !== 'undefined') {
         window._prevState = JSON.parse(JSON.stringify(S));
     }
 
     const originalSave = window.save;
     window.save = function(isUserAction = true) {
-        // ИСПРАВЛЕНО: Обновляем метки времени и _prevState ТОЛЬКО если это ручное действие пользователя
         if (isUserAction && typeof S !== 'undefined' && window._prevState) {
             ['accounts', 'transactions', 'banks', 'categories', 'budgets', 'debts'].forEach(key => {
                 if (!S[key] || !window._prevState[key]) return;
@@ -80,14 +77,12 @@
         if (typeof applyBadgeStyle === 'function') applyBadgeStyle();
     };
 
-    // Планировщик синхронизации
     let syncTimeout;
     function scheduleSync() { 
         clearTimeout(syncTimeout); 
         syncTimeout = setTimeout(() => { syncSmart(false); }, 2000); 
     }
 
-    // Отправка при закрытии (sendBeacon)
     function sendBeaconUpload() {
         if (typeof S === 'undefined') return;
         const token = S.settings.yandexToken;
@@ -110,7 +105,6 @@
         if (document.visibilityState === 'hidden') sendBeaconUpload();
     });
 
-    // ГЛАВНАЯ ФУНКЦИЯ СИНХРОНИЗАЦИИ
     window.syncSmart = async function(isManual = false) {
         if (typeof S === 'undefined') return;
         const token = S.settings.yandexToken;
@@ -133,7 +127,6 @@
             const lastSync = parseInt(localStorage.getItem('financeApp_lastSync') || '0');
             const localChange = parseInt(localStorage.getItem('financeApp_localChange') || '0');
 
-            // ЕСЛИ НАЖАЛИ ВРУЧНУЮ — СКАЧИВАЕМ, СЛИВАЕМ И ОТПРАВЛЯЕМ ОБРАТНО
             if (isManual) {
                 if (typeof toast === 'function') toast('⬇️ Скачиваем и сливаем данные...');
                 await downloadFromCloud(token, cloudModified, isManual);
@@ -142,7 +135,6 @@
                 return;
             }
 
-            // АВТОМАТИЧЕСКАЯ СИНХРОНИЗАЦИЯ
             const isLocalEmpty = (!S.accounts || S.accounts.length === 0) && (!S.transactions || S.transactions.length === 0);
 
             if (isLocalEmpty) {
@@ -176,7 +168,6 @@
 
         mergeData(cloudData);
         
-        // ⚠️ ИСПРАВЛЕНО: Обновляем _prevState, чтобы save(false) не пометил всё как измененное
         if (typeof S !== 'undefined') {
             window._prevState = JSON.parse(JSON.stringify(S));
         }
