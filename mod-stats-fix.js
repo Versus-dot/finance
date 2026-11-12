@@ -1,11 +1,26 @@
 // ==========================================
-// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v3
+// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v4
 // ==========================================
 (function() {
-    console.log("✅ Фикс Статистики (mod-stats-fix.js) v3 загружен");
+    console.log("✅ Фикс Статистики (mod-stats-fix.js) v4 загружен");
 
     const OriginalChart = window.Chart;
     if (!OriginalChart) return;
+
+    // 1. Блокируем отрисовку старого текста на холсте (Canvas)
+    if (!window._fillTextPatched) {
+        const origFillText = CanvasRenderingContext2D.prototype.fillText;
+        CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
+            // Если рисуем на вкладке статистики и это текст с рублями или "Общий капитал"
+            if (this.canvas && this.canvas.closest('#page-stats')) {
+                if (typeof text === 'string' && (text.includes('Общий капитал') || text.includes('₽'))) {
+                    return; // Пропускаем отрисовку (блокируем старый текст)
+                }
+            }
+            return origFillText.apply(this, arguments);
+        };
+        window._fillTextPatched = true;
+    }
 
     window.Chart = new Proxy(OriginalChart, {
         construct(target, args) {
@@ -32,7 +47,6 @@
                         config.data.datasets[0].backgroundColor = newColors;
                         config.data.datasets[0].borderWidth = 0;
 
-                        // Включаем стандартную легенду Chart.js (она красивее)
                         config.options = config.options || {};
                         config.options.plugins = config.options.plugins || {};
                         config.options.plugins.legend = {
@@ -53,7 +67,7 @@
         }
     });
 
-    // Функция, которая прячет старый текст и легенду из mod-chart.js, и рисует наши
+    // 2. Агрессивная очистка старых HTML-элементов и добавление нашего текста
     function updateCenterText() {
         const pageStats = document.getElementById('page-stats');
         if (!pageStats || !pageStats.classList.contains('active')) return;
@@ -62,19 +76,15 @@
         if (!canvas) return;
         const container = canvas.parentNode;
 
-        // 1. Прячем старые HTML-элементы (легенду и текст "Общий капитал")
+        // Удаляем ЛЮБЫЕ старые div-обертки внутри контейнера графика (кроме нашего)
         if (container) {
             Array.from(container.children).forEach(child => {
-                if (child.tagName === 'DIV' && child !== canvas && child.id !== 'capitalCenterOverlay') {
-                    // Если это старый блок с текстом или легендой — скрываем
-                    if (child.textContent.includes('Общий капитал') || child.textContent.includes('Подушка')) {
-                        child.style.display = 'none';
-                    }
+                if (child.tagName === 'DIV' && child.id !== 'capitalCenterOverlay') {
+                    child.remove(); 
                 }
             });
         }
 
-        // 2. Добавляем наш красивый центральный текст
         let overlay = document.getElementById('capitalCenterOverlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -93,8 +103,6 @@
         }
 
         const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
-        
-        // Проверка на глобальный "Глаз"
         const mainBal = document.querySelector('.total-val');
         const isPrivacyMode = (mainBal && (mainBal.textContent.includes('❄️') || mainBal.textContent.includes('***')));
         const valStr = isPrivacyMode ? '*** ₽' : fmt(c.net);
@@ -105,10 +113,8 @@
         `;
     }
 
-    // Запускаем очистку раз в секунду (безопасно)
-    setInterval(updateCenterText, 1000);
-
-    // И при клике на глобальный "Глаз"
+    // Обновляем раз в секунду и при кликах
+    setInterval(updateCenterText, 500);
     document.addEventListener('click', (e) => {
         if (e.target.closest('#globalPrivacyBtn')) setTimeout(updateCenterText, 100);
     });
