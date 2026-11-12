@@ -1,8 +1,8 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v7
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v8
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v7 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v8 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
@@ -49,37 +49,12 @@
                     createdCount++;
                 }
 
-                // 1. СИНХРОНИЗАЦИЯ БАЛАНСА
-                try {
-                    const portRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'tinvest_portfolio', token: token, accountId: apiAcc.id }) });
-                    const portData = await portRes.json();
-                    
-                    if (portData && portData.totalAmountPortfolio) {
-                        const totalRub = qv(portData.totalAmountPortfolio);
-                        const currentBal = accValue(localAcc);
-                        const diff = totalRub - currentBal;
-                        
-                        if (Math.abs(diff) > 1) {
-                            localAcc.initialBalance = (localAcc.initialBalance || 0) + diff;
-                            localAcc._updatedAt = Date.now(); 
-                            syncedCount++;
-                        }
-
-                        localAcc.portfolioBreakdown = {
-                            stocks: qv(portData.totalAmountShares),
-                            bonds: qv(portData.totalAmountBonds),
-                            etf: qv(portData.totalAmountEtf),
-                            cash: qv(portData.totalAmountCurrencies),
-                            futures: qv(portData.totalAmountFutures)
-                        };
-                    }
-                } catch (e) { console.warn('Ошибка портфеля', e); }
-
-                // 2. СИНХРОНИЗАЦИЯ ИСТОРИИ ОПЕРАЦИЙ (только за последние 3 месяца, чтобы не падал прокси)
+                // 1. СИНХРОНИЗАЦИЯ ИСТОРИИ ОПЕРАЦИЙ
                 toast(`⏳ Запрашиваем операции (${apiAcc.name || 'Брокерский'})...`);
                 const now = new Date();
                 const fromDate = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString(); 
                 const toDate = now.toISOString();
+                let txSumForAcc = 0;
 
                 try {
                     const opRes = await fetch(PROXY, { 
@@ -93,13 +68,12 @@
                             if (S.transactions.some(t => t.tinvestOpId === op.id)) return;
 
                             const opTypeRaw = op.operationType || op.type || '';
-                            const opType = opTypeRaw.toLowerCase(); // Приводим к нижнему регистру для удобства
+                            const opType = opTypeRaw.toLowerCase(); 
                             
                             const amount = Math.abs(qv(op.payment));
                             
                             let type = null, catId = null, note = '';
                             
-                            // Ищем по ключевым словам! Теперь поймаем и "Выплата купонов", и "Выплата купона"
                             if (opType.includes('купон') || opType.includes('coupon')) { 
                                 type = 'income'; catId = 'c_coupon'; note = 'Купон (авто)'; 
                             } else if (opType.includes('дивиденд') || opType.includes('dividend')) { 
@@ -124,13 +98,45 @@
                                 tinvestOpId: op.id,
                                 _updatedAt: Date.now()
                             });
+                            txSumForAcc += (type === 'income' ? amount : -amount);
                             txCount++;
                         });
                     }
                 } catch (e) { console.warn('Ошибка операций', e); }
+
+                // 2. СИНХРОНИЗАЦИЯ БАЛАНСА (ПОСЛЕ операций)
+                try {
+                    const portRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'tinvest_portfolio', token: token, accountId: apiAcc.id }) });
+                    const portData = await portRes.json();
+                    
+                    if (portData && portData.totalAmountPortfolio) {
+                        const totalRub = qv(portData.totalAmountPortfolio);
+                        
+                        // Пересчитываем текущий баланс, учитывая только что добавленные транзакции
+                        recalculateBalances(); 
+                        const balanceWithNewTxs = accValue(localAcc);
+                        
+                        // Подгоняем initialBalance, чтобы итоговый баланс был ровно как в API
+                        const diff = totalRub - balanceWithNewTxs;
+                        
+                        if (Math.abs(diff) > 1) {
+                            localAcc.initialBalance = (localAcc.initialBalance || 0) + diff;
+                            localAcc._updatedAt = Date.now(); 
+                            syncedCount++;
+                        }
+
+                        localAcc.portfolioBreakdown = {
+                            stocks: qv(portData.totalAmountShares),
+                            bonds: qv(portData.totalAmountBonds),
+                            etf: qv(portData.totalAmountEtf),
+                            cash: qv(portData.totalAmountCurrencies),
+                            futures: qv(portData.totalAmountFutures)
+                        };
+                    }
+                } catch (e) { console.warn('Ошибка портфеля', e); }
             }
             
-            if (txCount > 0) recalculateBalances();
+            recalculateBalances();
             save(); 
             renderAll(); 
             if (typeof syncSmart === 'function') syncSmart(true); 
@@ -138,7 +144,7 @@
             if (createdCount > 0 || syncedCount > 0 || txCount > 0) {
                 toast(`✅ Успех! Счетов: ${createdCount}, балансов: ${syncedCount}, операций: ${txCount}`);
             } else {
-                toast('Все данные актуальны (новых купонов/дивидендов нет)');
+                toast('Все данные актуальны');
             }
             
         } catch (e) { 
@@ -147,6 +153,7 @@
         }
     };
 
+    // Остальные функции (cleanupFakeTInvestTransactions, renderStats) остаются без изменений
     window.cleanupFakeTInvestTransactions = function() {
         if (!confirm('Удалить все старые операции "Синхронизация с Т-Инвест"?\n\nЭто очистит статистику, но не затронет реальные доходы/расходы.')) return;
         const fakeTxs = S.transactions.filter(t => t.note === 'Синхронизация с Т-Инвест');
