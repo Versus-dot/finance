@@ -1,8 +1,8 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v5
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v6
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v5 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v6 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
@@ -92,20 +92,20 @@
                         opData.operations.forEach(op => {
                             if (S.transactions.some(t => t.tinvestOpId === op.id)) return;
 
-                            const opType = op.type || op.operationType; 
+                            // ИСПРАВЛЕНИЕ: Сначала берем технический код operationType!
+                            const opType = op.operationType || op.type; 
                             const amount = Math.abs(qv(op.payment));
                             
-                            // ЛОГИРУЕМ ВСЕ ОПЕРАЦИИ ДЛЯ ОТЛАДКИ
                             if (amount > 0) {
-                                console.log('Tinkoff Op:', op.date, opType, amount);
+                                console.log('Tinkoff Op:', op.date, '|', opType, '|', amount);
                             }
 
                             let type = null, catId = null, note = '';
                             
-                            // Расширенный список типов
-                            if (opType === 'OPERATION_TYPE_COUPON' || opType === 'COUPON') { type = 'income'; catId = 'c_coupon'; note = 'Купон (авто)'; }
-                            else if (opType === 'OPERATION_TYPE_DIVIDEND' || opType === 'DIVIDEND') { type = 'income'; catId = 'c_dividend'; note = 'Дивиденды (авто)'; }
-                            else if (opType === 'OPERATION_TYPE_TAX' || opType === 'TAX' || opType === 'OPERATION_TYPE_DIVIDEND_TAX' || opType === 'OPERATION_TYPE_BOND_TAX') { type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; }
+                            // Расширенный список типов (включая русские названия на всякий случай)
+                            if (opType === 'OPERATION_TYPE_COUPON' || opType === 'COUPON' || opType === 'Выплата купона') { type = 'income'; catId = 'c_coupon'; note = 'Купон (авто)'; }
+                            else if (opType === 'OPERATION_TYPE_DIVIDEND' || opType === 'DIVIDEND' || opType === 'Выплата дивидендов') { type = 'income'; catId = 'c_dividend'; note = 'Дивиденды (авто)'; }
+                            else if (opType === 'OPERATION_TYPE_TAX' || opType === 'TAX' || opType === 'OPERATION_TYPE_DIVIDEND_TAX' || opType === 'OPERATION_TYPE_BOND_TAX' || opType === 'Налог') { type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; }
                             else return; 
 
                             if (amount <= 0.01) return; 
@@ -137,7 +137,7 @@
             if (createdCount > 0 || syncedCount > 0 || txCount > 0) {
                 toast(`✅ Успех! Счетов: ${createdCount}, балансов: ${syncedCount}, операций: ${txCount}`);
             } else {
-                toast('Все данные уже актуальны');
+                toast('Все данные актуальны (новых купонов/дивидендов нет)');
             }
             
         } catch (e) { 
