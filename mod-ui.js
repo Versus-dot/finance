@@ -2,7 +2,7 @@
 // МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v198)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v199)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -381,7 +381,6 @@
                 <div class="menu-section">
                     <button class="menu-item-premium" onclick="window.openSubMenu('sync', 'sub')"><div class="menu-icon-wrap">☁️</div>Данные и Синхронизация<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('appearance', 'sub')"><div class="menu-icon-wrap">🎨</div>Оформление<span class="chevron">›</span></button>
-                    <button class="menu-item-premium" onclick="window.openSubMenu('invest', 'sub')"><div class="menu-icon-wrap">📈</div>Инвестиции<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('directories', 'sub')"><div class="menu-icon-wrap">📑</div>Справочники<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('security', 'sub')"><div class="menu-icon-wrap">🔒</div>Безопасность и Опасная зона<span class="chevron">›</span></button>
                 </div>
@@ -393,6 +392,7 @@
             if (type === 'sync') {
                 title = 'Данные и Синхронизация';
                 items = `
+                    <button class="menu-item-premium" onclick="window.syncTInvest()"><div class="menu-icon-wrap">📈</div>Синхронизация Т-Инвест<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('cloud_backups', 'sub2')"><div class="menu-icon-wrap">☁️</div>Облако и Бэкапы<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('local_files', 'sub2')"><div class="menu-icon-wrap">📂</div>Локальные файлы<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('data_settings', 'sub2')"><div class="menu-icon-wrap">⚙️</div>Настройки данных<span class="chevron">›</span></button>
@@ -401,11 +401,6 @@
                 title = 'Оформление';
                 items = `
                     <button class="menu-item-premium" onclick="window.openSettings()"><div class="menu-icon-wrap">🎨</div>Настройки приложения<span class="chevron">›</span></button>
-                `;
-            } else if (type === 'invest') {
-                title = 'Инвестиции';
-                items = `
-                    <button class="menu-item-premium" onclick="window.syncTInvest()"><div class="menu-icon-wrap">📈</div>Обновить балансы (Т-Инвест)<span class="chevron">›</span></button>
                 `;
             } else if (type === 'directories') {
                 title = 'Справочники';
