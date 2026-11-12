@@ -1,17 +1,47 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИЧЕСКОГО ВИДЖЕТА (mod-analytics-widget.js)
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v2
 // ==========================================
 (function() {
-    console.log("✅ Модуль аналитики (mod-analytics-widget.js) загружен");
+    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) загружен");
 
-    // Состояние: режим сравнения ('prev' - с прошлым месяцем, 'avg' - со средним за год)
+    if (typeof S !== 'undefined' && S.ui) {
+        if (S.ui.collapsedAnalytics === undefined) S.ui.collapsedAnalytics = true; // По умолчанию свернут
+        if (S.ui.hideAnalyticsNumbers === undefined) S.ui.hideAnalyticsNumbers = false;
+        if (S.ui.collapsedDebts === undefined) S.ui.collapsedDebts = true;
+        if (S.ui.hideDebtsNumbers === undefined) S.ui.hideDebtsNumbers = false;
+    }
+
     window._analyticsMode = window._analyticsMode || 'prev';
-    // Состояние сортировки в модалках ('date' - по дате, 'amount' - по сумме)
     window._modalSort = window._modalSort || 'date';
 
-    // Добавляем стили
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
+        .bottom-widgets-grid { display: none !important; } /* Скрываем старую сетку из app.js */
+        
+        .fullwidth-widget {
+            background: var(--card);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .fw-header {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: var(--card2);
+            font-weight: 700;
+            font-size: 15px;
+            transition: background 0.2s;
+        }
+        .fw-header:active { background: var(--card); }
+        .fw-header-left { display: flex; align-items: center; gap: 8px; }
+        .fw-body { padding: 16px; display: none; border-top: 1px solid var(--border); }
+        .fw-body.expanded { display: block; }
+        
         .analytic-item {
             background: var(--card2);
             border-radius: 12px;
@@ -21,9 +51,10 @@
             border: 1px solid var(--border);
         }
         .analytic-item:active { transform: scale(0.97); background: var(--card); }
-        .analytic-item .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+        .analytic-item .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .analytic-item .val { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
         .analytic-item .trend { font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 2px; }
+        
         .trend.up-good { color: var(--green); }
         .trend.down-bad { color: var(--red); }
         .trend.up-bad { color: var(--red); }
@@ -35,6 +66,34 @@
         .group-header { font-size: 12px; font-weight: 700; color: var(--muted); margin: 16px 0 8px; text-transform: uppercase; }
     `;
     document.head.appendChild(styleEl);
+
+    function toggleAnalyticsBody() {
+        S.ui.collapsedAnalytics = !S.ui.collapsedAnalytics;
+        save(false);
+        if (typeof renderDashboard === 'function') renderDashboard();
+    }
+    function toggleAnalyticsEye(e) {
+        e.stopPropagation();
+        S.ui.hideAnalyticsNumbers = !S.ui.hideAnalyticsNumbers;
+        save(false);
+        if (typeof renderDashboard === 'function') renderDashboard();
+    }
+    function toggleDebtsBody() {
+        S.ui.collapsedDebts = !S.ui.collapsedDebts;
+        save(false);
+        if (typeof renderDashboard === 'function') renderDashboard();
+    }
+    function toggleDebtsEye(e) {
+        e.stopPropagation();
+        S.ui.hideDebtsNumbers = !S.ui.hideDebtsNumbers;
+        save(false);
+        if (typeof renderDashboard === 'function') renderDashboard();
+    }
+
+    window.toggleAnalyticsBody = toggleAnalyticsBody;
+    window.toggleAnalyticsEye = toggleAnalyticsEye;
+    window.toggleDebtsBody = toggleDebtsBody;
+    window.toggleDebtsEye = toggleDebtsEye;
 
     // Функция для расчета тренда
     function getTrendHtml(current, previous, isGoodWhenUp) {
@@ -56,28 +115,25 @@
         return `<div class="trend ${colorClass}">${isUp ? '↑' : '↓'} ${absDelta}%</div>`;
     }
 
-    // Получить данные за прошлый месяц
     function getPrevMonthData() {
         const d = new Date();
         d.setMonth(d.getMonth() - 1);
-        const prevMonthStr = d.toISOString().slice(0, 7);
-        return computeMonth(prevMonthStr);
+        return computeMonth(d.toISOString().slice(0, 7));
     }
 
-    // Получить средние данные за текущий год
     function getYearAvgData() {
         const year = new Date().toISOString().slice(0, 4);
         const months = new Set();
         S.transactions.filter(t => t.date.startsWith(year)).forEach(t => months.add(t.date.slice(0, 7)));
+        if (months.size === 0) return { income: 0, expense: 0, savedTotal: 0, savingsRate: 0, passive: 0 };
         
-        if (months.size === 0) return { income: 0, expense: 0, savedTotal: 0, savingsRate: 0 };
-        
-        let totalInc = 0, totalExp = 0, totalSaved = 0;
+        let totalInc = 0, totalExp = 0, totalSaved = 0, totalPassive = 0;
         months.forEach(m => {
             const mData = computeMonth(m);
             totalInc += mData.income;
             totalExp += mData.expense;
             totalSaved += mData.savedTotal;
+            totalPassive += mData.passive;
         });
         
         const count = months.size;
@@ -86,38 +142,32 @@
             income: avgInc,
             expense: totalExp / count,
             savedTotal: totalSaved / count,
+            passive: totalPassive / count,
             savingsRate: avgInc > 0 ? (totalSaved / totalInc) * 100 : 0
         };
     }
 
-    // Переключение режима
     window.toggleAnalyticsMode = function() {
         window._analyticsMode = window._analyticsMode === 'prev' ? 'avg' : 'prev';
         if (typeof renderDashboard === 'function') renderDashboard();
     };
 
-    // Открытие списка операций
     window.openAnalyticsList = function(type) {
         const m = thisMonth();
         let list = [];
         if (type === 'income') list = S.transactions.filter(t => t.type === 'income' && t.date.startsWith(m));
         else if (type === 'expense') list = S.transactions.filter(t => t.type === 'expense' && t.date.startsWith(m));
-        
         renderListModal(type, list);
     };
 
-    // Открытие списка "Отложено" (с группировкой)
     window.openAnalyticsSaved = function() {
         const m = thisMonth();
         const transfers = S.transactions.filter(t => t.type === 'transfer' && t.date.startsWith(m));
-        
         const savings = transfers.filter(t => (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'savings');
         const invest = transfers.filter(t => (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'investment');
-        
         renderSavedModal(savings, invest);
     };
 
-    // Открытие справки по норме сбережений
     window.openAnalyticsInfo = function() {
         const m = computeMonth();
         const html = `
@@ -138,20 +188,16 @@
         openModal(html);
     };
 
-    // Рендер модалки со списком (Доходы/Расходы)
     function renderListModal(type, list) {
         let sorted = [...list];
         if (window._modalSort === 'date') sorted.sort((a,b) => b.date.localeCompare(a.date));
         else sorted.sort((a,b) => b.amount - a.amount);
 
         let html = `<div class="modal-header"><h2>${type === 'income' ? 'Доходы' : 'Расходы'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
-        
-        // Чипсы сортировки
         html += `<div class="chips" style="margin-bottom: 12px;">
             <button class="chip ${window._modalSort === 'date' ? 'active' : ''}" onclick="window.changeModalSort('date', '${type}')">По дате</button>
             <button class="chip ${window._modalSort === 'amount' ? 'active' : ''}" onclick="window.changeModalSort('amount', '${type}')">По сумме</button>
         </div>`;
-
         if (sorted.length === 0) {
             html += `<div class="empty">Нет операций</div>`;
         } else {
@@ -169,35 +215,22 @@
         openModal(html);
     }
 
-    // Рендер модалки "Отложено"
     function renderSavedModal(savings, invest) {
-        let html = `<div class="modal-header"><h2>Отложено</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
-        html += `<div style="max-height: 60vh; overflow-y: auto;">`;
-        
-        // Группа Накопления
+        let html = `<div class="modal-header"><h2>Отложено</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="max-height: 60vh; overflow-y: auto;">`;
         if (savings.length > 0) {
             html += `<div class="group-header" style="color: var(--green);">📈 Накопления</div>`;
             savings.sort((a,b) => b.date.localeCompare(a.date)).forEach(t => {
                 const acc = getAcc(t.toAccountId);
-                html += `<div class="modal-list-item">
-                    <div><div style="font-weight:600;">${acc ? esc(acc.name) : 'Счет'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div>
-                    <div style="font-weight:700; color:var(--green);">${fmt(t.amount)}</div>
-                </div>`;
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${acc ? esc(acc.name) : 'Счет'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div><div style="font-weight:700; color:var(--green);">${fmt(t.amount)}</div></div>`;
             });
         }
-
-        // Группа Инвестиции
         if (invest.length > 0) {
             html += `<div class="group-header" style="color: var(--accent);">📈 Инвестиции</div>`;
             invest.sort((a,b) => b.date.localeCompare(a.date)).forEach(t => {
                 const acc = getAcc(t.toAccountId);
-                html += `<div class="modal-list-item">
-                    <div><div style="font-weight:600;">${acc ? esc(acc.name) : 'Счет'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div>
-                    <div style="font-weight:700; color:var(--accent);">${fmt(t.amount)}</div>
-                </div>`;
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${acc ? esc(acc.name) : 'Счет'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div><div style="font-weight:700; color:var(--accent);">${fmt(t.amount)}</div></div>`;
             });
         }
-
         if (savings.length === 0 && invest.length === 0) {
             html += `<div class="empty">Нет переводов в накопления или инвестиции</div>`;
         }
@@ -205,57 +238,122 @@
         openModal(html);
     }
 
-    // Смена сортировки в модалке
     window.changeModalSort = function(sortType, listType) {
         window._modalSort = sortType;
         if (listType === 'income') window.openAnalyticsList('income');
         else if (listType === 'expense') window.openAnalyticsList('expense');
     };
 
-    // Перехват рендера главного экрана
+    // ГЛАВНЫЙ ПЕРЕХВАТ РЕНДЕРА
     const origRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (origRenderDashboard) origRenderDashboard();
         
-        const m = computeMonth();
-        let compareData = window._analyticsMode === 'prev' ? getPrevMonthData() : getYearAvgData();
-        const modeText = window._analyticsMode === 'prev' ? 'К прошлому' : 'К среднему';
+        const pageHome = document.getElementById('page-home');
+        if (!pageHome) return;
 
-        const html = `
-            <div class="card month-stats" style="padding: 16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <div style="font-weight:700;">Аналитика месяца</div>
-                    <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px; border-radius: 8px;" onclick="window.toggleAnalyticsMode()">${modeText} ▼</button>
+        // 1. Скрываем старый блок "bottom-widgets-grid" из app.js
+        const oldBottomGrid = pageHome.querySelector('.bottom-widgets-grid');
+        if (oldBottomGrid) oldBottomGrid.style.display = 'none';
+
+        // 2. Считаем данные для Долгов
+        let totalOwed = 0, totalOwe = 0;
+        const lentSums = {}, borrowedSums = {};
+        S.transactions.filter(tr => tr.type === 'debt').forEach(tr => {
+            if (!tr.counterpartyId) return;
+            if (tr.debtType === 'lent') lentSums[tr.counterpartyId] = (lentSums[tr.counterpartyId] || 0) + tr.amount;
+            else if (tr.debtType === 'returned') lentSums[tr.counterpartyId] = (lentSums[tr.counterpartyId] || 0) - tr.amount;
+            else if (tr.debtType === 'borrowed') borrowedSums[tr.counterpartyId] = (borrowedSums[tr.counterpartyId] || 0) + tr.amount;
+            else if (tr.debtType === 'repaid') borrowedSums[tr.counterpartyId] = (borrowedSums[tr.counterpartyId] || 0) - tr.amount;
+        });
+        Object.values(lentSums).forEach(v => { if (v > 0) totalOwed += v; });
+        Object.values(borrowedSums).forEach(v => { if (v > 0) totalOwe += v; });
+
+        // 3. Считаем данные для Аналитики
+        const m = computeMonth();
+        const compareData = window._analyticsMode === 'prev' ? getPrevMonthData() : getYearAvgData();
+        const modeText = window._analyticsMode === 'prev' ? 'К прошлому ▼' : 'К среднему ▼';
+
+        const isAnalyticsHidden = S.ui.hideAnalyticsNumbers;
+        const isDebtsHidden = S.ui.hideDebtsNumbers;
+        const hideVal = (val) => isAnalyticsHidden ? '***' : fmt(val);
+
+        // 4. Собираем HTML для Аналитики
+        let analyticsHtml = `
+            <div class="fullwidth-widget">
+                <div class="fw-header" onclick="window.toggleAnalyticsBody()">
+                    <div class="fw-header-left">
+                        <span>${S.ui.collapsedAnalytics ? '▶' : '▼'} Аналитика месяца</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px; border-radius: 8px;" onclick="event.stopPropagation(); window.toggleAnalyticsMode()">${modeText}</button>
+                        <span style="cursor:pointer; padding:4px;" onclick="window.toggleAnalyticsEye(event)">${isAnalyticsHidden ? '🙈' : '👁️'}</span>
+                    </div>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                    <div class="analytic-item" onclick="window.openAnalyticsList('income')">
-                        <div class="label">Доходы</div>
-                        <div class="val pos">${fmt(m.income)}</div>
-                        ${getTrendHtml(m.income, compareData.income, true)}
-                    </div>
-                    <div class="analytic-item" onclick="window.openAnalyticsList('expense')">
-                        <div class="label">Расходы</div>
-                        <div class="val neg">${fmt(m.expense)}</div>
-                        ${getTrendHtml(m.expense, compareData.expense, false)}
-                    </div>
-                    <div class="analytic-item" onclick="window.openAnalyticsSaved()">
-                        <div class="label">Отложено</div>
-                        <div class="val pos">${fmt(m.savedTotal)}</div>
-                        ${getTrendHtml(m.savedTotal, compareData.savedTotal, true)}
-                    </div>
-                    <div class="analytic-item" onclick="window.openAnalyticsInfo()">
-                        <div class="label">Норма сбережений</div>
-                        <div class="val">${m.savingsRate.toFixed(0)}%</div>
-                        ${getTrendHtml(m.savingsRate, compareData.savingsRate, true)}
+                <div class="fw-body ${S.ui.collapsedAnalytics ? '' : 'expanded'}">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="analytic-item" onclick="window.openAnalyticsList('income')">
+                            <div class="label">Доходы</div>
+                            <div class="val pos">${hideVal(m.income)}</div>
+                            ${getTrendHtml(m.income, compareData.income, true)}
+                        </div>
+                        <div class="analytic-item" onclick="window.openAnalyticsList('expense')">
+                            <div class="label">Расходы</div>
+                            <div class="val neg">${hideVal(m.expense)}</div>
+                            ${getTrendHtml(m.expense, compareData.expense, false)}
+                        </div>
+                        <div class="analytic-item" onclick="window.openAnalyticsSaved()">
+                            <div class="label">Отложено</div>
+                            <div class="val pos">${hideVal(m.savedTotal)}</div>
+                            ${getTrendHtml(m.savedTotal, compareData.savedTotal, true)}
+                        </div>
+                        <div class="analytic-item" onclick="window.openAnalyticsInfo()">
+                            <div class="label">Норма сбережений</div>
+                            <div class="val">${isAnalyticsHidden ? '***' : m.savingsRate.toFixed(0) + '%'}</div>
+                            ${getTrendHtml(m.savingsRate, compareData.savingsRate, true)}
+                        </div>
+                        <div class="analytic-item" style="grid-column: span 2;">
+                            <div class="label">Свободный денежный поток (пассивный доход)</div>
+                            <div class="val pos">${hideVal(m.passive)}</div>
+                            ${getTrendHtml(m.passive, compareData.passive, true)}
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
-        const el = document.getElementById('page-home');
-        if (el) {
-            const oldWidget = el.querySelector('.month-stats');
-            if (oldWidget) oldWidget.outerHTML = html;
-        }
+        // 5. Собираем HTML для Долгов
+        let debtsHtml = `
+            <div class="fullwidth-widget" style="margin-bottom: 0;">
+                <div class="fw-header" onclick="window.toggleDebtsBody()">
+                    <div class="fw-header-left">
+                        <span>${S.ui.collapsedDebts ? '▶' : '▼'} Долги</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="cursor:pointer; padding:4px;" onclick="window.toggleDebtsEye(event)">${isDebtsHidden ? '🙈' : '👁️'}</span>
+                    </div>
+                </div>
+                <div class="fw-body ${S.ui.collapsedDebts ? '' : 'expanded'}">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <div style="font-size:13px; color:var(--muted);">Мне должны</div>
+                        <div class="pos" style="font-weight:700; font-size:15px;">${isDebtsHidden ? '***' : fmt(totalOwed)}</div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:13px; color:var(--muted);">Я должен</div>
+                        <div class="neg" style="font-weight:700; font-size:15px;">${isDebtsHidden ? '***' : fmt(totalOwe)}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 6. Вставляем новые виджеты в конец главной страницы
+        const wrapper = document.createElement('div');
+        wrapper.id = 'custom-bottom-widgets';
+        wrapper.innerHTML = analyticsHtml + debtsHtml;
+        
+        const existingWrapper = document.getElementById('custom-bottom-widgets');
+        if (existingWrapper) existingWrapper.remove();
+        
+        pageHome.appendChild(wrapper);
     };
 })();
