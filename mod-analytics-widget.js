@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v3
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v4
 // ==========================================
 (function() {
     console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) загружен");
@@ -12,10 +12,13 @@
     }
 
     window._analyticsPeriod = window._analyticsPeriod || 'month';
-    window._analyticsMode = window._analyticsMode || 'prev';
     window._modalSort = window._modalSort || 'date';
     window._customStart = window._customStart || null;
     window._customEnd = window._customEnd || null;
+
+    // Иконки глаза (SVG)
+    const eyeOpenSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    const eyeClosedSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
@@ -66,8 +69,46 @@
         .modal-list-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
         .modal-list-item:last-child { border-bottom: none; }
         .group-header { font-size: 12px; font-weight: 700; color: var(--muted); margin: 16px 0 8px; text-transform: uppercase; }
+        
+        .eye-btn {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .eye-btn:hover { background: rgba(255,255,255,0.1); }
     `;
     document.head.appendChild(styleEl);
+
+    // --- НЕЗАВИСИМЫЙ РАСЧЕТ КАПИТАЛА ---
+    function getCustomCapital() {
+        let assets = 0, debt = 0;
+        let deposits = 0, investments = 0, cash = 0, pds = 0, other = 0;
+
+        S.accounts.filter(a => !a.archived).forEach(a => {
+            const v = accValue(a);
+            if (a.type === 'credit') {
+                const limit = a.creditLimit || 0;
+                if (v > limit) assets += (v - limit); // Переплата в активы
+                if (v < limit) debt += (limit - v);   // Долг
+            } else {
+                assets += v;
+                if (['deposit', 'savings', 'finu_wallet'].includes(a.type)) deposits += v;
+                else if (['brokerage', 'iis', 'invest_kopilka', 'crypto_wallet', 'crypto_exchange'].includes(a.type)) investments += v;
+                else if (a.type === 'pds') pds += v;
+                else if (a.type === 'cash') cash += v;
+                else other += v;
+            }
+        });
+
+        return { net: assets - debt, assets, debt, deposits, investments, cash, pds, other };
+    }
 
     // --- УТИЛИТЫ ДЛЯ ДАТ ---
     function getPeriodDates(period, isPrev = false) {
@@ -97,7 +138,7 @@
             end = new Date(start); end.setFullYear(end.getFullYear() + (isPrev?1:0));
             const today = new Date();
             if (!isPrev) end = today;
-            else end.setDate(today.getDate()); // грубое совпадение по дню
+            else end.setDate(today.getDate());
         } else if (period === 'custom' && window._customStart && window._customEnd) {
             start = new Date(window._customStart); start.setHours(0,0,0,0);
             end = new Date(window._customEnd); end.setHours(23,59,59,999);
@@ -144,11 +185,8 @@
     // --- UI ФУНКЦИИ ---
     window.setAnalyticsPeriod = function(val) {
         window._analyticsPeriod = val;
-        if (val === 'custom') {
-            window.openCustomPeriodModal();
-        } else {
-            renderDashboard();
-        }
+        if (val === 'custom') window.openCustomPeriodModal();
+        else renderDashboard();
     };
 
     window.openCustomPeriodModal = function() {
@@ -222,10 +260,10 @@
     };
 
     window.openCapitalDetails = function() {
-        const t = computeTotals();
+        const c = getCustomCapital();
         const dates = getPeriodDates(window._analyticsPeriod);
         
-        let prevCap = t.totalCap;
+        let prevCap = c.net;
         if (S.snapshots && S.snapshots.length > 0) {
             const pastSnapshots = S.snapshots.filter(s => new Date(s.date).getTime() <= dates.start.getTime());
             if (pastSnapshots.length > 0) {
@@ -234,19 +272,20 @@
             }
         }
 
-        const delta = prevCap > 0 ? ((t.totalCap - prevCap) / prevCap * 100) : 0;
+        const delta = prevCap > 0 ? ((c.net - prevCap) / prevCap * 100) : 0;
         const deltaHtml = prevCap > 0 ? `<span style="color:${delta>=0?'var(--green)':'var(--red)'}">${delta>=0?'↑':'↓'} ${Math.abs(delta).toFixed(1)}%</span>` : '—';
 
         openModal(`
             <div class="modal-header"><h2>Капитал</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
             <div style="font-size: 14px; line-height: 1.8;">
-                <div style="display:flex; justify-content:space-between;"><span>🏦 Вклады и накопления</span> <b>${fmt(t.deposits)}</b></div>
-                <div style="display:flex; justify-content:space-between;"><span>📈 Инвестиции</span> <b>${fmt(t.brokerage)}</b></div>
-                <div style="display:flex; justify-content:space-between;"><span>💵 Наличные</span> <b>${fmt(t.cash)}</b></div>
-                <div style="display:flex; justify-content:space-between;"><span>🔴 Долги по картам</span> <b style="color:var(--red)">-${fmt(t.debt)}</b></div>
+                <div style="display:flex; justify-content:space-between;"><span>🏦 Вклады и накопления</span> <b>${fmt(c.deposits)}</b></div>
+                <div style="display:flex; justify-content:space-between;"><span>📈 Инвестиции (и ПДС)</span> <b>${fmt(c.investments + c.pds)}</b></div>
+                <div style="display:flex; justify-content:space-between;"><span>💵 Наличные</span> <b>${fmt(c.cash)}</b></div>
+                ${c.other > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🗂 Прочие активы</span> <b>${fmt(c.other)}</b></div>` : ''}
+                <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>🔴 Долги по кредитам</span> <b style="color:var(--red)">-${fmt(c.debt)}</b></div>
                 <hr style="border-color: var(--border); margin: 12px 0;">
                 <div style="display:flex; justify-content:space-between; font-size: 18px; font-weight: 800;">
-                    <span>Итого</span> <span>${fmt(t.totalCap)}</span>
+                    <span>Итого</span> <span>${fmt(c.net)}</span>
                 </div>
                 <div style="text-align:center; margin-top: 8px; font-size: 13px;">Изменение: ${deltaHtml}</div>
             </div>
@@ -339,7 +378,6 @@
         const oldBottomGrid = pageHome.querySelector('.bottom-widgets-grid');
         if (oldBottomGrid) oldBottomGrid.style.display = 'none';
 
-        // Данные для Долгов
         let totalOwed = 0, totalOwe = 0;
         const lentSums = {}, borrowedSums = {};
         S.transactions.filter(tr => tr.type === 'debt').forEach(tr => {
@@ -368,15 +406,13 @@
             }
         });
 
-        // Данные для Аналитики
         const dCurrent = getPeriodDates(window._analyticsPeriod, false);
         const dPrev = getPeriodDates(window._analyticsPeriod, true);
         const m = calcDataForRange(dCurrent.start, dCurrent.end);
         const p = calcDataForRange(dPrev.start, dPrev.end);
+        const c = getCustomCapital();
 
-        // Капитал
-        const t = computeTotals();
-        let prevCap = t.totalCap;
+        let prevCap = c.net;
         if (S.snapshots && S.snapshots.length > 0) {
             const pastSnapshots = S.snapshots.filter(s => new Date(s.date).getTime() <= dCurrent.start.getTime());
             if (pastSnapshots.length > 0) {
@@ -390,7 +426,7 @@
         const hideV = (v) => isHideAn ? '***' : fmt(v);
 
         const periodOpts = { day:'День', week:'Неделя', month:'Месяц', year:'Год', ytd:'С начала года', custom:'Период ⚙️' };
-        let selectHtml = `<select onchange="window.setAnalyticsPeriod(this.value)" style="padding: 4px; border-radius: 8px; font-size: 12px; background: var(--card); color: var(--text); border: 1px solid var(--border); outline: none;">`;
+        let selectHtml = `<select onchange="window.setAnalyticsPeriod(this.value)" style="padding: 4px 8px; border-radius: 8px; font-size: 12px; background: var(--card); color: var(--text); border: 1px solid var(--border); outline: none;">`;
         Object.keys(periodOpts).forEach(k => {
             selectHtml += `<option value="${k}" ${window._analyticsPeriod === k ? 'selected' : ''}>${periodOpts[k]}</option>`;
         });
@@ -404,7 +440,7 @@
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;" onclick="event.stopPropagation();">
                         ${selectHtml}
-                        <span style="cursor:pointer; padding:4px;" onclick="window.toggleAnalyticsEye(event)">${isHideAn ? '🙈' : '👁️'}</span>
+                        <button class="eye-btn" onclick="window.toggleAnalyticsEye(event)">${isHideAn ? eyeClosedSvg : eyeOpenSvg}</button>
                     </div>
                 </div>
                 <div class="fw-body ${S.ui.collapsedAnalytics ? '' : 'expanded'}">
@@ -425,7 +461,7 @@
                             <div class="label">Свободный поток</div><div class="val pos">${hideV(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openCapitalDetails()">
-                            <div class="label">Капитал</div><div class="val">${hideV(t.totalCap)}</div>${getTrendHtml(t.totalCap, prevCap, true)}
+                            <div class="label">Капитал</div><div class="val">${hideV(c.net)}</div>${getTrendHtml(c.net, prevCap, true)}
                         </div>
                     </div>
                 </div>
@@ -439,7 +475,7 @@
                         <span>${S.ui.collapsedDebts ? '▶' : '▼'} Долги</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="cursor:pointer; padding:4px;" onclick="window.toggleDebtsEye(event)">${isHideDebt ? '🙈' : '👁️'}</span>
+                        <button class="eye-btn" onclick="window.toggleDebtsEye(event)">${isHideDebt ? eyeClosedSvg : eyeOpenSvg}</button>
                     </div>
                 </div>
                 <div class="fw-body ${S.ui.collapsedDebts ? '' : 'expanded'}">
