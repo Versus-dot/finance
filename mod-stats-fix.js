@@ -7,14 +7,12 @@
     const OriginalChart = window.Chart;
     if (!OriginalChart) return;
 
-    // Перехватываем создание графиков
     window.Chart = new Proxy(OriginalChart, {
         construct(target, args) {
             let [ctx, config] = args;
             
             if (config.type === 'doughnut' && config.data && config.data.labels) {
                 const labelsStr = config.data.labels.join(',');
-                // Если это график капитала
                 if (labelsStr.includes('Фондовый рынок') || labelsStr.includes('ПДС') || labelsStr.includes('Свободные средства')) {
                     const c = window.getCustomCapital ? window.getCustomCapital() : null;
                     if (c) {
@@ -22,7 +20,6 @@
                         const newData = [];
                         const newColors = [];
 
-                        // Формируем правильные данные
                         if (c.cushion > 0) { newLabels.push('Подушка'); newData.push(c.cushion); newColors.push('#10B981'); }
                         if (c.pds > 0) { newLabels.push('ПДС'); newData.push(c.pds); newColors.push('#8B5CF6'); }
                         if (c.investments > 0) { newLabels.push('Фондовый рынок'); newData.push(c.investments); newColors.push('#4d7fff'); }
@@ -35,7 +32,6 @@
                         config.data.datasets[0].backgroundColor = newColors;
                         config.data.datasets[0].borderWidth = 0;
 
-                        // Включаем стандартную легенду Chart.js (и скрываем кастомную из mod-chart.js)
                         config.options = config.options || {};
                         config.options.plugins = config.options.plugins || {};
                         config.options.plugins.legend = {
@@ -50,7 +46,6 @@
                             }
                         };
 
-                        // Свой обработчик кликов (по названию сектора, а не по индексу)
                         config.options.onClick = (evt, elements, chart) => {
                             const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
                             if (points.length) {
@@ -60,7 +55,6 @@
                             }
                         };
                         
-                        // Скрываем старую HTML-легенду
                         setTimeout(() => {
                             const canvas = ctx.canvas || ctx;
                             if (canvas && canvas.parentNode) {
@@ -78,35 +72,30 @@
         }
     });
 
-    // Обработчик кликов
     window.handleCapitalChartClick = function(label) {
+        let accs = [];
+        let title = '';
         if (label === 'ПДС') {
-            const accs = S.accounts.filter(a => a.type === 'pds' && !a.archived);
-            let html = `<div class="modal-header"><h2>ПДС</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="max-height: 60vh; overflow-y: auto;">`;
-            if (accs.length === 0) html += `<div class="empty">Нет счетов ПДС</div>`;
-            else accs.forEach(a => html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(a.name)}</div><div style="font-size:12px; color:var(--muted);">${esc(getBank(a.bankId)?.name||'')}</div></div><div style="font-weight:700;">${fmt(accValue(a))}</div></div>`);
-            html += `</div>`;
-            openModal(html);
+            accs = S.accounts.filter(a => a.type === 'pds' && !a.archived);
+            title = 'ПДС';
         } else if (label === 'Фондовый рынок') {
-            const accs = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived);
-            let html = `<div class="modal-header"><h2>Фондовый рынок</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="max-height: 60vh; overflow-y: auto;">`;
-            if (accs.length === 0) html += `<div class="empty">Нет счетов</div>`;
-            else accs.forEach(a => html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(a.name)}</div><div style="font-size:12px; color:var(--muted);">${esc(getBank(a.bankId)?.name||'')}</div></div><div style="font-weight:700;">${fmt(accValue(a))}</div></div>`);
-            html += `</div>`;
-            openModal(html);
+            accs = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived);
+            title = 'Фондовый рынок';
         } else if (label === 'Подушка') {
-            const accs = S.accounts.filter(a => a.inCushion && !a.archived);
-            let html = `<div class="modal-header"><h2>Подушка безопасности</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="max-height: 60vh; overflow-y: auto;">`;
-            if (accs.length === 0) html += `<div class="empty">Нет счетов</div>`;
-            else accs.forEach(a => html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(a.name)}</div><div style="font-size:12px; color:var(--muted);">${esc(getBank(a.bankId)?.name||'')}</div></div><div style="font-weight:700;">${fmt(accValue(a))}</div></div>`);
-            html += `</div>`;
-            openModal(html);
+            accs = S.accounts.filter(a => a.inCushion && !a.archived);
+            title = 'Подушка безопасности';
         } else {
             toast(label + ' (детализация в разработке)');
+            return;
         }
+
+        let html = `<div class="modal-header"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="max-height: 60vh; overflow-y: auto;">`;
+        if (accs.length === 0) html += `<div class="empty">Нет счетов</div>`;
+        else accs.forEach(a => html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(a.name)}</div><div style="font-size:12px; color:var(--muted);">${esc(getBank(a.bankId)?.name||'')}</div></div><div style="font-weight:700;">${fmt(accValue(a))}</div></div>`);
+        html += `</div>`;
+        openModal(html);
     };
 
-    // Центральный текст (Общий капитал)
     function updateCenterText() {
         const pageStats = document.getElementById('page-stats');
         if (!pageStats || !pageStats.classList.contains('active')) return;
@@ -132,8 +121,6 @@
         }
 
         const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
-        
-        // Проверяем, включен ли глобальный режим приватности
         const mainBal = document.querySelector('.total-val');
         const isPrivacyMode = (mainBal && (mainBal.textContent.includes('❄️') || mainBal.textContent.includes('***')));
 
@@ -146,10 +133,7 @@
         `;
     }
 
-    const observer = new MutationObserver(() => {
-        updateCenterText();
-    });
-    
+    const observer = new MutationObserver(() => { updateCenterText(); });
     setTimeout(() => {
         const pageStats = document.getElementById('page-stats');
         if (pageStats) {
@@ -158,10 +142,7 @@
         }
     }, 1000);
 
-    // Обновляем текст при клике на "Глаз"
     document.addEventListener('click', (e) => {
-        if (e.target.closest('#globalPrivacyBtn')) {
-            setTimeout(updateCenterText, 100);
-        }
+        if (e.target.closest('#globalPrivacyBtn')) setTimeout(updateCenterText, 100);
     });
 })();
