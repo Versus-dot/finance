@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v4
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v5
 // ==========================================
 (function() {
     console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) загружен");
@@ -16,7 +16,6 @@
     window._customStart = window._customStart || null;
     window._customEnd = window._customEnd || null;
 
-    // Иконки глаза (SVG)
     const eyeOpenSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
     const eyeClosedSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
 
@@ -86,10 +85,10 @@
     `;
     document.head.appendChild(styleEl);
 
-    // --- НЕЗАВИСИМЫЙ РАСЧЕТ КАПИТАЛА ---
-    function getCustomCapital() {
+    // --- НЕЗАВИСИМЫЙ РАСЧЕТ КАПИТАЛА (Единая правда) ---
+    window.getCustomCapital = function() {
         let assets = 0, debt = 0;
-        let deposits = 0, investments = 0, cash = 0, pds = 0, other = 0;
+        let cushion = 0, pds = 0, investments = 0, deposits = 0, cash = 0, crypto = 0, other = 0;
 
         S.accounts.filter(a => !a.archived).forEach(a => {
             const v = accValue(a);
@@ -98,17 +97,30 @@
                 if (v > limit) assets += (v - limit); // Переплата в активы
                 if (v < limit) debt += (limit - v);   // Долг
             } else {
+                // Хеджи не считаем в капитале (они служат для покрытия долга)
+                if (a.hedgeFor) return; 
+                
+                if (a.inCushion) {
+                    cushion += v;
+                } else if (a.type === 'pds') {
+                    pds += v;
+                } else if (['brokerage', 'iis', 'invest_kopilka'].includes(a.type)) {
+                    investments += v;
+                } else if (['deposit', 'savings', 'finu_wallet'].includes(a.type)) {
+                    deposits += v;
+                } else if (a.type === 'cash') {
+                    cash += v;
+                } else if (['crypto_wallet', 'crypto_exchange'].includes(a.type)) {
+                    crypto += v;
+                } else {
+                    other += v;
+                }
                 assets += v;
-                if (['deposit', 'savings', 'finu_wallet'].includes(a.type)) deposits += v;
-                else if (['brokerage', 'iis', 'invest_kopilka', 'crypto_wallet', 'crypto_exchange'].includes(a.type)) investments += v;
-                else if (a.type === 'pds') pds += v;
-                else if (a.type === 'cash') cash += v;
-                else other += v;
             }
         });
 
-        return { net: assets - debt, assets, debt, deposits, investments, cash, pds, other };
-    }
+        return { net: assets - debt, assets, debt, cushion, pds, investments, deposits, cash, crypto, other };
+    };
 
     // --- УТИЛИТЫ ДЛЯ ДАТ ---
     function getPeriodDates(period, isPrev = false) {
@@ -276,12 +288,15 @@
         const deltaHtml = prevCap > 0 ? `<span style="color:${delta>=0?'var(--green)':'var(--red)'}">${delta>=0?'↑':'↓'} ${Math.abs(delta).toFixed(1)}%</span>` : '—';
 
         openModal(`
-            <div class="modal-header"><h2>Капитал</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+            <div class="modal-header"><h2>Структура капитала</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
             <div style="font-size: 14px; line-height: 1.8;">
-                <div style="display:flex; justify-content:space-between;"><span>🏦 Вклады и накопления</span> <b>${fmt(c.deposits)}</b></div>
-                <div style="display:flex; justify-content:space-between;"><span>📈 Инвестиции (и ПДС)</span> <b>${fmt(c.investments + c.pds)}</b></div>
-                <div style="display:flex; justify-content:space-between;"><span>💵 Наличные</span> <b>${fmt(c.cash)}</b></div>
-                ${c.other > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🗂 Прочие активы</span> <b>${fmt(c.other)}</b></div>` : ''}
+                ${c.cushion > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🛡 Подушка безопасности</span> <b>${fmt(c.cushion)}</b></div>` : ''}
+                ${c.pds > 0 ? `<div style="display:flex; justify-content:space-between;"><span>📈 ПДС</span> <b>${fmt(c.pds)}</b></div>` : ''}
+                ${c.investments > 0 ? `<div style="display:flex; justify-content:space-between;"><span>📊 Фондовый рынок</span> <b>${fmt(c.investments)}</b></div>` : ''}
+                ${c.deposits > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🏦 Вклады</span> <b>${fmt(c.deposits)}</b></div>` : ''}
+                ${c.cash > 0 ? `<div style="display:flex; justify-content:space-between;"><span>💵 Наличные</span> <b>${fmt(c.cash)}</b></div>` : ''}
+                ${c.crypto > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🪙 Крипта</span> <b>${fmt(c.crypto)}</b></div>` : ''}
+                ${c.other > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🗂 Прочее</span> <b>${fmt(c.other)}</b></div>` : ''}
                 <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>🔴 Долги по кредитам</span> <b style="color:var(--red)">-${fmt(c.debt)}</b></div>
                 <hr style="border-color: var(--border); margin: 12px 0;">
                 <div style="display:flex; justify-content:space-between; font-size: 18px; font-weight: 800;">
