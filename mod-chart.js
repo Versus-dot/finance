@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js)
+// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v122
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v121)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v122)");
 
     let myChart = null;
 
@@ -14,17 +14,24 @@
             const centerX = left + width / 2;
             const centerY = top + height / 2;
 
-            const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+            // Берем правильный капитал из нашей единой функции
+            const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
+            
+            // Проверяем режим приватности (Глаз)
+            const mainBal = document.querySelector('.total-val');
+            const isPrivacyMode = (mainBal && (mainBal.textContent.includes('❄️') || mainBal.textContent.includes('***')));
+            
+            const valStr = isPrivacyMode ? '*** ₽' : fmt(c.net);
 
             ctx.font = 'bold 20px -apple-system, system-ui, sans-serif';
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#fff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(fmt(total), centerX, centerY - 8);
+            ctx.fillText(valStr, centerX, centerY - 8);
 
             ctx.font = '11px -apple-system, system-ui, sans-serif';
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#888';
-            ctx.fillText('Общий капитал', centerX, centerY + 14);
+            ctx.fillText('Капитал (без долгов)', centerX, centerY + 14);
             ctx.restore();
         }
     };
@@ -151,19 +158,20 @@
         });
     }
 
+    // Синхронизированная логика категорий с главным виджетом
     function getChartData() {
         const sectors = {
-            cushion: { label: '🛡️ Подушка', value: 0, color: '#2ecc71', accounts: [] },
+            cushion: { label: '🛡️ Подушка', value: 0, color: '#10B981', accounts: [] },
+            pds: { label: '🏦 ПДС', value: 0, color: '#8B5CF6', accounts: [] },
             stocks: { label: '📈 Фондовый рынок', value: 0, color: '#4d7fff', accounts: [] },
-            pds: { label: '🏦 ПДС', value: 0, color: '#a78bfa', accounts: [] },
-            crypto: { label: '🪙 Крипто', value: 0, color: '#f5b945', accounts: [] },
-            savings: { label: '💰 Накопления', value: 0, color: '#00d2d3', accounts: [] },
-            cash: { label: '💵 Свободные средства', value: 0, color: '#8a94a6', accounts: [] }
+            savings: { label: '🏦 Вклады', value: 0, color: '#F59E0B', accounts: [] },
+            crypto: { label: '🪙 Крипта', value: 0, color: '#FF9F43', accounts: [] },
+            cash: { label: '💵 Наличные', value: 0, color: '#64748B', accounts: [] }
         };
 
         S.accounts.forEach(a => {
-            // Убрали проверку a.ignoreBalance, чтобы диаграмма видела ВЕСЬ капитал
             if (a.archived) return;
+            if (a.hedgeFor) return; // Хеджи не задваиваем
 
             const val = accValue(a);
             let contribution = val;
@@ -173,27 +181,18 @@
                 contribution = Math.max(0, val - limit);
             }
 
-            if (S.settings.hedgingEnabled && a.hedgeFor) {
-                const card = S.accounts.find(c => c.id === a.hedgeFor && c.type === 'credit' && !c.archived);
-                if (card) {
-                    const limit = card.creditLimit || 0;
-                    const covered = Math.min(val, limit);
-                    contribution -= covered;
-                }
-            }
-
             if (contribution > 0) {
                 let target = null;
 
                 if (a.inCushion) {
                     target = sectors.cushion;
-                } else if (a.type === 'brokerage' || a.type === 'iis') {
-                    target = sectors.stocks;
                 } else if (a.type === 'pds') {
                     target = sectors.pds;
-                } else if (a.type === 'crypto_wallet' || a.type === 'crypto_exchange') {
+                } else if (['brokerage', 'iis', 'invest_kopilka'].includes(a.type)) {
+                    target = sectors.stocks;
+                } else if (['crypto_wallet', 'crypto_exchange'].includes(a.type)) {
                     target = sectors.crypto;
-                } else if (['deposit', 'savings', 'finu_wallet', 'invest_kopilka'].includes(a.type)) {
+                } else if (['deposit', 'savings', 'finu_wallet'].includes(a.type)) {
                     target = sectors.savings;
                 } else if (['debit', 'cash', 'credit'].includes(a.type)) {
                     target = sectors.cash;
@@ -312,5 +311,12 @@
             <button class="btn-secondary btn-block" style="margin-top: 16px;" onclick="closeModal()">Понятно</button>
         `);
     };
+
+    // Обновляем текст при клике на глобальный "Глаз"
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('#globalPrivacyBtn')) {
+            setTimeout(() => { if (myChart) myChart.update(); }, 100);
+        }
+    });
 
 })();
