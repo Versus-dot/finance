@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v6 (v205)
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v7
 // ==========================================
 (function() {
-    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) загружен");
+    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v7 загружен");
 
     if (typeof S !== 'undefined' && S.ui) {
         if (S.ui.collapsedAnalytics === undefined) S.ui.collapsedAnalytics = true;
@@ -171,7 +171,7 @@
         let inc = 0, exp = 0, saved = 0, passive = 0;
         S.transactions.filter(t => {
             const d = new Date(t.date).getTime();
-            return d >= start.getTime() && d <= end.getTime();
+            return d >= start.getTime() && d <= end.getTime() && !t.ignoreInStats;
         }).forEach(t => {
             if (t.type === 'income') { 
                 inc += t.amount; 
@@ -233,7 +233,7 @@
         const dates = getPeriodDates(window._analyticsPeriod);
         let list = S.transactions.filter(t => {
             const d = new Date(t.date).getTime();
-            return d >= dates.start.getTime() && d <= dates.end.getTime();
+            return d >= dates.start.getTime() && d <= dates.end.getTime() && !t.ignoreInStats;
         });
 
         if (type === 'income') list = list.filter(t => t.type === 'income');
@@ -247,7 +247,7 @@
         const dates = getPeriodDates(window._analyticsPeriod);
         const transfers = S.transactions.filter(t => {
             const d = new Date(t.date).getTime();
-            return d >= dates.start.getTime() && d <= dates.end.getTime() && t.type === 'transfer';
+            return d >= dates.start.getTime() && d <= dates.end.getTime() && t.type === 'transfer' && !t.ignoreInStats;
         });
         const savings = transfers.filter(t => (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'savings');
         const invest = transfers.filter(t => (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'investment');
@@ -314,7 +314,7 @@
         const cp = S.counterparties.find(c => c.id === cpId);
         if (!cp) return;
         
-        let txs = S.transactions.filter(t => t.type === 'debt' && t.counterpartyId === cpId);
+        let txs = S.transactions.filter(t => t.type === 'debt' && t.counterpartyId === cpId && !t.ignoreInStats);
         if (type === 'lent') txs = txs.filter(t => t.debtType === 'lent' || t.debtType === 'returned');
         else txs = txs.filter(t => t.debtType === 'borrowed' || t.debtType === 'repaid');
         
@@ -397,7 +397,7 @@
 
         let totalOwed = 0, totalOwe = 0;
         const lentSums = {}, borrowedSums = {};
-        S.transactions.filter(tr => tr.type === 'debt').forEach(tr => {
+        S.transactions.filter(tr => tr.type === 'debt' && !tr.ignoreInStats).forEach(tr => {
             if (!tr.counterpartyId) return;
             if (tr.debtType === 'lent') lentSums[tr.counterpartyId] = (lentSums[tr.counterpartyId] || 0) + tr.amount;
             else if (tr.debtType === 'returned') lentSums[tr.counterpartyId] = (lentSums[tr.counterpartyId] || 0) - tr.amount;
