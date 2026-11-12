@@ -1,18 +1,20 @@
 // ==========================================
-// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v2
+// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v3
 // ==========================================
 (function() {
-    console.log("✅ Фикс Статистики (mod-stats-fix.js) v2 загружен");
+    console.log("✅ Фикс Статистики (mod-stats-fix.js) v3 загружен");
 
     const OriginalChart = window.Chart;
     if (!OriginalChart) return;
 
+    // Перехватываем создание графиков
     window.Chart = new Proxy(OriginalChart, {
         construct(target, args) {
             let [ctx, config] = args;
             
             if (config.type === 'doughnut' && config.data && config.data.labels) {
                 const labelsStr = config.data.labels.join(',');
+                // Если это график капитала
                 if (labelsStr.includes('Фондовый рынок') || labelsStr.includes('ПДС') || labelsStr.includes('Свободные средства')) {
                     const c = window.getCustomCapital ? window.getCustomCapital() : null;
                     if (c) {
@@ -32,6 +34,7 @@
                         config.data.datasets[0].backgroundColor = newColors;
                         config.data.datasets[0].borderWidth = 0;
 
+                        // Настройка легенды
                         config.options = config.options || {};
                         config.options.plugins = config.options.plugins || {};
                         config.options.plugins.legend = {
@@ -46,6 +49,7 @@
                             }
                         };
 
+                        // Клики по секторам
                         config.options.onClick = (evt, elements, chart) => {
                             const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
                             if (points.length) {
@@ -55,6 +59,7 @@
                             }
                         };
                         
+                        // Скрываем старую HTML-легенду
                         setTimeout(() => {
                             const canvas = ctx.canvas || ctx;
                             if (canvas && canvas.parentNode) {
@@ -96,6 +101,7 @@
         openModal(html);
     };
 
+    // Безопасное обновление текста без MutationObserver (чтобы не было зависаний)
     function updateCenterText() {
         const pageStats = document.getElementById('page-stats');
         if (!pageStats || !pageStats.classList.contains('active')) return;
@@ -133,15 +139,10 @@
         `;
     }
 
-    const observer = new MutationObserver(() => { updateCenterText(); });
-    setTimeout(() => {
-        const pageStats = document.getElementById('page-stats');
-        if (pageStats) {
-            observer.observe(pageStats, { childList: true, subtree: true });
-            updateCenterText();
-        }
-    }, 1000);
+    // Просто обновляем текст раз в секунду, если мы на вкладке статистики
+    setInterval(updateCenterText, 1000);
 
+    // И при клике на "Глаз"
     document.addEventListener('click', (e) => {
         if (e.target.closest('#globalPrivacyBtn')) setTimeout(updateCenterText, 100);
     });
