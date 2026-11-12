@@ -1,8 +1,8 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v4
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v5
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v4 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v5 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
@@ -35,7 +35,6 @@
             }
 
             for (const apiAcc of accData.accounts) {
-                // Строгая проверка: только открытые счета
                 if (apiAcc.status !== 'ACCOUNT_STATUS_OPEN') continue;
 
                 let localAcc = S.accounts.find(a => a.tinvestId === apiAcc.id);
@@ -51,7 +50,6 @@
                 }
 
                 // 1. СИНХРОНИЗАЦИЯ БАЛАНСА
-                toast(`⏳ Запрашиваем портфель (${apiAcc.name || 'Брокерский'})...`);
                 try {
                     const portRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'tinvest_portfolio', token: token, accountId: apiAcc.id }) });
                     const portData = await portRes.json();
@@ -75,9 +73,7 @@
                             futures: qv(portData.totalAmountFutures)
                         };
                     }
-                } catch (e) {
-                    console.warn(`Не удалось обновить портфель для ${apiAcc.name}`, e);
-                }
+                } catch (e) { console.warn('Ошибка портфеля', e); }
 
                 // 2. СИНХРОНИЗАЦИЯ ИСТОРИИ ОПЕРАЦИЙ
                 toast(`⏳ Запрашиваем операции (${apiAcc.name || 'Брокерский'})...`);
@@ -94,19 +90,24 @@
                     
                     if (opData && opData.operations && Array.isArray(opData.operations)) {
                         opData.operations.forEach(op => {
-                            // Проверка на дубликаты по ID операции из Т-Инвеста
                             if (S.transactions.some(t => t.tinvestOpId === op.id)) return;
 
                             const opType = op.type || op.operationType; 
+                            const amount = Math.abs(qv(op.payment));
                             
+                            // ЛОГИРУЕМ ВСЕ ОПЕРАЦИИ ДЛЯ ОТЛАДКИ
+                            if (amount > 0) {
+                                console.log('Tinkoff Op:', op.date, opType, amount);
+                            }
+
                             let type = null, catId = null, note = '';
                             
+                            // Расширенный список типов
                             if (opType === 'OPERATION_TYPE_COUPON' || opType === 'COUPON') { type = 'income'; catId = 'c_coupon'; note = 'Купон (авто)'; }
                             else if (opType === 'OPERATION_TYPE_DIVIDEND' || opType === 'DIVIDEND') { type = 'income'; catId = 'c_dividend'; note = 'Дивиденды (авто)'; }
-                            else if (opType === 'OPERATION_TYPE_TAX' || opType === 'TAX') { type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; }
+                            else if (opType === 'OPERATION_TYPE_TAX' || opType === 'TAX' || opType === 'OPERATION_TYPE_DIVIDEND_TAX' || opType === 'OPERATION_TYPE_BOND_TAX') { type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; }
                             else return; 
 
-                            const amount = Math.abs(qv(op.payment));
                             if (amount <= 0.01) return; 
 
                             if (!getCat(catId)) catId = type === 'income' ? 'c_other_inc' : 'c_other_exp';
@@ -125,9 +126,7 @@
                             txCount++;
                         });
                     }
-                } catch (e) {
-                    console.warn(`Не удалось получить операции для ${apiAcc.name}`, e);
-                }
+                } catch (e) { console.warn('Ошибка операций', e); }
             }
             
             if (txCount > 0) recalculateBalances();
