@@ -1,20 +1,40 @@
 // ==========================================
-// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v4
+// ФИКС СТАТИСТИКИ (mod-stats-fix.js) v5
 // ==========================================
 (function() {
-    console.log("✅ Фикс Статистики (mod-stats-fix.js) v4 загружен");
+    console.log("✅ Фикс Статистики (mod-stats-fix.js) v5 загружен");
+
+    // 1. Добавляем CSS-маску, которая скроет старый текст, если он нарисуется на холсте
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `
+        .chart-container > div:not(#capitalCenterOverlay),
+        .chart-container > span:not(#capitalCenterOverlay) {
+            display: none !important;
+        }
+        #capitalCenterOverlay {
+            background: var(--card);
+            padding: 15px;
+            border-radius: 50%;
+            box-shadow: 0 0 15px 15px var(--card);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+    `;
+    document.head.appendChild(styleEl);
 
     const OriginalChart = window.Chart;
     if (!OriginalChart) return;
 
-    // 1. Блокируем отрисовку старого текста на холсте (Canvas)
+    // 2. Блокируем отрисовку старого текста на холсте (Canvas)
     if (!window._fillTextPatched) {
         const origFillText = CanvasRenderingContext2D.prototype.fillText;
         CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
-            // Если рисуем на вкладке статистики и это текст с рублями или "Общий капитал"
             if (this.canvas && this.canvas.closest('#page-stats')) {
                 if (typeof text === 'string' && (text.includes('Общий капитал') || text.includes('₽'))) {
-                    return; // Пропускаем отрисовку (блокируем старый текст)
+                    return; // Блокируем старый текст
                 }
             }
             return origFillText.apply(this, arguments);
@@ -49,6 +69,13 @@
 
                         config.options = config.options || {};
                         config.options.plugins = config.options.plugins || {};
+                        
+                        // УДАЛЯЕМ ВСЕ КАСТОМНЫЕ ПЛАГИНЫ (типа centerText)
+                        Object.keys(config.options.plugins).forEach(k => {
+                            if (k !== 'legend' && k !== 'tooltip') delete config.options.plugins[k];
+                        });
+                        delete config.options.plugins.centerText;
+
                         config.options.plugins.legend = {
                             display: true,
                             position: 'right',
@@ -67,7 +94,6 @@
         }
     });
 
-    // 2. Агрессивная очистка старых HTML-элементов и добавление нашего текста
     function updateCenterText() {
         const pageStats = document.getElementById('page-stats');
         if (!pageStats || !pageStats.classList.contains('active')) return;
@@ -75,15 +101,6 @@
         const canvas = pageStats.querySelector('canvas');
         if (!canvas) return;
         const container = canvas.parentNode;
-
-        // Удаляем ЛЮБЫЕ старые div-обертки внутри контейнера графика (кроме нашего)
-        if (container) {
-            Array.from(container.children).forEach(child => {
-                if (child.tagName === 'DIV' && child.id !== 'capitalCenterOverlay') {
-                    child.remove(); 
-                }
-            });
-        }
 
         let overlay = document.getElementById('capitalCenterOverlay');
         if (!overlay) {
@@ -93,8 +110,6 @@
             overlay.style.top = '50%';
             overlay.style.left = '50%';
             overlay.style.transform = 'translate(-50%, -50%)';
-            overlay.style.textAlign = 'center';
-            overlay.style.pointerEvents = 'none';
             overlay.style.zIndex = '10';
             if (container.style.position !== 'relative') {
                 container.style.position = 'relative';
@@ -113,8 +128,22 @@
         `;
     }
 
-    // Обновляем раз в секунду и при кликах
-    setInterval(updateCenterText, 500);
+    // Безопасный обсервер: если контейнер очистился при перерисовке, возвращаем наш текст
+    const obs = new MutationObserver(() => {
+        const pageStats = document.getElementById('page-stats');
+        if (pageStats && pageStats.classList.contains('active')) {
+            if (!document.getElementById('capitalCenterOverlay')) {
+                updateCenterText();
+            }
+        }
+    });
+    
+    setTimeout(() => {
+        const pageStats = document.getElementById('page-stats');
+        if (pageStats) obs.observe(pageStats, { childList: true, subtree: true });
+    }, 1000);
+
+    setInterval(updateCenterText, 1000);
     document.addEventListener('click', (e) => {
         if (e.target.closest('#globalPrivacyBtn')) setTimeout(updateCenterText, 100);
     });
