@@ -1,13 +1,12 @@
 // ==========================================
-// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v129
+// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v130
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v129)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v130)");
 
     let myChart = null;
     window._chartDrillDown = null;
 
-    // --- ФУНКЦИИ ГЕНЕРАЦИИ ОТТЕНКОВ ЦВЕТА ---
     function hexToHsl(H) {
         let r = 0, g = 0, b = 0;
         if (H.length == 7) { r = parseInt(H.substring(1, 3), 16); g = parseInt(H.substring(3, 5), 16); b = parseInt(H.substring(5, 7), 16); }
@@ -46,15 +45,15 @@
         return shades;
     }
 
-    // --- ОЧИСТКА И ПЕРЕХВАТ СНИМКОВ ---
+    // Очистка старых снимков (одноразово)
     setTimeout(() => {
         if (typeof S !== 'undefined' && S.settings && !S.settings.snapshotsMigrated) {
-            S.snapshots = []; // Очищаем старую историю
+            S.snapshots = [];
             S.settings.snapshotsMigrated = true;
             const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
             S.snapshots.push({ date: today(), total: c.net });
             if (typeof save === 'function') save(false);
-            if (typeof renderStats === 'function') renderStats();
+            if (typeof window.renderStats === 'function') window.renderStats();
         }
     }, 1000);
 
@@ -81,7 +80,6 @@
         if (typeof save === 'function') save(false);
     };
 
-    // --- ПЛАГИНЫ ДИАГРАММЫ ---
     const centerTextPlugin = {
         id: 'centerText',
         afterDatasetsDraw: (chart) => {
@@ -132,32 +130,21 @@
         }
     };
 
-    const prevRenderStats = window.renderStats;
-    window.renderStats = function() {
-        if (prevRenderStats) prevRenderStats();
-        setTimeout(injectDonutChart, 100);
-    };
-
     window.resetChartDrillDown = function() {
         window._chartDrillDown = null;
-        injectDonutChart();
+        window.renderDonutChart();
     };
-    
-    // ==========================================
-    // КОНЕЦ ЧАСТИ 1. СДЕЛАЙ ENTER И ВСТАВЬ ЧАСТЬ 2.
-    // ==========================================
-    function injectDonutChart() {
-        const statsPage = document.getElementById('page-stats');
-        if (!statsPage) return;
-        const oldContainer = document.getElementById('donutChartContainer');
-        if (oldContainer) oldContainer.remove();
+
+    window.renderDonutChart = function() {
+        const container = document.getElementById('donutChartContainer');
+        if (!container) return;
 
         const isDrillDown = window._chartDrillDown !== null;
         let chartData = [];
         let totalSum = 0;
         let centerVal = 0;
         let centerLabel = 'Чистый капитал';
-        let headerTitle = 'Структура чистого капитала';
+        let headerTitle = 'Структура капитала';
 
         if (isDrillDown) {
             const cat = window._chartDrillDown;
@@ -184,13 +171,11 @@
             centerVal = c.net;
         }
 
-        if (totalSum <= 0) return;
+        if (totalSum <= 0) {
+            container.innerHTML = '';
+            return;
+        }
 
-        const container = document.createElement('div');
-        container.id = 'donutChartContainer';
-        container.className = 'card';
-        container.style.marginBottom = '16px';
-        
         const backBtn = isDrillDown 
             ? `<button class="btn-secondary btn-small" style="margin-right:8px; padding:4px 8px; font-size:12px;" onclick="window.resetChartDrillDown()">⬅️ Назад</button>` 
             : '';
@@ -204,7 +189,6 @@
                 <canvas id="capitalDonutChart"></canvas>
             </div>
         `;
-        statsPage.prepend(container);
 
         const ctx = document.getElementById('capitalDonutChart').getContext('2d');
         if (myChart) myChart.destroy();
@@ -243,7 +227,7 @@
                             const category = chartData[index];
                             if (category.accounts && category.accounts.length > 0) {
                                 window._chartDrillDown = category;
-                                injectDonutChart();
+                                window.renderDonutChart();
                             } else {
                                 openCategoryDetails(category);
                             }
@@ -429,5 +413,4 @@
             setTimeout(() => { if (myChart) myChart.update(); }, 100);
         }
     });
-
 })();
