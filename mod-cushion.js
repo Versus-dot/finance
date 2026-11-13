@@ -1,10 +1,9 @@
 // ==========================================
-// МОДУЛЬ ПОДУШКИ БЕЗОПАСНОСТИ (mod-cushion.js)
+// МОДУЛЬ ПОДУШКИ БЕЗОПАСНОСТИ (mod-cushion.js) v2
 // ==========================================
 (function() {
-    console.log("✅ Модуль Подушки безопасности (mod-cushion.js) загружен");
+    console.log("✅ Модуль Подушки безопасности (mod-cushion.js) v2 загружен");
 
-    // 1. Добавляем стили для виджета
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         .cushion-widget {
@@ -103,11 +102,9 @@
     `;
     document.head.appendChild(styleEl);
 
-    // SVG Иконки
     const eyeOpen = `<svg viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
     const eyeClosed = `<svg viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
 
-    // 2. Функция отрисовки виджета
     function injectCushionWidget() {
         const homePage = document.getElementById('page-home');
         if (!homePage) return;
@@ -173,14 +170,12 @@
         }
     }
 
-    // 3. Перехватываем рендер главной страницы
     const prevRenderDashboard = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDashboard) prevRenderDashboard();
         injectCushionWidget();
     };
 
-    // 4. Функции-действия
     window.toggleCushionVisibility = function() {
         S.settings.showCushionWidget = (S.settings.showCushionWidget === false);
         if (typeof save === 'function') save();
@@ -217,6 +212,7 @@
             `;
         });
 
+        // ИСПРАВЛЕНО: Убрали closeModal(), чтобы не было конфликта с history.back()
         window.openModal(`
             <div class="modal-header">
                 <h2>🛡️ Подушка безопасности</h2>
@@ -228,13 +224,10 @@
             <div style="max-height: 300px; overflow-y: auto;">
                 ${listHtml}
             </div>
-            <button class="btn-secondary btn-block" style="margin-top: 16px;" onclick="closeModal(); openSettings();">Настроить цель</button>
+            <button class="btn-secondary btn-block" style="margin-top: 16px;" onclick="openSettings();">Настроить цель</button>
         `);
     };
 
-    // ==========================================
-    // 5. ДОБАВЛЯЕМ ПОЛЕ ЦЕЛИ В ОКНО НАСТРОЕК
-    // ==========================================
     const prevOpenSettings = window.openSettings;
     window.openSettings = function() {
         if (prevOpenSettings) prevOpenSettings();
