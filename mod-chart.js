@@ -1,11 +1,11 @@
 // ==========================================
-// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v128
+// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v129
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v128)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v129)");
 
     let myChart = null;
-    window._chartDrillDown = null; // Состояние для двухуровневой диаграммы
+    window._chartDrillDown = null;
 
     // --- ФУНКЦИИ ГЕНЕРАЦИИ ОТТЕНКОВ ЦВЕТА ---
     function hexToHsl(H) {
@@ -35,16 +35,51 @@
     function generateShades(baseHex, count) {
         if (count <= 1) return [baseHex];
         const hsl = hexToHsl(baseHex);
-        const shades = [baseHex]; // Первый цвет (самый большой сектор) - точный цвет категории
+        const shades = [baseHex];
         let step = 12; 
         for (let i = 1; i < count; i++) {
             let newL = hsl.l;
             let offset = Math.ceil(i / 2) * step * (i % 2 === 1 ? 1 : -1);
-            newL = Math.max(25, Math.min(80, hsl.l + offset)); // Ограничиваем яркость
+            newL = Math.max(25, Math.min(80, hsl.l + offset));
             shades.push(hslToHex(hsl.h, hsl.s, newL));
         }
         return shades;
     }
+
+    // --- ОЧИСТКА И ПЕРЕХВАТ СНИМКОВ ---
+    setTimeout(() => {
+        if (typeof S !== 'undefined' && S.settings && !S.settings.snapshotsMigrated) {
+            S.snapshots = []; // Очищаем старую историю
+            S.settings.snapshotsMigrated = true;
+            const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
+            S.snapshots.push({ date: today(), total: c.net });
+            if (typeof save === 'function') save(false);
+            if (typeof renderStats === 'function') renderStats();
+        }
+    }, 1000);
+
+    const originalMaybeSnapshot = window.maybeSnapshot;
+    window.maybeSnapshot = function() {
+        if (typeof S === 'undefined') return;
+        const now = new Date();
+        const freq = S.settings.snapshotFreq;
+        let shouldSnap = false;
+        if (freq === 'monthly') {
+            const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            if (now.getDate() === last.getDate()) shouldSnap = true;
+        } else if (freq === 'weekly') {
+            if (now.getDay() === 0) shouldSnap = true;
+        } else if (freq === 'daily') {
+            shouldSnap = true;
+        }
+        if (!shouldSnap) return;
+        const dateStr = today();
+        if (S.snapshots.some(s => s.date === dateStr)) return;
+        
+        const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
+        S.snapshots.push({ date: dateStr, total: c.net });
+        if (typeof save === 'function') save(false);
+    };
 
     // --- ПЛАГИНЫ ДИАГРАММЫ ---
     const centerTextPlugin = {
@@ -54,18 +89,14 @@
             ctx.save();
             const centerX = left + width / 2;
             const centerY = top + height / 2;
-
             const isPrivacyMode = (typeof S !== 'undefined' && S.ui && S.ui.globalHideBalances);
             const customData = chart.config._centerText || { val: 0, label: 'Чистый капитал' };
-            
             const valStr = isPrivacyMode ? '*** ₽' : fmt(customData.val);
-
             ctx.font = 'bold 20px -apple-system, system-ui, sans-serif';
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#fff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(valStr, centerX, centerY - 8);
-
             ctx.font = '11px -apple-system, system-ui, sans-serif';
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#888';
             ctx.fillText(customData.label, centerX, centerY + 14);
@@ -111,7 +142,10 @@
         window._chartDrillDown = null;
         injectDonutChart();
     };
-
+    
+    // ==========================================
+    // КОНЕЦ ЧАСТИ 1. СДЕЛАЙ ENTER И ВСТАВЬ ЧАСТЬ 2.
+    // ==========================================
     function injectDonutChart() {
         const statsPage = document.getElementById('page-stats');
         if (!statsPage) return;
@@ -131,9 +165,8 @@
             centerVal = cat.value;
             centerLabel = cat.label;
             
-            // Сортируем счета внутри категории по убыванию
             const sortedAccs = [...cat.accounts].sort((a, b) => b._chartContribution - a._chartContribution);
-            const shades = generateShades(cat.color, sortedAccs.length); // Генерируем оттенки
+            const shades = generateShades(cat.color, sortedAccs.length);
             
             sortedAccs.forEach((acc, idx) => {
                 chartData.push({
@@ -225,10 +258,7 @@
         
         myChart.config._centerText = { val: centerVal, label: centerLabel };
     }
-    
-    // ==========================================
-    // КОНЕЦ ЧАСТИ 1. СДЕЛАЙ ENTER И ВСТАВЬ ЧАСТЬ 2.
-    // ==========================================
+
     function getChartData() {
         const sectors = {
             cushion: { label: '🛡️ Подушка', value: 0, color: '#10B981', accounts: [] },
