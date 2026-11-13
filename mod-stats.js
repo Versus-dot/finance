@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v6
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v7
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v6 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v7 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -16,7 +16,8 @@
             chartRate: false,
             chartCapital: false,
             snapshots: false,
-            budgets: false
+            budgets: false,
+            table: false
         };
     }
 
@@ -25,7 +26,6 @@
     let chartRateInstance = null;
     let chartCapitalInstance = null;
 
-    // Функция генерации оттенков
     function hexToHsl(H) {
         let r = 0, g = 0, b = 0;
         if (H.length == 7) { r = parseInt(H.substring(1, 3), 16); g = parseInt(H.substring(3, 5), 16); b = parseInt(H.substring(5, 7), 16); }
@@ -182,6 +182,46 @@
         return data;
     }
 
+    function generateTableData() {
+        const months = [];
+        const cur = new Date();
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(cur.getFullYear(), cur.getMonth() - i, 1);
+            const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            months.push(m);
+        }
+
+        return months.map(m => {
+            let inc=0, act=0, pas=0, exp=0, sav=0, inv=0;
+            S.transactions.filter(t => t.date.startsWith(m) && !t.ignoreInStats).forEach(t => {
+                if (t.type === 'income') {
+                    inc += t.amount;
+                    const c = getCat(t.categoryId);
+                    if (c && c.passive) pas += t.amount; else act += t.amount;
+                }
+                if (t.type === 'expense') exp += t.amount;
+                if (t.type === 'transfer') {
+                    const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
+                    if (k === 'savings') sav += t.amount;
+                    if (k === 'investment') inv += t.amount;
+                }
+            });
+            const fcf = inc - exp;
+            const rate = inc > 0 ? Math.round((sav+inv)/inc*100) : 0;
+            
+            let cap = 0;
+            const snaps = S.snapshots.filter(s => s.date.startsWith(m));
+            if (snaps.length > 0) {
+                cap = snaps[snaps.length - 1].total;
+            } else if (m === months[months.length - 1]) {
+                const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
+                cap = c.net;
+            }
+
+            return { m, inc, act, pas, exp, sav, inv, fcf, rate, cap };
+        });
+    }
+
     window.renderStats = function() {
         const el = document.getElementById('page-stats');
         if (!el) return;
@@ -225,6 +265,51 @@
                 </div>`;
             });
         }
+
+        // Генерируем таблицу
+        const tableData = generateTableData();
+        let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border);">
+            <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:right;">
+                <thead>
+                    <tr style="background:var(--card2); border-bottom:1px solid var(--border);">
+                        <th style="position:sticky; left:0; background:var(--card2); z-index:2; padding:10px; text-align:left; font-weight:700;">Параметр</th>`;
+        tableData.forEach(d => {
+            const [y, mo] = d.m.split('-');
+            const mName = new Date(y, mo - 1).toLocaleDateString('ru-RU', { month: 'short' }).replace('.', '');
+            tableHtml += `<th style="padding:10px; font-weight:600;">${mName}</th>`;
+        });
+        tableHtml += `</tr></thead><tbody>`;
+
+        const rows = [
+            { label: 'Доходы', key: 'inc', color: 'var(--green)', bold: true, fmt: 'pos' },
+            { label: '— Активный', key: 'act', color: 'inherit' },
+            { label: '— Пассивный', key: 'pas', color: 'var(--purple)' },
+            { label: 'Расходы', key: 'exp', color: 'var(--red)', bold: true, fmt: 'neg' },
+            { label: 'Отложено', key: 'sav', color: 'var(--green)' },
+            { label: 'Инвестиции', key: 'inv', color: 'var(--accent)' },
+            { label: 'Свободный поток', key: 'fcf', color: 'inherit', bold: true },
+            { label: 'Норма сбережений', key: 'rate', suffix: '%' },
+            { label: 'Капитал', key: 'cap', color: 'var(--text)', bold: true }
+        ];
+
+        rows.forEach((row, i) => {
+            const bg = i % 2 === 0 ? 'var(--card)' : 'var(--card2)';
+            tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border);">
+                <td style="position:sticky; left:0; background:${bg}; z-index:1; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'};">${row.label}</td>`;
+            
+            tableData.forEach(d => {
+                let val = d[row.key];
+                let display = val === 0 ? '-' : fmt(val);
+                if (row.suffix) display = val + row.suffix;
+                if (row.key === 'cap' && val === 0) display = '-';
+                if (row.fmt === 'pos' && val > 0) display = `<span class="pos">${fmt(val)}</span>`;
+                else if (row.fmt === 'neg' && val > 0) display = `<span class="neg">${fmt(val)}</span>`;
+                else if (row.key === 'fcf' && val < 0) display = `<span class="neg">${fmt(val)}</span>`;
+                tableHtml += `<td style="padding:10px;">${display}</td>`;
+            });
+            tableHtml += `</tr>`;
+        });
+        tableHtml += `</tbody></table></div>`;
 
         el.innerHTML = `
             <div id="donutChartContainer" class="card" style="margin-bottom:16px;"></div>
@@ -295,6 +380,17 @@
             </div>
 
             <div class="fullwidth-widget" style="margin-bottom:16px;">
+                <div class="fw-header" onclick="window.toggleStatsBlock('table')">
+                    <div class="fw-header-left">
+                        <span id="stats-icon-table">${window._statsUI.table ? '▶' : '▼'}</span> Детальный отчёт
+                    </div>
+                </div>
+                <div class="fw-body" id="stats-body-table" style="display: ${window._statsUI.table ? 'none' : 'block'}; padding: 8px 0;">
+                    ${tableHtml}
+                </div>
+            </div>
+
+            <div class="fullwidth-widget" style="margin-bottom:16px;">
                 <div class="fw-header" onclick="window.toggleStatsBlock('snapshots')">
                     <div class="fw-header-left">
                         <span id="stats-icon-snapshots">${window._statsUI.snapshots ? '▶' : '▼'}</span> Отчёт (снимки)
@@ -318,7 +414,6 @@
             </div>
         `;
 
-        // Рисуем графики
         setTimeout(() => {
             const curYear = new Date().getFullYear();
             const years = [curYear - 2, curYear - 1, curYear]; 
@@ -338,7 +433,28 @@
                             padding: 15,
                             font: { size: 11 } 
                         } 
-                    } 
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        filter: function(tooltipItem) {
+                            const chart = tooltipItem.chart;
+                            const activeElements = chart.getActiveElements();
+                            if (activeElements.length === 0) return true;
+                            const hoveredDatasetIndex = activeElements[0].datasetIndex;
+                            const hoveredLabel = chart.data.datasets[hoveredDatasetIndex].label;
+                            if (!hoveredLabel) return true;
+                            const hoveredYear = hoveredLabel.split(' ').pop(); 
+                            return tooltipItem.dataset.label.includes(hoveredYear);
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                let value = context.parsed.y;
+                                return label + ': ' + fmt(value);
+                            }
+                        }
+                    }
                 }, 
                 scales: { 
                     y: { beginAtZero: true, ticks: { font: { size: 10 } } }, 
@@ -346,21 +462,19 @@
                 }
             };
 
-            // 1. Доходы / Расходы
             if (chartBarInstance) chartBarInstance.destroy();
             if (document.getElementById('chartBarNew')) {
                 const incColors = generateShades('#10B981', 3).reverse();
                 const expColors = generateShades('#EF4444', 3).reverse();
                 const datasets = [];
                 
-                // Вставляем пары: [Доход 2024, Расход 2024], [Доход 2025, Расход 2025]...
                 years.forEach((y, i) => {
                     datasets.push({
                         label: `Доходы ${y}`,
                         data: getYearlyMonthlyData(y, 'income'),
                         backgroundColor: incColors[i],
                         maxBarThickness: 12,
-                        borderRadius: 0 // Убираем скругление, чтобы пара сливалась
+                        borderRadius: 0
                     });
                     datasets.push({
                         label: `Расходы ${y}`,
@@ -376,13 +490,12 @@
                     data: { labels, datasets },
                     options: { 
                         ...commonOptions,
-                        categoryPercentage: 0.8, // Отступ между месяцами
-                        barPercentage: 1.0 // Столбики внутри месяца вплотную
+                        categoryPercentage: 0.8,
+                        barPercentage: 1.0
                     }
                 });
             }
 
-            // 2. Пассивный доход
             if (chartPassiveInstance) chartPassiveInstance.destroy();
             if (document.getElementById('chartPassiveNew')) {
                 const passiveColors = generateShades('#8B5CF6', 3).reverse();
@@ -401,7 +514,6 @@
                 });
             }
 
-            // 3. Норма сбережений
             if (chartRateInstance) chartRateInstance.destroy();
             if (document.getElementById('chartRateNew')) {
                 const rateColors = generateShades('#4d7fff', 3).reverse();
@@ -428,7 +540,6 @@
                 });
             }
 
-            // 4. Динамика капитала
             if (chartCapitalInstance) chartCapitalInstance.destroy();
             if (document.getElementById('chartCapitalNew')) {
                 const snapLabels = S.snapshots.map(s => s.date);
@@ -440,7 +551,6 @@
                 });
             }
 
-            // 5. Пончик
             if (typeof window.renderDonutChart === 'function') {
                 window.renderDonutChart();
             }
