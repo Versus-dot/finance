@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v5
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v6
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v5 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v6 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -321,7 +321,6 @@
         // Рисуем графики
         setTimeout(() => {
             const curYear = new Date().getFullYear();
-            // Меняем порядок лет с 2026-2025-2024 на 2024-2025-2026
             const years = [curYear - 2, curYear - 1, curYear]; 
             const labels = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
@@ -332,10 +331,10 @@
                     legend: { 
                         position: 'bottom', 
                         labels: { 
-                            usePointStyle: true, // Использовать стиль точек
-                            pointStyle: 'rectRounded', // Квадратики со скругленными углами
-                            boxWidth: 8, // Узкие
-                            boxHeight: 8, // Низкие
+                            usePointStyle: true,
+                            pointStyle: 'rectRounded',
+                            boxWidth: 8,
+                            boxHeight: 8,
                             padding: 15,
                             font: { size: 11 } 
                         } 
@@ -344,43 +343,42 @@
                 scales: { 
                     y: { beginAtZero: true, ticks: { font: { size: 10 } } }, 
                     x: { ticks: { font: { size: 9 } }, grid: { display: false } } 
-                },
-                barPercentage: 0.9,
-                categoryPercentage: 0.8
+                }
             };
 
             // 1. Доходы / Расходы
             if (chartBarInstance) chartBarInstance.destroy();
             if (document.getElementById('chartBarNew')) {
-                // generateShades выдаст: [светлый, средний, темный]. 
-                // Так как years = [2024, 2025, 2026], то 2024 будет светлым, а 2026 темным (базовым).
                 const incColors = generateShades('#10B981', 3).reverse();
                 const expColors = generateShades('#EF4444', 3).reverse();
                 const datasets = [];
                 
+                // Вставляем пары: [Доход 2024, Расход 2024], [Доход 2025, Расход 2025]...
                 years.forEach((y, i) => {
                     datasets.push({
                         label: `Доходы ${y}`,
                         data: getYearlyMonthlyData(y, 'income'),
                         backgroundColor: incColors[i],
-                        maxBarThickness: 10,
-                        borderRadius: 2
+                        maxBarThickness: 12,
+                        borderRadius: 0 // Убираем скругление, чтобы пара сливалась
                     });
-                });
-                years.forEach((y, i) => {
                     datasets.push({
                         label: `Расходы ${y}`,
                         data: getYearlyMonthlyData(y, 'expense'),
                         backgroundColor: expColors[i],
-                        maxBarThickness: 10,
-                        borderRadius: 2
+                        maxBarThickness: 12,
+                        borderRadius: 0
                     });
                 });
 
                 chartBarInstance = new Chart(document.getElementById('chartBarNew'), {
                     type: 'bar',
                     data: { labels, datasets },
-                    options: commonOptions
+                    options: { 
+                        ...commonOptions,
+                        categoryPercentage: 0.8, // Отступ между месяцами
+                        barPercentage: 1.0 // Столбики внутри месяца вплотную
+                    }
                 });
             }
 
@@ -399,7 +397,7 @@
                 chartPassiveInstance = new Chart(document.getElementById('chartPassiveNew'), {
                     type: 'bar',
                     data: { labels, datasets },
-                    options: commonOptions
+                    options: { ...commonOptions, categoryPercentage: 0.8, barPercentage: 0.9 }
                 });
             }
 
@@ -420,6 +418,8 @@
                     data: { labels, datasets },
                     options: { 
                         ...commonOptions,
+                        categoryPercentage: 0.8, 
+                        barPercentage: 0.9,
                         scales: { 
                             y: { beginAtZero: true, max: 100, ticks: { font: { size: 10 }, callback: v => v + '%' } }, 
                             x: { ticks: { font: { size: 9 } }, grid: { display: false } } 
