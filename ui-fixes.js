@@ -1,5 +1,5 @@
 // ==========================================
-// UI-улучшения (v55)
+// UI-улучшения (v56)
 // ==========================================
 
 // 1. Замена замка
@@ -26,10 +26,8 @@ const originalSetDashFilter = window.setDashFilter;
 window.setDashFilter = function(bankId) {
     if (typeof S !== 'undefined' && S.ui) {
         if (bankId === 'all') {
-            // Сворачиваем все банки
             S.ui.collapsedBanks = S.banks.map(b => b.id);
         } else {
-            // Раскрываем конкретный банк
             const idx = S.ui.collapsedBanks.indexOf(bankId);
             if (idx > -1) {
                 S.ui.collapsedBanks.splice(idx, 1);
@@ -40,20 +38,20 @@ window.setDashFilter = function(bankId) {
     if (originalSetDashFilter) originalSetDashFilter(bankId);
 };
 
-// 3. Починка кнопки "+" (скрываем на Главной, показываем на остальных)
+// 3. Починка кнопки "+" (скрываем на Главной и Статистике, показываем на остальных)
 const originalSetActiveTab = window.setActiveTab;
 window.setActiveTab = function(tab, fromPop) {
     if (originalSetActiveTab) originalSetActiveTab(tab, fromPop);
     const fab = document.getElementById('fabBtn');
     if (fab) {
-        fab.style.display = (tab === 'home') ? 'none' : 'flex';
+        fab.style.display = (tab === 'home' || tab === 'stats') ? 'none' : 'flex';
     }
 };
 
-// Сразу скрываем при загрузке, если мы на главной
+// Сразу скрываем при загрузке, если мы на главной или статистике
 document.addEventListener('DOMContentLoaded', () => {
     const fab = document.getElementById('fabBtn');
-    if (fab && typeof activeTab !== 'undefined' && activeTab === 'home') {
+    if (fab && typeof activeTab !== 'undefined' && (activeTab === 'home' || activeTab === 'stats')) {
         fab.style.display = 'none';
     }
 });
@@ -93,4 +91,4 @@ document.addEventListener('wheel', (e) => {
     }
 }, { passive: false });
 
-console.log('✅ UI Fixes (v55) загружены');
+console.log('✅ UI Fixes (v56) загружены');
