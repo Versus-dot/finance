@@ -1,30 +1,43 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v7
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v8
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v7 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v8 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
     window._statsEnd = window._statsEnd || null;
+    window._statsTableGroup = window._statsTableGroup || 'month'; // month, quarter, year
+    window._statsTablePeriod = window._statsTablePeriod || '1y'; // all, 1y, 5y, ytd
+    window._statsSelectedRows = window._statsSelectedRows || []; // Массив ключей выбранных строк
     
     if (!window._statsUI) {
         window._statsUI = {
             topBlock: false,
-            chartBar: false,
-            chartPassive: false,
-            chartRate: false,
-            chartCapital: false,
+            reportWidget: false,
             snapshots: false,
-            budgets: false,
-            table: false
+            budgets: false
         };
     }
 
-    let chartBarInstance = null;
-    let chartPassiveInstance = null;
-    let chartRateInstance = null;
-    let chartCapitalInstance = null;
+    let reportChartInstance = null;
+
+    const COLORS = {
+        income: '#10B981',
+        active: '#34D399',
+        passive: '#8B5CF6',
+        expense: '#EF4444',
+        saved: '#F59E0B',
+        invest: '#4d7fff',
+        fcf: '#00d2d3',
+        rate: '#FBBF24',
+        capital: '#6366F1',
+        cushion: '#059669',
+        pds: '#7C3AED',
+        stocks: '#2563EB',
+        savings: '#D97706',
+        debt: '#DC2626'
+    };
 
     function hexToHsl(H) {
         let r = 0, g = 0, b = 0;
@@ -98,29 +111,60 @@
         window.renderStats();
     };
 
-    function getStatsDates(period) {
+    window.changeTableFilter = function(key, val) {
+        if (key === 'group') window._statsTableGroup = val;
+        if (key === 'period') window._statsTablePeriod = val;
+        window.renderStats();
+    };
+
+    window.toggleTableRow = function(key) {
+        const idx = window._statsSelectedRows.indexOf(key);
+        if (idx > -1) window._statsSelectedRows.splice(idx, 1);
+        else window._statsSelectedRows.push(key);
+        window.renderStats();
+    };
+
+    window.resetReportChart = function() {
+        window._statsSelectedRows = [];
+        window.renderStats();
+    };
+
+    function getPeriodDates(period, isPrev = false) {
         let start = new Date(), end = new Date();
         end.setHours(23,59,59,999);
         start.setHours(0,0,0,0);
 
         if (period === 'day') {
+            if (isPrev) start.setDate(start.getDate() - 1);
             end = new Date(start); end.setHours(23,59,59,999);
         } else if (period === 'week') {
             const day = start.getDay() || 7; 
             if (day !== 1) start.setHours(-24 * (day - 1));
             end = new Date(start); end.setDate(end.getDate() + 6); end.setHours(23,59,59,999);
+            if (isPrev) { start.setDate(start.getDate() - 7); end.setDate(end.getDate() - 7); }
         } else if (period === 'month') {
             start.setDate(1);
             end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59, 999);
+            if (isPrev) { start.setMonth(start.getMonth() - 1); end.setMonth(end.getMonth() - 1); }
         } else if (period === 'year') {
             start.setMonth(0, 1);
             end = new Date(start.getFullYear(), 11, 31, 23, 59, 59, 999);
+            if (isPrev) { start.setFullYear(start.getFullYear() - 1); end.setFullYear(end.getFullYear() - 1); }
         } else if (period === 'ytd') {
             start.setMonth(0, 1);
-            end = new Date();
+            if (isPrev) start.setFullYear(start.getFullYear() - 1);
+            end = new Date(start); end.setFullYear(end.getFullYear() + (isPrev?1:0));
+            const today = new Date();
+            if (!isPrev) end = today;
+            else end.setDate(today.getDate());
         } else if (period === 'custom' && window._statsStart && window._statsEnd) {
             start = new Date(window._statsStart); start.setHours(0,0,0,0);
             end = new Date(window._statsEnd); end.setHours(23,59,59,999);
+            if (isPrev) {
+                const diff = end - start;
+                end = new Date(start.getTime() - 1);
+                start = new Date(end.getTime() - diff);
+            }
         }
         return { start, end };
     }
@@ -146,88 +190,146 @@
         return { inc, exp, sav, inv, passive, rate: inc > 0 ? ((sav + inv) / inc * 100) : 0 };
     }
 
-    function getYearlyMonthlyData(year, type) {
-        const data = new Array(12).fill(0);
-        S.transactions.forEach(t => {
-            if (t.ignoreInStats) return;
-            const [y, m] = t.date.split('-');
-            if (parseInt(y) === year) {
-                const monthIdx = parseInt(m) - 1;
-                if (type === 'income' && t.type === 'income') data[monthIdx] += t.amount;
-                if (type === 'expense' && t.type === 'expense') data[monthIdx] += t.amount;
-                if (type === 'passive' && t.type === 'income') {
-                    const c = getCat(t.categoryId);
-                    if (c && c.passive) data[monthIdx] += t.amount;
-                }
-            }
-        });
-        
-        if (type === 'rate') {
-            for(let i=0; i<12; i++) {
-                let inc = 0, sav = 0, inv = 0;
-                const monthStr = `${year}-${String(i+1).padStart(2, '0')}`;
-                S.transactions.forEach(t => {
-                    if (t.ignoreInStats || !t.date.startsWith(monthStr)) return;
-                    if (t.type === 'income') inc += t.amount;
-                    if (t.type === 'transfer') {
-                        const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
-                        if (k === 'savings') sav += t.amount;
-                        if (k === 'investment') inv += t.amount;
-                    }
-                });
-                data[i] = inc > 0 ? Math.min(100, Math.round((sav + inv) / inc * 100)) : 0;
-            }
-        }
-        
-        return data;
+    function getTrendHtml(current, previous, isGoodWhenUp) {
+        if (previous === 0 && current === 0) return `<div class="trend neutral">— 0%</div>`;
+        if (previous === 0 && current > 0) return `<div class="trend ${isGoodWhenUp ? 'up-good' : 'up-bad'}">↑ Новое</div>`;
+        const delta = ((current - previous) / previous) * 100;
+        const isUp = delta > 0;
+        const absDelta = Math.abs(delta).toFixed(0);
+        if (Math.abs(delta) < 0.1) return `<div class="trend neutral">— 0%</div>`;
+        let colorClass = (isUp && isGoodWhenUp) ? 'up-good' : (!isUp && !isGoodWhenUp) ? 'down-good' : (isUp && !isGoodWhenUp) ? 'up-bad' : 'down-bad';
+        return `<div class="trend ${colorClass}">${isUp ? '↑' : '↓'} ${absDelta}%</div>`;
     }
 
-    function generateTableData() {
-        const months = [];
-        const cur = new Date();
-        for (let i = 11; i >= 0; i--) {
-            const d = new Date(cur.getFullYear(), cur.getMonth() - i, 1);
-            const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-            months.push(m);
+    function generateTablePeriods() {
+        const periods = [];
+        const now = new Date();
+        
+        if (window._statsTablePeriod === '1y') {
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                periods.push({ y: d.getFullYear(), m: d.getMonth(), dateStr: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` });
+            }
+        } else if (window._statsTablePeriod === '5y') {
+            for (let i = 59; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                periods.push({ y: d.getFullYear(), m: d.getMonth(), dateStr: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` });
+            }
+        } else if (window._statsTablePeriod === 'ytd') {
+            const start = new Date(now.getFullYear(), 0, 1);
+            let cur = new Date(start);
+            while (cur <= now) {
+                periods.push({ y: cur.getFullYear(), m: cur.getMonth(), dateStr: `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}` });
+                cur.setMonth(cur.getMonth() + 1);
+            }
+        } else { // 'all'
+            const txs = [...S.transactions].sort((a,b) => a.date.localeCompare(b.date));
+            if (txs.length > 0) {
+                const firstDate = new Date(txs[0].date);
+                let cur = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+                while (cur <= now) {
+                    periods.push({ y: cur.getFullYear(), m: cur.getMonth(), dateStr: `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}` });
+                    cur.setMonth(cur.getMonth() + 1);
+                }
+            } else {
+                periods.push({ y: now.getFullYear(), m: now.getMonth(), dateStr: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}` });
+            }
         }
 
-        return months.map(m => {
-            let inc=0, act=0, pas=0, exp=0, sav=0, inv=0;
-            S.transactions.filter(t => t.date.startsWith(m) && !t.ignoreInStats).forEach(t => {
-                if (t.type === 'income') {
-                    inc += t.amount;
-                    const c = getCat(t.categoryId);
-                    if (c && c.passive) pas += t.amount; else act += t.amount;
-                }
+        // Группировка
+        if (window._statsTableGroup === 'month') {
+            return periods.map(p => ({
+                ...p, 
+                label: new Date(p.y, p.m).toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' }).replace('.', '')
+            }));
+        } else if (window._statsTableGroup === 'quarter') {
+            const qMap = {};
+            periods.forEach(p => {
+                const q = Math.floor(p.m / 3) + 1;
+                const key = `${p.y}-Q${q}`;
+                if (!qMap[key]) qMap[key] = { y: p.y, q: q, label: `${p.y} Q${q}`, months: [] };
+                qMap[key].months.push(p.dateStr);
+            });
+            return Object.values(qMap);
+        } else { // year
+            const yMap = {};
+            periods.forEach(p => {
+                const key = `${p.y}`;
+                if (!yMap[key]) yMap[key] = { y: p.y, label: `${p.y}`, months: [] };
+                yMap[key].months.push(p.dateStr);
+            });
+            return Object.values(yMap);
+        }
+    }
+
+    function calcTableRow(row, monthsArray) {
+        let total = 0;
+        const isDateMatch = (d) => monthsArray.some(m => d.startsWith(m));
+
+        if (['income', 'active', 'passive', 'expense', 'saved', 'invest'].includes(row)) {
+            S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
+                if (row === 'income' && t.type === 'income') total += t.amount;
+                if (row === 'expense' && t.type === 'expense') total += t.amount;
+                if (row === 'active' && t.type === 'income') { const c = getCat(t.categoryId); if (!c || !c.passive) total += t.amount; }
+                if (row === 'passive' && t.type === 'income') { const c = getCat(t.categoryId); if (c && c.passive) total += t.amount; }
+                if (row === 'saved' && t.type === 'transfer') { const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId); if (k === 'savings') total += t.amount; }
+                if (row === 'invest' && t.type === 'transfer') { const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId); if (k === 'investment') total += t.amount; }
+            });
+        } else if (row === 'fcf') {
+            let inc = 0, exp = 0;
+            S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
+                if (t.type === 'income') inc += t.amount;
                 if (t.type === 'expense') exp += t.amount;
+            });
+            total = inc - exp;
+        } else if (row === 'rate') {
+            let inc = 0, sav = 0, inv = 0;
+            S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
+                if (t.type === 'income') inc += t.amount;
                 if (t.type === 'transfer') {
                     const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
                     if (k === 'savings') sav += t.amount;
                     if (k === 'investment') inv += t.amount;
                 }
             });
-            const fcf = inc - exp;
-            const rate = inc > 0 ? Math.round((sav+inv)/inc*100) : 0;
-            
-            let cap = 0;
-            const snaps = S.snapshots.filter(s => s.date.startsWith(m));
+            total = inc > 0 ? Math.round((sav + inv) / inc * 100) : 0;
+        } else if (['capital', 'cushion', 'pds', 'stocks', 'savings', 'debt'].includes(row)) {
+            // Берем данные из снимков
+            const snaps = S.snapshots.filter(s => isDateMatch(s.date));
             if (snaps.length > 0) {
-                cap = snaps[snaps.length - 1].total;
-            } else if (m === months[months.length - 1]) {
-                const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
-                cap = c.net;
+                const latest = snaps[snaps.length - 1];
+                if (row === 'capital') total = latest.total;
+                else if (latest.breakdown) {
+                    if (row === 'cushion') total = latest.breakdown.cushion || 0;
+                    if (row === 'pds') total = latest.breakdown.pds || 0;
+                    if (row === 'stocks') total = latest.breakdown.stocks || 0;
+                    if (row === 'savings') total = latest.breakdown.savings || 0;
+                    if (row === 'debt') total = latest.breakdown.debt || 0;
+                }
+            } else if (isDateMatch(today())) {
+                // Если это текущий месяц, считаем на лету
+                const c = window.getCustomCapital ? window.getCustomCapital() : null;
+                if (c) {
+                    if (row === 'capital') total = c.net;
+                    if (row === 'cushion') total = c.cushion;
+                    if (row === 'pds') total = c.pds;
+                    if (row === 'stocks') total = c.investments;
+                    if (row === 'savings') total = c.savings;
+                    if (row === 'debt') total = c.debt;
+                }
             }
-
-            return { m, inc, act, pas, exp, sav, inv, fcf, rate, cap };
-        });
+        }
+        return total;
     }
 
     window.renderStats = function() {
         const el = document.getElementById('page-stats');
         if (!el) return;
 
-        const dates = getStatsDates(window._statsPeriod);
+        const dates = getPeriodDates(window._statsPeriod, false);
+        const datesPrev = getPeriodDates(window._statsPeriod, true);
         const m = calcStatsData(dates.start, dates.end);
+        const p = calcStatsData(datesPrev.start, datesPrev.end);
 
         const periodOpts = { day:'День', week:'Неделя', month:'Месяц', year:'Год', ytd:'С начала года', custom:'Период ⚙️' };
         let selectHtml = `<select onchange="window.setStatsPeriod(this.value)" onclick="event.stopPropagation()" style="padding: 6px 12px; border-radius: 12px; font-size: 13px; background: var(--card); color: var(--text); border: 1px solid var(--border); outline: none; font-weight:600; cursor:pointer;">`;
@@ -267,44 +369,53 @@
         }
 
         // Генерируем таблицу
-        const tableData = generateTableData();
-        let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border);">
+        const periods = generateTablePeriods();
+        
+        let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%;">
             <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:right;">
                 <thead>
                     <tr style="background:var(--card2); border-bottom:1px solid var(--border);">
-                        <th style="position:sticky; left:0; background:var(--card2); z-index:2; padding:10px; text-align:left; font-weight:700;">Параметр</th>`;
-        tableData.forEach(d => {
-            const [y, mo] = d.m.split('-');
-            const mName = new Date(y, mo - 1).toLocaleDateString('ru-RU', { month: 'short' }).replace('.', '');
-            tableHtml += `<th style="padding:10px; font-weight:600;">${mName}</th>`;
+                        <th style="position:sticky; left:0; background:var(--card2); z-index:2; padding:10px; text-align:left; font-weight:700; min-width:140px;">Параметр</th>`;
+        periods.forEach(p => {
+            tableHtml += `<th style="padding:10px; font-weight:600;">${p.label}</th>`;
         });
         tableHtml += `</tr></thead><tbody>`;
 
         const rows = [
-            { label: 'Доходы', key: 'inc', color: 'var(--green)', bold: true, fmt: 'pos' },
-            { label: '— Активный', key: 'act', color: 'inherit' },
-            { label: '— Пассивный', key: 'pas', color: 'var(--purple)' },
-            { label: 'Расходы', key: 'exp', color: 'var(--red)', bold: true, fmt: 'neg' },
-            { label: 'Отложено', key: 'sav', color: 'var(--green)' },
-            { label: 'Инвестиции', key: 'inv', color: 'var(--accent)' },
-            { label: 'Свободный поток', key: 'fcf', color: 'inherit', bold: true },
-            { label: 'Норма сбережений', key: 'rate', suffix: '%' },
-            { label: 'Капитал', key: 'cap', color: 'var(--text)', bold: true }
+            { key: 'income', label: 'Доходы', indent: 0, color: COLORS.income, bold: true },
+            { key: 'active', label: 'Активный', indent: 1, color: COLORS.active },
+            { key: 'passive', label: 'Пассивный', indent: 1, color: COLORS.passive },
+            { key: 'expense', label: 'Расходы', indent: 0, color: COLORS.expense, bold: true },
+            { key: 'saved', label: 'Отложено', indent: 0, color: COLORS.saved },
+            { key: 'invest', label: 'Инвестиции', indent: 0, color: COLORS.invest },
+            { key: 'fcf', label: 'Свободный поток', indent: 0, color: COLORS.fcf, bold: true },
+            { key: 'rate', label: 'Норма сбережений', indent: 0, color: COLORS.rate, suffix: '%' },
+            { key: 'capital', label: 'Капитал', indent: 0, color: COLORS.capital, bold: true, isHeader: true },
+            { key: 'cushion', label: 'Подушка', indent: 1, color: COLORS.cushion },
+            { key: 'pds', label: 'ПДС', indent: 1, color: COLORS.pds },
+            { key: 'stocks', label: 'Фондовый рынок', indent: 1, color: COLORS.stocks },
+            { key: 'savings', label: 'Накопления', indent: 1, color: COLORS.savings },
+            { key: 'debt', label: 'Долги', indent: 1, color: COLORS.debt }
         ];
 
         rows.forEach((row, i) => {
-            const bg = i % 2 === 0 ? 'var(--card)' : 'var(--card2)';
-            tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border);">
-                <td style="position:sticky; left:0; background:${bg}; z-index:1; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'};">${row.label}</td>`;
+            const isSelected = window._statsSelectedRows.includes(row.key);
+            const bg = isSelected ? 'rgba(255,255,255,0.05)' : (i % 2 === 0 ? 'var(--card)' : 'var(--card2)');
+            const activeBar = isSelected ? `<div style="position:absolute; left:0; top:0; bottom:0; width:4px; background:${row.color};"></div>` : '';
             
-            tableData.forEach(d => {
-                let val = d[row.key];
+            tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
+                <td onclick="window.toggleTableRow('${row.key}')" 
+                    style="position:sticky; left:0; background:${bg}; z-index:1; padding:10px 10px 10px ${10 + row.indent * 15}px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
+                    ${activeBar}
+                    ${row.label}
+                </td>`;
+            
+            periods.forEach(p => {
+                const monthsArr = p.months ? p.months : [p.dateStr];
+                let val = calcTableRow(row.key, monthsArr);
                 let display = val === 0 ? '-' : fmt(val);
                 if (row.suffix) display = val + row.suffix;
-                if (row.key === 'cap' && val === 0) display = '-';
-                if (row.fmt === 'pos' && val > 0) display = `<span class="pos">${fmt(val)}</span>`;
-                else if (row.fmt === 'neg' && val > 0) display = `<span class="neg">${fmt(val)}</span>`;
-                else if (row.key === 'fcf' && val < 0) display = `<span class="neg">${fmt(val)}</span>`;
+                if (row.key === 'capital' && val === 0) display = '-';
                 tableHtml += `<td style="padding:10px;">${display}</td>`;
             });
             tableHtml += `</tr>`;
@@ -325,67 +436,55 @@
                 </div>
                 <div class="fw-body" id="stats-body-topBlock" style="display: ${window._statsUI.topBlock ? 'none' : 'block'};">
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                        <div class="analytic-item"><div class="label">Доходы</div><div class="val pos">${fmt(m.inc)}</div></div>
-                        <div class="analytic-item"><div class="label">Расходы</div><div class="val neg">${fmt(m.exp)}</div></div>
-                        <div class="analytic-item"><div class="label">В накопления</div><div class="val pos">${fmt(m.sav)}</div></div>
-                        <div class="analytic-item"><div class="label">В инвестиции</div><div class="val pos">${fmt(m.inv)}</div></div>
-                        <div class="analytic-item"><div class="label">Свободный поток</div><div class="val pos">${fmt(m.passive)}</div></div>
-                        <div class="analytic-item"><div class="label">Норма сбережений</div><div class="val">${m.rate.toFixed(0)}%</div></div>
+                        <div class="analytic-item">
+                            <div class="label">Доходы</div><div class="val pos">${fmt(m.inc)}</div>${getTrendHtml(m.inc, p.inc, true)}
+                        </div>
+                        <div class="analytic-item">
+                            <div class="label">Расходы</div><div class="val neg">${fmt(m.exp)}</div>${getTrendHtml(m.exp, p.exp, false)}
+                        </div>
+                        <div class="analytic-item">
+                            <div class="label">В накопления</div><div class="val pos">${fmt(m.sav)}</div>${getTrendHtml(m.sav, p.sav, true)}
+                        </div>
+                        <div class="analytic-item">
+                            <div class="label">В инвестиции</div><div class="val pos">${fmt(m.inv)}</div>${getTrendHtml(m.inv, p.inv, true)}
+                        </div>
+                        <div class="analytic-item">
+                            <div class="label">Свободный поток</div><div class="val pos">${fmt(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
+                        </div>
+                        <div class="analytic-item">
+                            <div class="label">Норма сбережений</div><div class="val">${m.rate.toFixed(0)}%</div>${getTrendHtml(m.rate, p.rate, true)}
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="fullwidth-widget" style="margin-bottom:16px;">
-                <div class="fw-header" onclick="window.toggleStatsBlock('chartBar')">
+                <div class="fw-header" onclick="window.toggleStatsBlock('reportWidget')">
                     <div class="fw-header-left">
-                        <span id="stats-icon-chartBar">${window._statsUI.chartBar ? '▶' : '▼'}</span> Доходы / Расходы
+                        <span id="stats-icon-reportWidget">${window._statsUI.reportWidget ? '▶' : '▼'}</span> Конструктор отчётов
                     </div>
+                    <button class="btn-small btn-secondary" onclick="event.stopPropagation(); window.resetReportChart()">Сбросить всё</button>
                 </div>
-                <div class="fw-body" id="stats-body-chartBar" style="display: ${window._statsUI.chartBar ? 'none' : 'block'}; padding-top:8px;">
-                    <div class="chart-container" style="height:260px;"><canvas id="chartBarNew"></canvas></div>
-                </div>
-            </div>
-
-            <div class="fullwidth-widget" style="margin-bottom:16px;">
-                <div class="fw-header" onclick="window.toggleStatsBlock('chartPassive')">
-                    <div class="fw-header-left">
-                        <span id="stats-icon-chartPassive">${window._statsUI.chartPassive ? '▶' : '▼'}</span> Пассивный доход
+                <div class="fw-body" id="stats-body-reportWidget" style="display: ${window._statsUI.reportWidget ? 'none' : 'block'}; padding-top:0;">
+                    <div style="padding: 12px 0;">
+                        <div style="position:relative; height:300px; width:100%;">
+                            <canvas id="reportDynamicChart"></canvas>
+                        </div>
                     </div>
-                </div>
-                <div class="fw-body" id="stats-body-chartPassive" style="display: ${window._statsUI.chartPassive ? 'none' : 'block'}; padding-top:8px;">
-                    <div class="chart-container" style="height:260px;"><canvas id="chartPassiveNew"></canvas></div>
-                </div>
-            </div>
-
-            <div class="fullwidth-widget" style="margin-bottom:16px;">
-                <div class="fw-header" onclick="window.toggleStatsBlock('chartRate')">
-                    <div class="fw-header-left">
-                        <span id="stats-icon-chartRate">${window._statsUI.chartRate ? '▶' : '▼'}</span> Норма сбережений
+                    <div style="display:flex; gap:8px; margin-bottom:12px; overflow-x:auto; padding-bottom:4px;">
+                        <select onchange="window.changeTableFilter('group', this.value)" style="padding: 6px 12px; border-radius: 12px; font-size: 13px; background: var(--card2); color: var(--text); border: 1px solid var(--border); outline:none; font-weight:600;">
+                            <option value="month" ${window._statsTableGroup==='month'?'selected':''}>По месяцам</option>
+                            <option value="quarter" ${window._statsTableGroup==='quarter'?'selected':''}>По кварталам</option>
+                            <option value="year" ${window._statsTableGroup==='year'?'selected':''}>По годам</option>
+                        </select>
+                        <select onchange="window.changeTableFilter('period', this.value)" style="padding: 6px 12px; border-radius: 12px; font-size: 13px; background: var(--card2); color: var(--text); border: 1px solid var(--border); outline:none; font-weight:600;">
+                            <option value="all" ${window._statsTablePeriod==='all'?'selected':''}>Весь период</option>
+                            <option value="1y" ${window._statsTablePeriod==='1y'?'selected':''}>За 1 год</option>
+                            <option value="5y" ${window._statsTablePeriod==='5y'?'selected':''}>За 5 лет</option>
+                            <option value="ytd" ${window._statsTablePeriod==='ytd'?'selected':''}>С начала года</option>
+                        </select>
                     </div>
-                </div>
-                <div class="fw-body" id="stats-body-chartRate" style="display: ${window._statsUI.chartRate ? 'none' : 'block'}; padding-top:8px;">
-                    <div class="chart-container" style="height:260px;"><canvas id="chartRateNew"></canvas></div>
-                </div>
-            </div>
-
-            <div class="fullwidth-widget" style="margin-bottom:16px;">
-                <div class="fw-header" onclick="window.toggleStatsBlock('chartCapital')">
-                    <div class="fw-header-left">
-                        <span id="stats-icon-chartCapital">${window._statsUI.chartCapital ? '▶' : '▼'}</span> Динамика капитала
-                    </div>
-                </div>
-                <div class="fw-body" id="stats-body-chartCapital" style="display: ${window._statsUI.chartCapital ? 'none' : 'block'}; padding-top:8px;">
-                    <div class="chart-container"><canvas id="chartCapitalNew"></canvas></div>
-                </div>
-            </div>
-
-            <div class="fullwidth-widget" style="margin-bottom:16px;">
-                <div class="fw-header" onclick="window.toggleStatsBlock('table')">
-                    <div class="fw-header-left">
-                        <span id="stats-icon-table">${window._statsUI.table ? '▶' : '▼'}</span> Детальный отчёт
-                    </div>
-                </div>
-                <div class="fw-body" id="stats-body-table" style="display: ${window._statsUI.table ? 'none' : 'block'}; padding: 8px 0;">
+                    <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px;">💡 Нажмите на параметр в таблице, чтобы отобразить его на графике.</div>
                     ${tableHtml}
                 </div>
             </div>
@@ -415,145 +514,104 @@
         `;
 
         setTimeout(() => {
-            const curYear = new Date().getFullYear();
-            const years = [curYear - 2, curYear - 1, curYear]; 
-            const labels = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-
-            const commonOptions = { 
-                responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { 
-                    legend: { 
-                        position: 'bottom', 
-                        labels: { 
-                            usePointStyle: true,
-                            pointStyle: 'rectRounded',
-                            boxWidth: 8,
-                            boxHeight: 8,
-                            padding: 15,
-                            font: { size: 11 } 
-                        } 
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        filter: function(tooltipItem) {
-                            const chart = tooltipItem.chart;
-                            const activeElements = chart.getActiveElements();
-                            if (activeElements.length === 0) return true;
-                            const hoveredDatasetIndex = activeElements[0].datasetIndex;
-                            const hoveredLabel = chart.data.datasets[hoveredDatasetIndex].label;
-                            if (!hoveredLabel) return true;
-                            const hoveredYear = hoveredLabel.split(' ').pop(); 
-                            return tooltipItem.dataset.label.includes(hoveredYear);
-                        },
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                let value = context.parsed.y;
-                                return label + ': ' + fmt(value);
-                            }
-                        }
-                    }
-                }, 
-                scales: { 
-                    y: { beginAtZero: true, ticks: { font: { size: 10 } } }, 
-                    x: { ticks: { font: { size: 9 } }, grid: { display: false } } 
-                }
-            };
-
-            if (chartBarInstance) chartBarInstance.destroy();
-            if (document.getElementById('chartBarNew')) {
-                const incColors = generateShades('#10B981', 3).reverse();
-                const expColors = generateShades('#EF4444', 3).reverse();
-                const datasets = [];
-                
-                years.forEach((y, i) => {
-                    datasets.push({
-                        label: `Доходы ${y}`,
-                        data: getYearlyMonthlyData(y, 'income'),
-                        backgroundColor: incColors[i],
-                        maxBarThickness: 12,
-                        borderRadius: 0
-                    });
-                    datasets.push({
-                        label: `Расходы ${y}`,
-                        data: getYearlyMonthlyData(y, 'expense'),
-                        backgroundColor: expColors[i],
-                        maxBarThickness: 12,
-                        borderRadius: 0
-                    });
-                });
-
-                chartBarInstance = new Chart(document.getElementById('chartBarNew'), {
-                    type: 'bar',
-                    data: { labels, datasets },
-                    options: { 
-                        ...commonOptions,
-                        categoryPercentage: 0.8,
-                        barPercentage: 1.0
-                    }
-                });
-            }
-
-            if (chartPassiveInstance) chartPassiveInstance.destroy();
-            if (document.getElementById('chartPassiveNew')) {
-                const passiveColors = generateShades('#8B5CF6', 3).reverse();
-                const datasets = years.map((y, i) => ({
-                    label: `${y}`,
-                    data: getYearlyMonthlyData(y, 'passive'),
-                    backgroundColor: passiveColors[i],
-                    maxBarThickness: 14,
-                    borderRadius: 2
-                }));
-
-                chartPassiveInstance = new Chart(document.getElementById('chartPassiveNew'), {
-                    type: 'bar',
-                    data: { labels, datasets },
-                    options: { ...commonOptions, categoryPercentage: 0.8, barPercentage: 0.9 }
-                });
-            }
-
-            if (chartRateInstance) chartRateInstance.destroy();
-            if (document.getElementById('chartRateNew')) {
-                const rateColors = generateShades('#4d7fff', 3).reverse();
-                const datasets = years.map((y, i) => ({
-                    label: `${y}`,
-                    data: getYearlyMonthlyData(y, 'rate'),
-                    backgroundColor: rateColors[i],
-                    maxBarThickness: 14,
-                    borderRadius: 2
-                }));
-
-                chartRateInstance = new Chart(document.getElementById('chartRateNew'), {
-                    type: 'bar',
-                    data: { labels, datasets },
-                    options: { 
-                        ...commonOptions,
-                        categoryPercentage: 0.8, 
-                        barPercentage: 0.9,
-                        scales: { 
-                            y: { beginAtZero: true, max: 100, ticks: { font: { size: 10 }, callback: v => v + '%' } }, 
-                            x: { ticks: { font: { size: 9 } }, grid: { display: false } } 
-                        } 
-                    }
-                });
-            }
-
-            if (chartCapitalInstance) chartCapitalInstance.destroy();
-            if (document.getElementById('chartCapitalNew')) {
-                const snapLabels = S.snapshots.map(s => s.date);
-                const snapData = S.snapshots.map(s => s.total);
-                chartCapitalInstance = new Chart(document.getElementById('chartCapitalNew'), {
-                    type: 'line',
-                    data: { labels: snapLabels, datasets: [{ label: 'Капитал', data: snapData, borderColor: '#4d7fff', backgroundColor: 'rgba(77,127,255,0.15)', fill: true, tension: 0.3 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 9 } } } } }
-                });
-            }
-
             if (typeof window.renderDonutChart === 'function') {
                 window.renderDonutChart();
             }
+            renderReportChart();
         }, 50);
     };
+
+    function renderReportChart() {
+        const canvas = document.getElementById('reportDynamicChart');
+        if (!canvas) return;
+        
+        if (reportChartInstance) reportChartInstance.destroy();
+
+        if (window._statsSelectedRows.length === 0) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+
+        const periods = generateTablePeriods();
+        const labels = periods.map(p => p.label);
+        
+        const datasets = [];
+        let hasRub = false;
+        let hasPct = false;
+
+        window._statsSelectedRows.forEach((key, idx) => {
+            const rowDef = [
+                { key: 'income', label: 'Доходы', type: 'bar' },
+                { key: 'active', label: 'Активный', type: 'bar' },
+                { key: 'passive', label: 'Пассивный', type: 'bar' },
+                { key: 'expense', label: 'Расходы', type: 'bar' },
+                { key: 'saved', label: 'Отложено', type: 'bar' },
+                { key: 'invest', label: 'Инвестиции', type: 'bar' },
+                { key: 'fcf', label: 'Свободный поток', type: 'bar' },
+                { key: 'rate', label: 'Норма сбережений', type: 'line', isPct: true },
+                { key: 'capital', label: 'Капитал', type: 'line' },
+                { key: 'cushion', label: 'Подушка', type: 'bar' },
+                { key: 'pds', label: 'ПДС', type: 'bar' },
+                { key: 'stocks', label: 'Фондовый рынок', type: 'bar' },
+                { key: 'savings', label: 'Накопления', type: 'bar' },
+                { key: 'debt', label: 'Долги', type: 'bar' }
+            ].find(r => r.key === key);
+
+            if (!rowDef) return;
+            if (rowDef.isPct) hasPct = true; else hasRub = true;
+
+            const data = periods.map(p => {
+                const monthsArr = p.months ? p.months : [p.dateStr];
+                return calcTableRow(key, monthsArr);
+            });
+
+            const color = COLORS[key];
+            datasets.push({
+                type: rowDef.type,
+                label: rowDef.label,
+                data: data,
+                backgroundColor: rowDef.type === 'bar' ? color : color + '33',
+                borderColor: color,
+                borderWidth: rowDef.type === 'line' ? 2 : 0,
+                fill: rowDef.type === 'line',
+                tension: 0.3,
+                yAxisID: rowDef.isPct ? 'y1' : 'y',
+                maxBarThickness: 30
+            });
+        });
+
+        reportChartInstance = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: {size: 11} } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const val = ctx.parsed.y;
+                                if (ctx.dataset.yAxisID === 'y1') return ctx.dataset.label + ': ' + val + '%';
+                                return ctx.dataset.label + ': ' + fmt(val);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: {size: 10} } },
+                    y: { 
+                        type: 'linear', display: hasRub, position: 'left',
+                        beginAtZero: true, ticks: { font: {size: 10} }
+                    },
+                    y1: { 
+                        type: 'linear', display: hasPct, position: 'right',
+                        beginAtZero: true, max: 100, grid: { drawOnChartArea: false },
+                        ticks: { font: {size: 10}, callback: function(v) { return v + '%'; } }
+                    }
+                }
+            }
+        });
+    }
 })();
