@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v8
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v9
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v8 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v9 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -294,20 +294,10 @@
             });
             total = inc > 0 ? Math.round((sav + inv) / inc * 100) : 0;
         } else if (['capital', 'cushion', 'pds', 'stocks', 'savings', 'debt'].includes(row)) {
-            // Берем данные из снимков
-            const snaps = S.snapshots.filter(s => isDateMatch(s.date));
-            if (snaps.length > 0) {
-                const latest = snaps[snaps.length - 1];
-                if (row === 'capital') total = latest.total;
-                else if (latest.breakdown) {
-                    if (row === 'cushion') total = latest.breakdown.cushion || 0;
-                    if (row === 'pds') total = latest.breakdown.pds || 0;
-                    if (row === 'stocks') total = latest.breakdown.stocks || 0;
-                    if (row === 'savings') total = latest.breakdown.savings || 0;
-                    if (row === 'debt') total = latest.breakdown.debt || 0;
-                }
-            } else if (isDateMatch(today())) {
-                // Если это текущий месяц, считаем на лету
+            const currentMonthStr = today().slice(0, 7); // YYYY-MM
+            
+            // ФИКС: Если период включает текущий месяц, ВСЕГДА считаем на лету
+            if (monthsArray.includes(currentMonthStr)) {
                 const c = window.getCustomCapital ? window.getCustomCapital() : null;
                 if (c) {
                     if (row === 'capital') total = c.net;
@@ -316,6 +306,20 @@
                     if (row === 'stocks') total = c.investments;
                     if (row === 'savings') total = c.savings;
                     if (row === 'debt') total = c.debt;
+                }
+            } else {
+                // Для прошлых периодов берем из снимков
+                const snaps = S.snapshots.filter(s => isDateMatch(s.date));
+                if (snaps.length > 0) {
+                    const latest = snaps[snaps.length - 1];
+                    if (row === 'capital') total = latest.total;
+                    else if (latest.breakdown) {
+                        if (row === 'cushion') total = latest.breakdown.cushion || 0;
+                        if (row === 'pds') total = latest.breakdown.pds || 0;
+                        if (row === 'stocks') total = latest.breakdown.stocks || 0;
+                        if (row === 'savings') total = latest.breakdown.savings || 0;
+                        if (row === 'debt') total = latest.breakdown.debt || 0;
+                    }
                 }
             }
         }
