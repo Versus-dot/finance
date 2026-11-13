@@ -1,12 +1,52 @@
 // ==========================================
-// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v127
+// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v128
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v127)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v128)");
 
     let myChart = null;
     window._chartDrillDown = null; // Состояние для двухуровневой диаграммы
 
+    // --- ФУНКЦИИ ГЕНЕРАЦИИ ОТТЕНКОВ ЦВЕТА ---
+    function hexToHsl(H) {
+        let r = 0, g = 0, b = 0;
+        if (H.length == 7) { r = parseInt(H.substring(1, 3), 16); g = parseInt(H.substring(3, 5), 16); b = parseInt(H.substring(5, 7), 16); }
+        else if (H.length == 4) { r = parseInt("0" + H[1] + H[1], 16); g = parseInt("0" + H[2] + H[2], 16); b = parseInt("0" + H[3] + H[3], 16); }
+        r /= 255; g /= 255; b /= 255;
+        let cmin = Math.min(r, g, b), cmax = Math.max(r, g, b), delta = cmax - cmin, h = 0, s = 0, l = 0;
+        if (delta == 0) h = 0;
+        else if (cmax == r) h = ((g - b) / delta) % 6;
+        else if (cmax == g) h = (b - r) / delta + 2;
+        else h = (r - g) / delta + 4;
+        h = Math.round(h * 60); if (h < 0) h += 360;
+        l = (cmax + cmin) / 2; s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+        return { h, s: +(s * 100).toFixed(1), l: +(l * 100).toFixed(1) };
+    }
+    
+    function hslToHex(h, s, l) {
+        s /= 100; l /= 100;
+        const k = n => (n + h / 30) % 12;
+        const a = s * Math.min(l, 1 - l);
+        const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+        const toHex = x => { const hex = Math.round(x * 255).toString(16); return hex.length === 1 ? "0" + hex : hex; };
+        return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+    }
+    
+    function generateShades(baseHex, count) {
+        if (count <= 1) return [baseHex];
+        const hsl = hexToHsl(baseHex);
+        const shades = [baseHex]; // Первый цвет (самый большой сектор) - точный цвет категории
+        let step = 12; 
+        for (let i = 1; i < count; i++) {
+            let newL = hsl.l;
+            let offset = Math.ceil(i / 2) * step * (i % 2 === 1 ? 1 : -1);
+            newL = Math.max(25, Math.min(80, hsl.l + offset)); // Ограничиваем яркость
+            shades.push(hslToHex(hsl.h, hsl.s, newL));
+        }
+        return shades;
+    }
+
+    // --- ПЛАГИНЫ ДИАГРАММЫ ---
     const centerTextPlugin = {
         id: 'centerText',
         afterDatasetsDraw: (chart) => {
@@ -93,17 +133,16 @@
             
             // Сортируем счета внутри категории по убыванию
             const sortedAccs = [...cat.accounts].sort((a, b) => b._chartContribution - a._chartContribution);
+            const shades = generateShades(cat.color, sortedAccs.length); // Генерируем оттенки
+            
             sortedAccs.forEach((acc, idx) => {
                 chartData.push({
                     label: acc.name,
                     value: acc._chartContribution,
-                    color: cat.color, // Используем цвет родительской категории или генерируем оттенки
+                    color: shades[idx],
                     bankName: (S.banks.find(b => b.id === acc.bankId) || {}).name || 'Банк'
                 });
             });
-            // Разные оттенки для наглядности
-            const colors = ['#F59E0B', '#FBBF24', '#FCD34D', '#B45309', '#D97706', '#92400E'];
-            chartData.forEach((d, i) => { d.color = colors[i % colors.length]; });
             totalSum = chartData.reduce((sum, item) => sum + item.value, 0);
         } else {
             chartData = getChartData();
@@ -168,17 +207,14 @@
                     if (elements.length > 0) {
                         const index = elements[0].index;
                         if (!isDrillDown) {
-                            // Проваливаемся внутрь сектора
                             const category = chartData[index];
                             if (category.accounts && category.accounts.length > 0) {
                                 window._chartDrillDown = category;
                                 injectDonutChart();
                             } else {
-                                // Если счетов нет (например, искусственный излишек), просто показываем модалку
                                 openCategoryDetails(category);
                             }
                         } else {
-                            // Если мы уже внутри, можно показать модалку детализации конкретного счета
                             openCategoryDetails(window._chartDrillDown);
                         }
                     }
@@ -187,10 +223,12 @@
             plugins: [centerTextPlugin, sectorLabelPlugin] 
         });
         
-        // Передаем данные для плагина центрального текста
         myChart.config._centerText = { val: centerVal, label: centerLabel };
     }
-
+    
+    // ==========================================
+    // КОНЕЦ ЧАСТИ 1. СДЕЛАЙ ENTER И ВСТАВЬ ЧАСТЬ 2.
+    // ==========================================
     function getChartData() {
         const sectors = {
             cushion: { label: '🛡️ Подушка', value: 0, color: '#10B981', accounts: [] },
@@ -209,7 +247,6 @@
             });
         }
 
-        // Сначала обрабатываем кредитки (считаем переплаты и хеджи)
         S.accounts.filter(a => a.type === 'credit' && !a.archived).forEach(a => {
             const limit = a.creditLimit || 0;
             const val = accValue(a);
@@ -241,9 +278,8 @@
             }
         });
 
-        // Теперь все остальные счета
         S.accounts.filter(a => a.type !== 'credit' && !a.archived).forEach(a => {
-            if (S.settings.hedgingEnabled && a.hedgeFor && !a.inCushion) return; // Исключаем сами хеджи, мы уже учли их в излишках
+            if (S.settings.hedgingEnabled && a.hedgeFor && !a.inCushion) return;
             
             const val = accValue(a);
             if (val <= 0) return;
