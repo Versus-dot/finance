@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СИНХРОНИЗАЦИИ (mod-sync.js) v2
+// МОДУЛЬ СИНХРОНИЗАЦИИ (mod-sync.js) v3
 // ==========================================
 (function() {
-    console.log("✅ Модуль синхронизации (mod-sync.js) v2 загружен");
+    console.log("✅ Модуль синхронизации (mod-sync.js) v3 загружен");
 
     const originalFetch = window.fetch;
     window.fetch = function(url, options) {
@@ -20,7 +20,6 @@
     window.checkCloudSync = function() {};
     window.silentAutoSave = function() {};
 
-    // Исправлено: теперь вызываем новый умный syncSmart, а не старый
     const originalBackup = window.backupToYandexDisk; 
     window.backupToYandexDisk = async function(silent = false) { 
         if (typeof S !== 'undefined') { 
@@ -251,6 +250,20 @@
         S.debts = mergeArray(S.debts, cloudData.debts);
         S.counterparties = mergeArray(S.counterparties, cloudData.counterparties);
         
+        // Слияние снимков капитала (по дате)
+        if (cloudData.snapshots) {
+            const snapMap = new Map();
+            (S.snapshots || []).forEach(s => snapMap.set(s.date, s));
+            cloudData.snapshots.forEach(s => {
+                const existing = snapMap.get(s.date);
+                // Если снимка нет, или сумма из облака больше (актуальнее), берем облачный
+                if (!existing || s.total > existing.total) {
+                    snapMap.set(s.date, s);
+                }
+            });
+            S.snapshots = Array.from(snapMap.values()).sort((a,b) => a.date.localeCompare(b.date));
+        }
+
         S.settings = { ...cloudData.settings, ...localVisualSettings };
         S.meta = { deletedIds: allDeleted, _updatedAt: Date.now() };
     }
