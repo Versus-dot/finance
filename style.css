@@ -281,7 +281,8 @@ input[type="date"]{color-scheme:dark}:root[data-theme="light"] input[type="date"
 
 /* === ИСПРАВЛЕНИЯ v55 === */
 .banks-header button[title="Режим редактирования"] {width: 38px;height: 34px;padding: 0 !important;display: flex;align-items: center;justify-content: center;box-sizing: border-box;}
-body:has(#page-home.active) #fabBtn {display: none !important;}
+/* Скрываем FAB на главной и на статистике */
+body:has(#page-home.active) #fabBtn, body:has(#page-stats.active) #fabBtn {display: none !important;}
 @media (max-width: 600px) {
     .account-row {flex-wrap: wrap;}
     .account-row > div:last-child {width: 100%;margin-top: 10px;text-align: right;display: flex;flex-direction: column;align-items: flex-end;}
