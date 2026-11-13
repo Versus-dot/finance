@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v8
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v10
 // ==========================================
 (function() {
-    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v8 загружен");
+    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v10 загружен");
 
     if (typeof S !== 'undefined' && S.ui) {
         if (S.ui.collapsedAnalytics === undefined) S.ui.collapsedAnalytics = true;
@@ -85,46 +85,64 @@
     `;
     document.head.appendChild(styleEl);
 
-    // --- НЕЗАВИСИМЫЙ РАСЧЕТ КАПИТАЛА (Единая правда) ---
     window.getCustomCapital = function() {
         let assets = 0, debt = 0, coveredDebt = 0;
-        let cushion = 0, pds = 0, investments = 0, deposits = 0, cash = 0, crypto = 0, other = 0;
+        let cushion = 0, pds = 0, investments = 0, savings = 0, crypto = 0, other = 0;
+
+        const hedgesByCard = {};
+        if (S.settings.hedgingEnabled) {
+            S.accounts.filter(a => a.hedgeFor && !a.archived && !a.inCushion).forEach(h => {
+                if (!hedgesByCard[h.hedgeFor]) hedgesByCard[h.hedgeFor] = 0;
+                hedgesByCard[h.hedgeFor] += accValue(h);
+            });
+        }
 
         S.accounts.filter(a => !a.archived).forEach(a => {
             const v = accValue(a);
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;
-                if (v > limit) assets += (v - limit);
-                if (v < limit) debt += (limit - v);
+                let cardDebt = Math.max(0, limit - v);
+                let overpay = Math.max(0, v - limit);
+                
+                if (overpay > 0) {
+                    savings += overpay;
+                    assets += overpay;
+                }
+                
+                let hedgeTotal = 0;
+                if (S.settings.hedgingEnabled && hedgesByCard[a.id]) {
+                    hedgeTotal = hedgesByCard[a.id];
+                }
+
+                const covered = Math.min(cardDebt, hedgeTotal);
+                const surplus = Math.max(0, hedgeTotal - cardDebt);
+
+                if (surplus > 0) {
+                    savings += surplus;
+                    assets += surplus;
+                }
+
+                debt += Math.max(0, cardDebt - covered);
+                coveredDebt += covered;
             } else {
-                if (a.hedgeFor) return; 
-                
-                if (a.inCushion) cushion += v;
-                else if (a.type === 'pds') pds += v;
-                else if (['brokerage', 'iis', 'invest_kopilka'].includes(a.type)) investments += v;
-                else if (['deposit', 'savings', 'finu_wallet'].includes(a.type)) deposits += v;
-                else if (a.type === 'cash') cash += v;
-                else if (['crypto_wallet', 'crypto_exchange'].includes(a.type)) crypto += v;
-                else other += v;
-                
-                assets += v;
+                if (a.inCushion) {
+                    cushion += v;
+                    assets += v;
+                } else if (S.settings.hedgingEnabled && a.hedgeFor) {
+                    // Хедж уже учтен в излишке/покрытии кредитки
+                } else {
+                    if (a.type === 'pds') pds += v;
+                    else if (['brokerage', 'iis', 'invest_kopilka'].includes(a.type)) investments += v;
+                    else if (['deposit', 'savings', 'finu_wallet', 'debit', 'cash'].includes(a.type)) savings += v;
+                    else if (['crypto_wallet', 'crypto_exchange'].includes(a.type)) crypto += v;
+                    else other += v;
+                    
+                    assets += v;
+                }
             }
         });
 
-        S.accounts.filter(a => a.hedgeFor && !a.archived).forEach(dep => {
-            const card = S.accounts.find(c => c.id === dep.hedgeFor && c.type === 'credit' && !c.archived);
-            if (card) {
-                const depVal = accValue(dep);
-                const limit = card.creditLimit || 0;
-                const currentBalance = accValue(card);
-                const currentDebt = Math.max(0, limit - currentBalance);
-                coveredDebt += Math.min(depVal, currentDebt);
-            }
-        });
-
-        debt = Math.max(0, debt - coveredDebt);
-
-        return { net: assets - debt, assets, debt, coveredDebt, cushion, pds, investments, deposits, cash, crypto, other };
+        return { net: assets - debt, assets, debt, coveredDebt, cushion, pds, investments, savings, crypto, other };
     };
 
     function getPeriodDates(period, isPrev = false) {
@@ -253,7 +271,6 @@
         const invest = transfers.filter(t => (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'investment');
         renderSavedModal(savings, invest);
     };
-
     window.openAnalyticsInfo = function() {
         const dates = getPeriodDates(window._analyticsPeriod);
         const m = calcDataForRange(dates.start, dates.end);
@@ -295,8 +312,7 @@
                 ${c.cushion > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🛡 Подушка безопасности</span> <b>${fmt(c.cushion)}</b></div>` : ''}
                 ${c.pds > 0 ? `<div style="display:flex; justify-content:space-between;"><span>📈 ПДС</span> <b>${fmt(c.pds)}</b></div>` : ''}
                 ${c.investments > 0 ? `<div style="display:flex; justify-content:space-between;"><span>📊 Фондовый рынок</span> <b>${fmt(c.investments)}</b></div>` : ''}
-                ${c.deposits > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🏦 Вклады</span> <b>${fmt(c.deposits)}</b></div>` : ''}
-                ${c.cash > 0 ? `<div style="display:flex; justify-content:space-between;"><span>💵 Наличные</span> <b>${fmt(c.cash)}</b></div>` : ''}
+                ${c.savings > 0 ? `<div style="display:flex; justify-content:space-between;"><span>💰 Накопления</span> <b>${fmt(c.savings)}</b></div>` : ''}
                 ${c.crypto > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🪙 Крипта</span> <b>${fmt(c.crypto)}</b></div>` : ''}
                 ${c.other > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🗂 Прочее</span> <b>${fmt(c.other)}</b></div>` : ''}
                 <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>🔴 Долги по кредитам</span> <b style="color:var(--red)">-${fmt(c.debt)}</b></div>
