@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v7
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v8
 // ==========================================
 (function() {
-    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v7 загружен");
+    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v8 загружен");
 
     if (typeof S !== 'undefined' && S.ui) {
         if (S.ui.collapsedAnalytics === undefined) S.ui.collapsedAnalytics = true;
@@ -290,7 +290,7 @@
         const deltaHtml = prevCap > 0 ? `<span style="color:${delta>=0?'var(--green)':'var(--red)'}">${delta>=0?'↑':'↓'} ${Math.abs(delta).toFixed(1)}%</span>` : '—';
 
         openModal(`
-            <div class="modal-header"><h2>Структура капитала</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+            <div class="modal-header"><h2>Структура чистого капитала</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
             <div style="font-size: 14px; line-height: 1.8;">
                 ${c.cushion > 0 ? `<div style="display:flex; justify-content:space-between;"><span>🛡 Подушка безопасности</span> <b>${fmt(c.cushion)}</b></div>` : ''}
                 ${c.pds > 0 ? `<div style="display:flex; justify-content:space-between;"><span>📈 ПДС</span> <b>${fmt(c.pds)}</b></div>` : ''}
@@ -478,7 +478,7 @@
                             <div class="label">Свободный поток</div><div class="val pos">${hideV(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openCapitalDetails()">
-                            <div class="label">Капитал</div><div class="val">${hideV(c.net)}</div>${getTrendHtml(c.net, prevCap, true)}
+                            <div class="label">Чистый капитал</div><div class="val">${hideV(c.net)}</div>${getTrendHtml(c.net, prevCap, true)}
                         </div>
                     </div>
                 </div>
