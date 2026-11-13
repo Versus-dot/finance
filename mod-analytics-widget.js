@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v10
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v11
 // ==========================================
 (function() {
-    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v10 загружен");
+    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v11 загружен");
 
     if (typeof S !== 'undefined' && S.ui) {
         if (S.ui.collapsedAnalytics === undefined) S.ui.collapsedAnalytics = true;
@@ -129,7 +129,7 @@
                     cushion += v;
                     assets += v;
                 } else if (S.settings.hedgingEnabled && a.hedgeFor) {
-                    // Хедж уже учтен в излишке/покрытии кредитки
+                    // Хедж уже учтен
                 } else {
                     if (a.type === 'pds') pds += v;
                     else if (['brokerage', 'iis', 'invest_kopilka'].includes(a.type)) investments += v;
@@ -271,6 +271,7 @@
         const invest = transfers.filter(t => (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'investment');
         renderSavedModal(savings, invest);
     };
+
     window.openAnalyticsInfo = function() {
         const dates = getPeriodDates(window._analyticsPeriod);
         const m = calcDataForRange(dates.start, dates.end);
@@ -456,7 +457,9 @@
 
         const isHideAn = S.ui.hideAnalyticsNumbers;
         const isHideDebt = S.ui.hideDebtsNumbers;
-        const hideV = (v) => isHideAn ? '***' : fmt(v);
+        
+        // ФИКС: проверяем глобальный глаз тоже
+        const hideV = (v) => (isHideAn || S.ui.globalHideBalances) ? '***' : fmt(v);
 
         const periodOpts = { day:'День', week:'Неделя', month:'Месяц', year:'Год', ytd:'С начала года', custom:'Период ⚙️' };
         let selectHtml = `<select onchange="window.setAnalyticsPeriod(this.value)" style="padding: 4px 8px; border-radius: 8px; font-size: 12px; background: var(--card); color: var(--text); border: 1px solid var(--border); outline: none;">`;
@@ -488,7 +491,7 @@
                             <div class="label">Отложено</div><div class="val pos">${hideV(m.saved)}</div>${getTrendHtml(m.saved, p.saved, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openAnalyticsInfo()">
-                            <div class="label">Норма сбережений</div><div class="val">${isHideAn ? '***' : m.rate.toFixed(0) + '%'}</div>${getTrendHtml(m.rate, p.rate, true)}
+                            <div class="label">Норма сбережений</div><div class="val">${(isHideAn || S.ui.globalHideBalances) ? '***' : m.rate.toFixed(0) + '%'}</div>${getTrendHtml(m.rate, p.rate, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openAnalyticsList('passive')">
                             <div class="label">Свободный поток</div><div class="val pos">${hideV(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
@@ -513,11 +516,18 @@
                 </div>
                 <div class="fw-body ${S.ui.collapsedDebts ? '' : 'expanded'}">
                     <div style="margin-bottom: 12px;">
-                        <div style="font-size:13px; font-weight:700; color:var(--green); margin-bottom:4px;">🟢 Мне должны (${isHideDebt?'***':fmt(totalOwed)})</div>
+                        <!-- ФИКС: Выровняли сумму по правому краю и убрали из заголовка -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <div style="font-size:13px; font-weight:700; color:var(--green);">🟢 Мне должны</div>
+                            <div style="font-size:13px; font-weight:700; color:var(--green);">${(isHideDebt || S.ui.globalHideBalances) ? '***' : fmt(totalOwed)}</div>
+                        </div>
                         ${owedListHtml || '<div style="font-size:12px; color:var(--muted);">Нет</div>'}
                     </div>
                     <div>
-                        <div style="font-size:13px; font-weight:700; color:var(--red); margin-bottom:4px;">🔴 Я должен (${isHideDebt?'***':fmt(totalOwe)})</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <div style="font-size:13px; font-weight:700; color:var(--red);">🔴 Я должен</div>
+                            <div style="font-size:13px; font-weight:700; color:var(--red);">${(isHideDebt || S.ui.globalHideBalances) ? '***' : fmt(totalOwe)}</div>
+                        </div>
                         ${oweListHtml || '<div style="font-size:12px; color:var(--muted);">Нет</div>'}
                     </div>
                 </div>
