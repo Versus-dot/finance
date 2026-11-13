@@ -1,23 +1,33 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v1
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v2
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v1 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v2 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
     window._statsEnd = window._statsEnd || null;
-    window._statsCollapsed = window._statsCollapsed !== undefined ? window._statsCollapsed : false;
+    
+    // Состояния для сворачивания блоков
+    if (!window._statsUI) {
+        window._statsUI = {
+            topBlock: false,
+            chartBar: false,
+            chartCapital: false,
+            snapshots: false,
+            budgets: false
+        };
+    }
 
     let chartBarInstance = null;
     let chartCapitalInstance = null;
 
-    window.toggleStatsTopBlock = function() {
-        window._statsCollapsed = !window._statsCollapsed;
-        const body = document.getElementById('statsTopBlockBody');
-        const icon = document.getElementById('statsTopBlockIcon');
-        if (body) body.style.display = window._statsCollapsed ? 'none' : 'block';
-        if (icon) icon.textContent = window._statsCollapsed ? '▶' : '▼';
+    window.toggleStatsBlock = function(blockId) {
+        window._statsUI[blockId] = !window._statsUI[blockId];
+        const body = document.getElementById(`stats-body-${blockId}`);
+        const icon = document.getElementById(`stats-icon-${blockId}`);
+        if (body) body.style.display = window._statsUI[blockId] ? 'none' : 'block';
+        if (icon) icon.textContent = window._statsUI[blockId] ? '▶' : '▼';
     };
 
     window.setStatsPeriod = function(val) {
@@ -97,7 +107,7 @@
     // ==========================================
     // КОНЕЦ ЧАСТИ 1. СДЕЛАЙ ENTER И ВСТАВЬ ЧАСТЬ 2.
     // ==========================================
-    window.renderStats = function() {
+     window.renderStats = function() {
         const el = document.getElementById('page-stats');
         if (!el) return;
 
@@ -105,14 +115,14 @@
         const m = calcStatsData(dates.start, dates.end);
 
         const periodOpts = { day:'День', week:'Неделя', month:'Месяц', year:'Год', ytd:'С начала года', custom:'Период ⚙️' };
-        let selectHtml = `<select onchange="window.setStatsPeriod(this.value)" style="padding: 6px 12px; border-radius: 12px; font-size: 13px; background: var(--card2); color: var(--text); border: 1px solid var(--border); outline: none; font-weight:600;">`;
+        let selectHtml = `<select onchange="window.setStatsPeriod(this.value)" onclick="event.stopPropagation()" style="padding: 6px 12px; border-radius: 12px; font-size: 13px; background: var(--card); color: var(--text); border: 1px solid var(--border); outline: none; font-weight:600; cursor:pointer;">`;
         Object.keys(periodOpts).forEach(k => {
             selectHtml += `<option value="${k}" ${window._statsPeriod === k ? 'selected' : ''}>${periodOpts[k]}</option>`;
         });
         selectHtml += `</select>`;
 
         let snapHTML = '';
-        if (S.snapshots.length) {
+        if (S.snapshots && S.snapshots.length) {
             snapHTML = `<table style="width:100%;font-size:13px;text-align:left;border-collapse:collapse;">
                 <tr style="border-bottom:1px solid var(--border)"><th>Дата</th><th>Капитал</th></tr>
                 ${S.snapshots.slice(-6).reverse().map(s=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">${s.date}</td><td>${fmt(s.total)}</td></tr>`).join('')}
@@ -142,20 +152,18 @@
         }
 
         el.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <div style="font-weight:700; font-size:16px;">Обзор</div>
-                ${selectHtml}
-            </div>
-            
             <div id="donutChartContainer" class="card" style="margin-bottom:16px;"></div>
             
             <div class="fullwidth-widget" style="margin-bottom:16px;">
-                <div class="fw-header" onclick="window.toggleStatsTopBlock()">
+                <div class="fw-header" onclick="window.toggleStatsBlock('topBlock')">
                     <div class="fw-header-left">
-                        <span id="statsTopBlockIcon">${window._statsCollapsed ? '▶' : '▼'}</span> Итог за период
+                        <span id="stats-icon-topBlock">${window._statsUI.topBlock ? '▶' : '▼'}</span> Итог за период
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;" onclick="event.stopPropagation();">
+                        ${selectHtml}
                     </div>
                 </div>
-                <div class="fw-body" id="statsTopBlockBody" style="display: ${window._statsCollapsed ? 'none' : 'block'};">
+                <div class="fw-body" id="stats-body-topBlock" style="display: ${window._statsUI.topBlock ? 'none' : 'block'};">
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                         <div class="analytic-item">
                             <div class="label">Доходы</div><div class="val pos">${fmt(m.inc)}</div>
@@ -179,27 +187,49 @@
                 </div>
             </div>
 
-            <div class="card" style="margin-bottom:16px;">
-                <div style="font-weight:700; margin-bottom:8px;">Доходы / Расходы (12 мес)</div>
-                <div class="chart-container"><canvas id="chartBarNew"></canvas></div>
-            </div>
-
-            <div class="card" style="margin-bottom:16px;">
-                <div style="font-weight:700; margin-bottom:8px;">Динамика капитала</div>
-                <div class="chart-container"><canvas id="chartCapitalNew"></canvas></div>
-            </div>
-
-            <div class="card" style="margin-bottom:16px;">
-                <div style="font-weight:700; margin-bottom:8px;">Отчёт (снимки)</div>
-                ${snapHTML}
-            </div>
-
-            <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                    <strong>Бюджеты</strong>
-                    <button class="btn-small btn-secondary" onclick="openBudgetModal()">+</button>
+            <div class="fullwidth-widget" style="margin-bottom:16px;">
+                <div class="fw-header" onclick="window.toggleStatsBlock('chartBar')">
+                    <div class="fw-header-left">
+                        <span id="stats-icon-chartBar">${window._statsUI.chartBar ? '▶' : '▼'}</span> Доходы / Расходы (12 мес)
+                    </div>
                 </div>
-                ${budgetHTML}
+                <div class="fw-body" id="stats-body-chartBar" style="display: ${window._statsUI.chartBar ? 'none' : 'block'}; padding-top:8px;">
+                    <div class="chart-container"><canvas id="chartBarNew"></canvas></div>
+                </div>
+            </div>
+
+            <div class="fullwidth-widget" style="margin-bottom:16px;">
+                <div class="fw-header" onclick="window.toggleStatsBlock('chartCapital')">
+                    <div class="fw-header-left">
+                        <span id="stats-icon-chartCapital">${window._statsUI.chartCapital ? '▶' : '▼'}</span> Динамика капитала
+                    </div>
+                </div>
+                <div class="fw-body" id="stats-body-chartCapital" style="display: ${window._statsUI.chartCapital ? 'none' : 'block'}; padding-top:8px;">
+                    <div class="chart-container"><canvas id="chartCapitalNew"></canvas></div>
+                </div>
+            </div>
+
+            <div class="fullwidth-widget" style="margin-bottom:16px;">
+                <div class="fw-header" onclick="window.toggleStatsBlock('snapshots')">
+                    <div class="fw-header-left">
+                        <span id="stats-icon-snapshots">${window._statsUI.snapshots ? '▶' : '▼'}</span> Отчёт (снимки)
+                    </div>
+                </div>
+                <div class="fw-body" id="stats-body-snapshots" style="display: ${window._statsUI.snapshots ? 'none' : 'block'};">
+                    ${snapHTML}
+                </div>
+            </div>
+
+            <div class="fullwidth-widget" style="margin-bottom:16px;">
+                <div class="fw-header" onclick="window.toggleStatsBlock('budgets')">
+                    <div class="fw-header-left">
+                        <span id="stats-icon-budgets">${window._statsUI.budgets ? '▶' : '▼'}</span> Бюджеты
+                    </div>
+                    <button class="btn-small btn-secondary" onclick="event.stopPropagation(); openBudgetModal()">+</button>
+                </div>
+                <div class="fw-body" id="stats-body-budgets" style="display: ${window._statsUI.budgets ? 'none' : 'block'};">
+                    ${budgetHTML}
+                </div>
             </div>
         `;
 
