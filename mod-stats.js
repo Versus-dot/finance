@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v4
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v5
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v4 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v5 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -25,7 +25,7 @@
     let chartRateInstance = null;
     let chartCapitalInstance = null;
 
-    // Функция генерации оттенков (как в mod-chart.js)
+    // Функция генерации оттенков
     function hexToHsl(H) {
         let r = 0, g = 0, b = 0;
         if (H.length == 7) { r = parseInt(H.substring(1, 3), 16); g = parseInt(H.substring(3, 5), 16); b = parseInt(H.substring(5, 7), 16); }
@@ -146,7 +146,6 @@
         return { inc, exp, sav, inv, passive, rate: inc > 0 ? ((sav + inv) / inc * 100) : 0 };
     }
 
-    // Собираем данные по годам
     function getYearlyMonthlyData(year, type) {
         const data = new Array(12).fill(0);
         S.transactions.forEach(t => {
@@ -160,15 +159,9 @@
                     const c = getCat(t.categoryId);
                     if (c && c.passive) data[monthIdx] += t.amount;
                 }
-                if (type === 'rate') {
-                    let inc = 0, sav = 0, inv = 0;
-                    // Считаем rate для конкретного месяца
-                    // (Внутри цикла это неэффективно, но для простоты пойдет, потом оптимизируем)
-                }
             }
         });
         
-        // Для rate считаем отдельно, так как нужен и доход и переводы
         if (type === 'rate') {
             for(let i=0; i<12; i++) {
                 let inc = 0, sav = 0, inv = 0;
@@ -260,7 +253,7 @@
             <div class="fullwidth-widget" style="margin-bottom:16px;">
                 <div class="fw-header" onclick="window.toggleStatsBlock('chartBar')">
                     <div class="fw-header-left">
-                        <span id="stats-icon-chartBar">${window._statsUI.chartBar ? '▶' : '▼'}</span> Доходы / Расходы (3 года)
+                        <span id="stats-icon-chartBar">${window._statsUI.chartBar ? '▶' : '▼'}</span> Доходы / Расходы
                     </div>
                 </div>
                 <div class="fw-body" id="stats-body-chartBar" style="display: ${window._statsUI.chartBar ? 'none' : 'block'}; padding-top:8px;">
@@ -271,7 +264,7 @@
             <div class="fullwidth-widget" style="margin-bottom:16px;">
                 <div class="fw-header" onclick="window.toggleStatsBlock('chartPassive')">
                     <div class="fw-header-left">
-                        <span id="stats-icon-chartPassive">${window._statsUI.chartPassive ? '▶' : '▼'}</span> Пассивный доход (3 года)
+                        <span id="stats-icon-chartPassive">${window._statsUI.chartPassive ? '▶' : '▼'}</span> Пассивный доход
                     </div>
                 </div>
                 <div class="fw-body" id="stats-body-chartPassive" style="display: ${window._statsUI.chartPassive ? 'none' : 'block'}; padding-top:8px;">
@@ -282,7 +275,7 @@
             <div class="fullwidth-widget" style="margin-bottom:16px;">
                 <div class="fw-header" onclick="window.toggleStatsBlock('chartRate')">
                     <div class="fw-header-left">
-                        <span id="stats-icon-chartRate">${window._statsUI.chartRate ? '▶' : '▼'}</span> Норма сбережений (3 года)
+                        <span id="stats-icon-chartRate">${window._statsUI.chartRate ? '▶' : '▼'}</span> Норма сбережений
                     </div>
                 </div>
                 <div class="fw-body" id="stats-body-chartRate" style="display: ${window._statsUI.chartRate ? 'none' : 'block'}; padding-top:8px;">
@@ -328,14 +321,25 @@
         // Рисуем графики
         setTimeout(() => {
             const curYear = new Date().getFullYear();
-            const years = [curYear, curYear - 1, curYear - 2]; // 3 года
+            // Меняем порядок лет с 2026-2025-2024 на 2024-2025-2026
+            const years = [curYear - 2, curYear - 1, curYear]; 
             const labels = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
             const commonOptions = { 
                 responsive: true, 
                 maintainAspectRatio: false, 
                 plugins: { 
-                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, usePointStyle: true, padding: 10 } } 
+                    legend: { 
+                        position: 'bottom', 
+                        labels: { 
+                            usePointStyle: true, // Использовать стиль точек
+                            pointStyle: 'rectRounded', // Квадратики со скругленными углами
+                            boxWidth: 8, // Узкие
+                            boxHeight: 8, // Низкие
+                            padding: 15,
+                            font: { size: 11 } 
+                        } 
+                    } 
                 }, 
                 scales: { 
                     y: { beginAtZero: true, ticks: { font: { size: 10 } } }, 
@@ -348,27 +352,27 @@
             // 1. Доходы / Расходы
             if (chartBarInstance) chartBarInstance.destroy();
             if (document.getElementById('chartBarNew')) {
-                const incColors = generateShades('#10B981', 3);
-                const expColors = generateShades('#EF4444', 3);
+                // generateShades выдаст: [светлый, средний, темный]. 
+                // Так как years = [2024, 2025, 2026], то 2024 будет светлым, а 2026 темным (базовым).
+                const incColors = generateShades('#10B981', 3).reverse();
+                const expColors = generateShades('#EF4444', 3).reverse();
                 const datasets = [];
                 
-                // Сначала доходы по годам
                 years.forEach((y, i) => {
                     datasets.push({
                         label: `Доходы ${y}`,
                         data: getYearlyMonthlyData(y, 'income'),
                         backgroundColor: incColors[i],
-                        maxBarThickness: 12,
+                        maxBarThickness: 10,
                         borderRadius: 2
                     });
                 });
-                // Потом расходы по годам
                 years.forEach((y, i) => {
                     datasets.push({
                         label: `Расходы ${y}`,
                         data: getYearlyMonthlyData(y, 'expense'),
                         backgroundColor: expColors[i],
-                        maxBarThickness: 12,
+                        maxBarThickness: 10,
                         borderRadius: 2
                     });
                 });
@@ -383,12 +387,12 @@
             // 2. Пассивный доход
             if (chartPassiveInstance) chartPassiveInstance.destroy();
             if (document.getElementById('chartPassiveNew')) {
-                const passiveColors = generateShades('#8B5CF6', 3);
+                const passiveColors = generateShades('#8B5CF6', 3).reverse();
                 const datasets = years.map((y, i) => ({
                     label: `${y}`,
                     data: getYearlyMonthlyData(y, 'passive'),
                     backgroundColor: passiveColors[i],
-                    maxBarThickness: 16,
+                    maxBarThickness: 14,
                     borderRadius: 2
                 }));
 
@@ -402,12 +406,12 @@
             // 3. Норма сбережений
             if (chartRateInstance) chartRateInstance.destroy();
             if (document.getElementById('chartRateNew')) {
-                const rateColors = generateShades('#4d7fff', 3);
+                const rateColors = generateShades('#4d7fff', 3).reverse();
                 const datasets = years.map((y, i) => ({
                     label: `${y}`,
                     data: getYearlyMonthlyData(y, 'rate'),
                     backgroundColor: rateColors[i],
-                    maxBarThickness: 16,
+                    maxBarThickness: 14,
                     borderRadius: 2
                 }));
 
@@ -424,7 +428,7 @@
                 });
             }
 
-            // 4. Динамика капитала (остается линией)
+            // 4. Динамика капитала
             if (chartCapitalInstance) chartCapitalInstance.destroy();
             if (document.getElementById('chartCapitalNew')) {
                 const snapLabels = S.snapshots.map(s => s.date);
