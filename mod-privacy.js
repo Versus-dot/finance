@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ ПРИВАТНОСТИ (Скрытие балансов) - mod-privacy.js
+// МОДУЛЬ ПРИВАТНОСТИ (Скрытие балансов) - mod-privacy.js v216
 // ==========================================
 (function() {
-    console.log("✅ Модуль приватности (mod-privacy.js) загружен (v215)");
+    console.log("✅ Модуль приватности (mod-privacy.js) v216 загружен");
 
     if (typeof S !== 'undefined' && S.ui) {
         if (S.ui.globalHideBalances === undefined) S.ui.globalHideBalances = false;
@@ -23,7 +23,7 @@
         S.ui.globalHideBalances = !S.ui.globalHideBalances;
         save();
         renderAll();
-        if (window.renderStats) window.renderStats(); // Обновляем диаграмму
+        if (window.renderStats) window.renderStats(); 
     };
 
     window.toggleBankPrivacy = function(bankId) {
@@ -149,14 +149,19 @@
         });
     };
 
-    // НОВОЕ: Перехват вкладки "Счета" для скрытия общих сумм банков
+    // ИСПРАВЛЕНО: Теперь проверяет скрытие конкретных банков на вкладке "Счета"
     const prevRenderAccounts = window.renderAccounts;
     window.renderAccounts = function() {
         if (prevRenderAccounts) prevRenderAccounts();
 
-        if (S.ui.globalHideBalances) {
-            document.querySelectorAll('.bank-total').forEach(el => el.innerHTML = HIDDEN_BALANCE);
-        }
+        document.querySelectorAll('.bank-section').forEach(section => {
+            const bankId = section.dataset.bankId;
+            const isHidden = S.ui.globalHideBalances || S.ui.hiddenBanks.includes(bankId);
+            if (isHidden) {
+                const totalEl = section.querySelector('.bank-total');
+                if (totalEl) totalEl.innerHTML = HIDDEN_BALANCE;
+            }
+        });
     };
 
 })();
