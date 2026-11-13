@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v124
+// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v125
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v124)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v125)");
 
     let myChart = null;
 
@@ -81,7 +81,7 @@
         container.className = 'card';
         container.style.marginBottom = '16px';
         container.innerHTML = `
-            <div style="font-weight:700; margin-bottom:12px; font-size:16px;">Структура капитала</div>
+            <div style="font-weight:700; margin-bottom:12px; font-size:16px;">Структура чистого капитала</div>
             <div style="position:relative; height:220px; width:100%;">
                 <canvas id="capitalDonutChart"></canvas>
             </div>
@@ -138,7 +138,7 @@
             savings: { label: '🏦 Вклады', value: 0, color: '#F59E0B', accounts: [] },
             crypto: { label: '🪙 Крипта', value: 0, color: '#FF9F43', accounts: [] },
             cash: { label: '💵 Наличные', value: 0, color: '#64748B', accounts: [] },
-            debts: { label: '🔴 Долги', value: 0, color: '#EF4444', accounts: [] } // НОВЫЙ СЕКТОР
+            debts: { label: '🔴 Долги', value: 0, color: '#EF4444', accounts: [] }
         };
 
         S.accounts.forEach(a => {
@@ -150,7 +150,6 @@
                 const limit = a.creditLimit || 0;
                 let debt = Math.max(0, limit - val);
                 
-                // Учитываем хеджи (покрытие долга)
                 let covered = 0;
                 if (S.settings.hedgingEnabled) {
                     S.accounts.filter(h => h.hedgeFor === a.id && !h.archived).forEach(h => {
@@ -164,7 +163,6 @@
                     sectors.debts.accounts.push({ ...a, _chartContribution: unhedgedDebt });
                 }
                 
-                // Если есть переплата (свои деньги), добавляем в наличные
                 if (val > limit) {
                     const overpay = val - limit;
                     sectors.cash.value += overpay;
@@ -173,7 +171,7 @@
                 return; 
             }
 
-            if (a.hedgeFor) return; // Обычные хеджи не добавляем в активы
+            if (a.hedgeFor) return; 
 
             let contribution = val;
 
