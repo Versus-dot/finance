@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v130
+// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v131
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v130)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v131)");
 
     let myChart = null;
     window._chartDrillDown = null;
@@ -45,18 +45,7 @@
         return shades;
     }
 
-    // Очистка старых снимков (одноразово)
-    setTimeout(() => {
-        if (typeof S !== 'undefined' && S.settings && !S.settings.snapshotsMigrated) {
-            S.snapshots = [];
-            S.settings.snapshotsMigrated = true;
-            const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
-            S.snapshots.push({ date: today(), total: c.net });
-            if (typeof save === 'function') save(false);
-            if (typeof window.renderStats === 'function') window.renderStats();
-        }
-    }, 1000);
-
+    // Перехват создания снимков (сохраняем структуру)
     const originalMaybeSnapshot = window.maybeSnapshot;
     window.maybeSnapshot = function() {
         if (typeof S === 'undefined') return;
@@ -75,8 +64,19 @@
         const dateStr = today();
         if (S.snapshots.some(s => s.date === dateStr)) return;
         
-        const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
-        S.snapshots.push({ date: dateStr, total: c.net });
+        const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0, cushion:0, pds:0, investments:0, savings:0, crypto:0, debt:0 };
+        S.snapshots.push({ 
+            date: dateStr, 
+            total: c.net,
+            breakdown: {
+                cushion: c.cushion,
+                pds: c.pds,
+                stocks: c.investments,
+                savings: c.savings,
+                crypto: c.crypto,
+                debt: c.debt
+            }
+        });
         if (typeof save === 'function') save(false);
     };
 
