@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ ПОДУШКИ БЕЗОПАСНОСТИ (mod-cushion.js) v2
+// МОДУЛЬ ПОДУШКИ БЕЗОПАСНОСТИ (mod-cushion.js) v3
 // ==========================================
 (function() {
-    console.log("✅ Модуль Подушки безопасности (mod-cushion.js) v2 загружен");
+    console.log("✅ Модуль Подушки безопасности (mod-cushion.js) v3 загружен");
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
@@ -182,6 +182,17 @@
         if (typeof renderDashboard === 'function') renderDashboard();
     };
 
+    window.saveCushionTarget = function() {
+        const input = document.getElementById('cushionTargetInput');
+        if (input) {
+            S.settings.cushionTarget = parseFloat(input.value) || 0;
+            if (typeof save === 'function') save();
+        }
+        closeModal();
+        if (typeof renderDashboard === 'function') renderDashboard();
+        toast('Цель обновлена');
+    };
+
     window.openCushionDetails = function() {
         const cushionAccounts = S.accounts.filter(a => a.inCushion && !a.archived);
         
@@ -212,7 +223,7 @@
             `;
         });
 
-        // ИСПРАВЛЕНО: Убрали closeModal(), чтобы не было конфликта с history.back()
+        // Встраиваем поле ввода цели прямо в модалку
         window.openModal(`
             <div class="modal-header">
                 <h2>🛡️ Подушка безопасности</h2>
@@ -221,33 +232,19 @@
             <div style="font-size: 24px; font-weight: 800; color: var(--green); margin-bottom: 16px;">
                 ${fmt(total)}
             </div>
-            <div style="max-height: 300px; overflow-y: auto;">
+            <div style="max-height: 250px; overflow-y: auto;">
                 ${listHtml}
             </div>
-            <button class="btn-secondary btn-block" style="margin-top: 16px;" onclick="openSettings();">Настроить цель</button>
+            
+            <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label>Цель подушки безопасности (₽)</label>
+                    <input id="cushionTargetInput" type="number" value="${S.settings.cushionTarget || ''}" placeholder="Например, 500000" style="margin-bottom: 8px;">
+                </div>
+                <button class="btn-primary btn-block" onclick="window.saveCushionTarget()">Сохранить цель</button>
+            </div>
         `);
     };
 
-    const prevOpenSettings = window.openSettings;
-    window.openSettings = function() {
-        if (prevOpenSettings) prevOpenSettings();
-        
-        const titleInput = document.getElementById('setTitle');
-        if (titleInput && !document.getElementById('setCushionTarget')) {
-            const targetDiv = document.createElement('div');
-            targetDiv.className = 'form-group';
-            targetDiv.innerHTML = `<label>Цель подушки безопасности (₽)</label><input id="setCushionTarget" type="number" value="${S.settings.cushionTarget || ''}" placeholder="Например, 500000">`;
-            titleInput.closest('.form-group').after(targetDiv);
-        }
-    };
-
-    const prevSaveSettings = window.saveSettings;
-    window.saveSettings = function() {
-        const targetVal = document.getElementById('setCushionTarget');
-        if (targetVal) {
-            S.settings.cushionTarget = parseFloat(targetVal.value) || 0;
-        }
-        if (prevSaveSettings) prevSaveSettings();
-        setTimeout(injectCushionWidget, 100);
-    };
+    // Убрали переопределение openSettings и saveSettings, так как цель теперь внутри подушки
 })();
