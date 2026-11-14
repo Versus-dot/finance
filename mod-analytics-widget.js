@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v11
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v12
 // ==========================================
 (function() {
-    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v11 загружен");
+    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v12 загружен");
 
     if (typeof S !== 'undefined' && S.ui) {
         if (S.ui.collapsedAnalytics === undefined) S.ui.collapsedAnalytics = true;
@@ -210,10 +210,14 @@
         if (previous === 0 && current > 0) return `<div class="trend ${isGoodWhenUp ? 'up-good' : 'up-bad'}">↑ Новое</div>`;
         const delta = ((current - previous) / previous) * 100;
         const isUp = delta > 0;
-        const absDelta = Math.abs(delta).toFixed(0);
-        if (Math.abs(delta) < 0.1) return `<div class="trend neutral">— 0%</div>`;
+        
+        // ФИКС: Показываем десятые доли, если изменение маленькое
+        let absDelta = Math.abs(delta);
+        let absStr = absDelta < 1 && absDelta > 0 ? absDelta.toFixed(1) : Math.round(absDelta);
+
+        if (Math.abs(delta) < 0.01) return `<div class="trend neutral">— 0%</div>`;
         let colorClass = (isUp && isGoodWhenUp) ? 'up-good' : (!isUp && !isGoodWhenUp) ? 'down-good' : (isUp && !isGoodWhenUp) ? 'up-bad' : 'down-bad';
-        return `<div class="trend ${colorClass}">${isUp ? '↑' : '↓'} ${absDelta}%</div>`;
+        return `<div class="trend ${colorClass}">${isUp ? '↑' : '↓'} ${absStr}%</div>`;
     }
 
     window.setAnalyticsPeriod = function(val) {
@@ -297,10 +301,16 @@
         
         let prevCap = c.net;
         if (S.snapshots && S.snapshots.length > 0) {
-            const pastSnapshots = S.snapshots.filter(s => new Date(s.date).getTime() <= dates.start.getTime());
+            const pStart = new Date(dates.start);
+            pStart.setDate(pStart.getDate() - 1);
+            const pStartStr = pStart.toISOString().slice(0,10);
+
+            const pastSnapshots = S.snapshots.filter(s => s.date <= pStartStr).sort((a,b) => b.date.localeCompare(a.date));
             if (pastSnapshots.length > 0) {
-                pastSnapshots.sort((a,b) => new Date(b.date) - new Date(a.date));
                 prevCap = pastSnapshots[0].total;
+            } else {
+                const earliest = [...S.snapshots].sort((a,b) => a.date.localeCompare(b.date))[0];
+                if (earliest) prevCap = earliest.total;
             }
         }
 
@@ -448,17 +458,22 @@
 
         let prevCap = c.net;
         if (S.snapshots && S.snapshots.length > 0) {
-            const pastSnapshots = S.snapshots.filter(s => new Date(s.date).getTime() <= dCurrent.start.getTime());
+            const pStart = new Date(dCurrent.start);
+            pStart.setDate(pStart.getDate() - 1);
+            const pStartStr = pStart.toISOString().slice(0,10);
+
+            const pastSnapshots = S.snapshots.filter(s => s.date <= pStartStr).sort((a,b) => b.date.localeCompare(a.date));
             if (pastSnapshots.length > 0) {
-                pastSnapshots.sort((a,b) => new Date(b.date) - new Date(a.date));
                 prevCap = pastSnapshots[0].total;
+            } else {
+                const earliest = [...S.snapshots].sort((a,b) => a.date.localeCompare(b.date))[0];
+                if (earliest) prevCap = earliest.total;
             }
         }
 
         const isHideAn = S.ui.hideAnalyticsNumbers;
         const isHideDebt = S.ui.hideDebtsNumbers;
         
-        // ФИКС: проверяем глобальный глаз тоже
         const hideV = (v) => (isHideAn || S.ui.globalHideBalances) ? '***' : fmt(v);
 
         const periodOpts = { day:'День', week:'Неделя', month:'Месяц', year:'Год', ytd:'С начала года', custom:'Период ⚙️' };
@@ -516,7 +531,6 @@
                 </div>
                 <div class="fw-body ${S.ui.collapsedDebts ? '' : 'expanded'}">
                     <div style="margin-bottom: 12px;">
-                        <!-- ФИКС: Выровняли сумму по правому краю и убрали из заголовка -->
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <div style="font-size:13px; font-weight:700; color:var(--green);">🟢 Мне должны</div>
                             <div style="font-size:13px; font-weight:700; color:var(--green);">${(isHideDebt || S.ui.globalHideBalances) ? '***' : fmt(totalOwed)}</div>
