@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v10
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v11
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v10 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v11 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -39,12 +39,18 @@
         debt: '#DC2626'
     };
 
+    const formatPercent = (val) => {
+        let absVal = Math.abs(val);
+        let str = absVal.toFixed(2);
+        str = parseFloat(str).toString();
+        return str + '%';
+    };
+
     window.deleteSnapshot = function(date) {
         if (!confirm(`Удалить снимок за ${date}?\nОн будет пересчитан автоматически.`)) return;
         S.snapshots = S.snapshots.filter(s => s.date !== date);
         if (typeof save === 'function') save();
         
-        // Если удалили сегодняшний, принудительно создаем новый
         if (date === today()) {
             setTimeout(() => {
                 const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
@@ -188,10 +194,10 @@
         if (previous === 0 && current > 0) return `<div class="trend ${isGoodWhenUp ? 'up-good' : 'up-bad'}">↑ Новое</div>`;
         const delta = ((current - previous) / previous) * 100;
         const isUp = delta > 0;
-        const absDelta = Math.abs(delta).toFixed(0);
-        if (Math.abs(delta) < 0.1) return `<div class="trend neutral">— 0%</div>`;
+        
+        if (Math.abs(delta) < 0.01) return `<div class="trend neutral">— 0%</div>`;
         let colorClass = (isUp && isGoodWhenUp) ? 'up-good' : (!isUp && !isGoodWhenUp) ? 'down-good' : (isUp && !isGoodWhenUp) ? 'up-bad' : 'down-bad';
-        return `<div class="trend ${colorClass}">${isUp ? '↑' : '↓'} ${absDelta}%</div>`;
+        return `<div class="trend ${colorClass}">${isUp ? '↑' : '↓'} ${formatPercent(delta)}</div>`;
     }
 
     function generateTablePeriods() {
@@ -284,7 +290,7 @@
                     if (k === 'investment') inv += t.amount;
                 }
             });
-            total = inc > 0 ? Math.round((sav + inv) / inc * 100) : 0;
+            total = inc > 0 ? ((sav + inv) / inc * 100) : 0;
         } else if (['capital', 'cushion', 'pds', 'stocks', 'savings', 'debt'].includes(row)) {
             const currentMonthStr = today().slice(0, 7);
             
@@ -417,8 +423,7 @@
             periods.forEach(p => {
                 const monthsArr = p.months ? p.months : [p.dateStr];
                 let val = calcTableRow(row.key, monthsArr);
-                let display = val === 0 ? '-' : fmt(val);
-                if (row.suffix) display = val + row.suffix;
+                let display = val === 0 ? '-' : (row.suffix ? formatPercent(val) : fmt(val));
                 if (row.key === 'capital' && val === 0) display = '-';
                 tableHtml += `<td style="padding:10px;">${display}</td>`;
             });
@@ -456,7 +461,7 @@
                             <div class="label">Свободный поток</div><div class="val pos">${fmt(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
                         </div>
                         <div class="analytic-item">
-                            <div class="label">Норма сбережений</div><div class="val">${m.rate.toFixed(0)}%</div>${getTrendHtml(m.rate, p.rate, true)}
+                            <div class="label">Норма сбережений</div><div class="val">${formatPercent(m.rate)}</div>${getTrendHtml(m.rate, p.rate, true)}
                         </div>
                     </div>
                 </div>
@@ -597,7 +602,7 @@
                         callbacks: {
                             label: function(ctx) {
                                 const val = ctx.parsed.y;
-                                if (ctx.dataset.yAxisID === 'y1') return ctx.dataset.label + ': ' + val + '%';
+                                if (ctx.dataset.yAxisID === 'y1') return ctx.dataset.label + ': ' + formatPercent(val);
                                 return ctx.dataset.label + ': ' + fmt(val);
                             }
                         }
