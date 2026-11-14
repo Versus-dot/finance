@@ -1,15 +1,15 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v9
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v10
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v9 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v10 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
     window._statsEnd = window._statsEnd || null;
-    window._statsTableGroup = window._statsTableGroup || 'month'; // month, quarter, year
-    window._statsTablePeriod = window._statsTablePeriod || '1y'; // all, 1y, 5y, ytd
-    window._statsSelectedRows = window._statsSelectedRows || []; // Массив ключей выбранных строк
+    window._statsTableGroup = window._statsTableGroup || 'month';
+    window._statsTablePeriod = window._statsTablePeriod || '1y';
+    window._statsSelectedRows = window._statsSelectedRows || [];
     
     if (!window._statsUI) {
         window._statsUI = {
@@ -39,43 +39,36 @@
         debt: '#DC2626'
     };
 
-    function hexToHsl(H) {
-        let r = 0, g = 0, b = 0;
-        if (H.length == 7) { r = parseInt(H.substring(1, 3), 16); g = parseInt(H.substring(3, 5), 16); b = parseInt(H.substring(5, 7), 16); }
-        else if (H.length == 4) { r = parseInt("0" + H[1] + H[1], 16); g = parseInt("0" + H[2] + H[2], 16); b = parseInt("0" + H[3] + H[3], 16); }
-        r /= 255; g /= 255; b /= 255;
-        let cmin = Math.min(r, g, b), cmax = Math.max(r, g, b), delta = cmax - cmin, h = 0, s = 0, l = 0;
-        if (delta == 0) h = 0;
-        else if (cmax == r) h = ((g - b) / delta) % 6;
-        else if (cmax == g) h = (b - r) / delta + 2;
-        else h = (r - g) / delta + 4;
-        h = Math.round(h * 60); if (h < 0) h += 360;
-        l = (cmax + cmin) / 2; s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
-        return { h, s: +(s * 100).toFixed(1), l: +(l * 100).toFixed(1) };
-    }
-    
-    function hslToHex(h, s, l) {
-        s /= 100; l /= 100;
-        const k = n => (n + h / 30) % 12;
-        const a = s * Math.min(l, 1 - l);
-        const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-        const toHex = x => { const hex = Math.round(x * 255).toString(16); return hex.length === 1 ? "0" + hex : hex; };
-        return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
-    }
-    
-    function generateShades(baseHex, count) {
-        if (count <= 1) return [baseHex];
-        const hsl = hexToHsl(baseHex);
-        const shades = [baseHex];
-        let step = 12; 
-        for (let i = 1; i < count; i++) {
-            let newL = hsl.l;
-            let offset = Math.ceil(i / 2) * step * (i % 2 === 1 ? 1 : -1);
-            newL = Math.max(25, Math.min(80, hsl.l + offset));
-            shades.push(hslToHex(hsl.h, hsl.s, newL));
+    window.deleteSnapshot = function(date) {
+        if (!confirm(`Удалить снимок за ${date}?\nОн будет пересчитан автоматически.`)) return;
+        S.snapshots = S.snapshots.filter(s => s.date !== date);
+        if (typeof save === 'function') save();
+        
+        // Если удалили сегодняшний, принудительно создаем новый
+        if (date === today()) {
+            setTimeout(() => {
+                const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
+                S.snapshots.push({ 
+                    date: today(), 
+                    total: c.net,
+                    breakdown: {
+                        cushion: c.cushion,
+                        pds: c.pds,
+                        stocks: c.investments,
+                        savings: c.savings,
+                        crypto: c.crypto,
+                        debt: c.debt
+                    }
+                });
+                if (typeof save === 'function') save();
+                if (typeof window.renderStats === 'function') window.renderStats();
+                toast('Снимок пересчитан');
+            }, 100);
+        } else {
+            window.renderStats();
+            toast('Снимок удален');
         }
-        return shades;
-    }
+    };
 
     window.toggleStatsBlock = function(blockId) {
         window._statsUI[blockId] = !window._statsUI[blockId];
@@ -236,7 +229,6 @@
             }
         }
 
-        // Группировка
         if (window._statsTableGroup === 'month') {
             return periods.map(p => ({
                 ...p, 
@@ -294,9 +286,8 @@
             });
             total = inc > 0 ? Math.round((sav + inv) / inc * 100) : 0;
         } else if (['capital', 'cushion', 'pds', 'stocks', 'savings', 'debt'].includes(row)) {
-            const currentMonthStr = today().slice(0, 7); // YYYY-MM
+            const currentMonthStr = today().slice(0, 7);
             
-            // ФИКС: Если период включает текущий месяц, ВСЕГДА считаем на лету
             if (monthsArray.includes(currentMonthStr)) {
                 const c = window.getCustomCapital ? window.getCustomCapital() : null;
                 if (c) {
@@ -308,7 +299,6 @@
                     if (row === 'debt') total = c.debt;
                 }
             } else {
-                // Для прошлых периодов берем из снимков
                 const snaps = S.snapshots.filter(s => isDateMatch(s.date));
                 if (snaps.length > 0) {
                     const latest = snaps[snaps.length - 1];
@@ -344,9 +334,20 @@
 
         let snapHTML = '';
         if (S.snapshots && S.snapshots.length) {
+            const currentMonthStr = today().slice(0, 7);
             snapHTML = `<table style="width:100%;font-size:13px;text-align:left;border-collapse:collapse;">
-                <tr style="border-bottom:1px solid var(--border)"><th>Дата</th><th>Капитал</th></tr>
-                ${S.snapshots.slice(-6).reverse().map(s=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">${s.date}</td><td>${fmt(s.total)}</td></tr>`).join('')}
+                <tr style="border-bottom:1px solid var(--border)"><th>Дата</th><th>Капитал</th><th style="width:40px; text-align:center;">Действие</th></tr>
+                ${S.snapshots.slice(-6).reverse().map(s=>{
+                    const isCurrentMonth = s.date.startsWith(currentMonthStr);
+                    const actionHtml = isCurrentMonth 
+                        ? `<button class="btn-icon" style="color:var(--red); padding:2px;" onclick="window.deleteSnapshot('${s.date}')" title="Удалить снимок">🗑</button>`
+                        : `<span style="color:var(--muted); padding:2px; cursor:not-allowed;" title="Архивный снимок защищен">🔒</span>`;
+                    return `<tr style="border-bottom:1px solid var(--border)">
+                        <td style="padding:6px 0">${s.date}</td>
+                        <td>${fmt(s.total)}</td>
+                        <td style="text-align:center;">${actionHtml}</td>
+                    </tr>`;
+                }).join('')}
             </table>`;
         } else {
             snapHTML = '<div class="empty">Нет снимков</div>';
@@ -372,7 +373,6 @@
             });
         }
 
-        // Генерируем таблицу
         const periods = generateTablePeriods();
         
         let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%;">
