@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ ПОДУШКИ БЕЗОПАСНОСТИ (mod-cushion.js) v3
+// МОДУЛЬ ПОДУШКИ БЕЗОПАСНОСТИ (mod-cushion.js) v4
 // ==========================================
 (function() {
-    console.log("✅ Модуль Подушки безопасности (mod-cushion.js) v3 загружен");
+    console.log("✅ Модуль Подушки безопасности (mod-cushion.js) v4 загружен");
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
@@ -193,6 +193,23 @@
         toast('Цель обновлена');
     };
 
+    window.openCushionGoalEdit = function() {
+        window.openModal(`
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button class="btn-icon" onclick="window.openCushionDetails()" title="Назад">⬅️</button>
+                    <h2>Изменить цель</h2>
+                </div>
+                <button class="btn-icon" onclick="closeModal()">✕</button>
+            </div>
+            <div class="form-group">
+                <label>Цель подушки безопасности (₽)</label>
+                <input id="cushionTargetInput" type="number" value="${S.settings.cushionTarget || ''}" placeholder="Например, 500000">
+            </div>
+            <button class="btn-primary btn-block" onclick="window.saveCushionTarget()">Сохранить</button>
+        `);
+    };
+
     window.openCushionDetails = function() {
         const cushionAccounts = S.accounts.filter(a => a.inCushion && !a.archived);
         
@@ -223,7 +240,6 @@
             `;
         });
 
-        // Встраиваем поле ввода цели прямо в модалку
         window.openModal(`
             <div class="modal-header">
                 <h2>🛡️ Подушка безопасности</h2>
@@ -236,15 +252,9 @@
                 ${listHtml}
             </div>
             
-            <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
-                <div class="form-group" style="margin-bottom: 8px;">
-                    <label>Цель подушки безопасности (₽)</label>
-                    <input id="cushionTargetInput" type="number" value="${S.settings.cushionTarget || ''}" placeholder="Например, 500000" style="margin-bottom: 8px;">
-                </div>
-                <button class="btn-primary btn-block" onclick="window.saveCushionTarget()">Сохранить цель</button>
+            <div style="margin-top: 20px; display:flex; flex-direction:column; gap:8px;">
+                <button class="btn-secondary btn-block" onclick="window.openCushionGoalEdit()">Изменить цель</button>
             </div>
         `);
     };
-
-    // Убрали переопределение openSettings и saveSettings, так как цель теперь внутри подушки
 })();
