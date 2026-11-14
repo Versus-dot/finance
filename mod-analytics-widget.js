@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v12
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v13
 // ==========================================
 (function() {
-    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v12 загружен");
+    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v13 загружен");
 
     if (typeof S !== 'undefined' && S.ui) {
         if (S.ui.collapsedAnalytics === undefined) S.ui.collapsedAnalytics = true;
@@ -84,6 +84,14 @@
         .eye-btn:hover { background: rgba(255,255,255,0.1); }
     `;
     document.head.appendChild(styleEl);
+
+    // Умное форматирование процентов
+    const formatPercent = (val) => {
+        let absVal = Math.abs(val);
+        let str = absVal.toFixed(2); // "100.10"
+        str = parseFloat(str).toString(); // "100.1"
+        return str + '%';
+    };
 
     window.getCustomCapital = function() {
         let assets = 0, debt = 0, coveredDebt = 0;
@@ -211,13 +219,9 @@
         const delta = ((current - previous) / previous) * 100;
         const isUp = delta > 0;
         
-        // ФИКС: Показываем десятые доли, если изменение маленькое
-        let absDelta = Math.abs(delta);
-        let absStr = absDelta < 1 && absDelta > 0 ? absDelta.toFixed(1) : Math.round(absDelta);
-
         if (Math.abs(delta) < 0.01) return `<div class="trend neutral">— 0%</div>`;
         let colorClass = (isUp && isGoodWhenUp) ? 'up-good' : (!isUp && !isGoodWhenUp) ? 'down-good' : (isUp && !isGoodWhenUp) ? 'up-bad' : 'down-bad';
-        return `<div class="trend ${colorClass}">${isUp ? '↑' : '↓'} ${absStr}%</div>`;
+        return `<div class="trend ${colorClass}">${isUp ? '↑' : '↓'} ${formatPercent(delta)}</div>`;
     }
 
     window.setAnalyticsPeriod = function(val) {
@@ -288,7 +292,7 @@
                     <div>Отложено: <b>${fmt(m.saved)}</b></div>
                     <hr style="border-color: var(--border); margin: 12px 0;">
                     <div>Формула: (${fmt(m.saved)} / ${fmt(m.inc)}) × 100%</div>
-                    <div style="font-size: 20px; font-weight: 800; color: var(--green); margin-top: 8px;">${m.rate.toFixed(0)}%</div>
+                    <div style="font-size: 20px; font-weight: 800; color: var(--green); margin-top: 8px;">${formatPercent(m.rate)}</div>
                 </div>
             </div>
             <button class="btn-primary btn-block" onclick="closeModal()">Понятно</button>
@@ -315,7 +319,7 @@
         }
 
         const delta = prevCap > 0 ? ((c.net - prevCap) / prevCap * 100) : 0;
-        const deltaHtml = prevCap > 0 ? `<span style="color:${delta>=0?'var(--green)':'var(--red)'}">${delta>=0?'↑':'↓'} ${Math.abs(delta).toFixed(1)}%</span>` : '—';
+        const deltaHtml = prevCap > 0 ? `<span style="color:${delta>=0?'var(--green)':'var(--red)'}">${delta>=0?'↑':'↓'} ${formatPercent(delta)}</span>` : '—';
 
         openModal(`
             <div class="modal-header"><h2>Структура чистого капитала</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
@@ -456,6 +460,24 @@
         const p = calcDataForRange(dPrev.start, dPrev.end);
         const c = getCustomCapital();
 
+        // Расчет YTD (Year-To-Date)
+        const currentYearStr = new Date().getFullYear().toString();
+        let startCap = 0;
+        if (S.snapshots && S.snapshots.length > 0) {
+            const yearSnaps = S.snapshots.filter(s => s.date.startsWith(currentYearStr)).sort((a,b) => a.date.localeCompare(b.date));
+            if (yearSnaps.length > 0) startCap = yearSnaps[0].total;
+        }
+        let ytdNetFlow = 0;
+        S.transactions.filter(t => t.date.startsWith(currentYearStr) && !t.ignoreInStats).forEach(t => {
+            if (t.type === 'income') ytdNetFlow += t.amount;
+            if (t.type === 'expense') ytdNetFlow -= t.amount;
+        });
+        let ytdReturn = 0;
+        if (startCap > 0) {
+            const profit = (c.net - startCap) - ytdNetFlow;
+            ytdReturn = (profit / startCap) * 100;
+        }
+
         let prevCap = c.net;
         if (S.snapshots && S.snapshots.length > 0) {
             const pStart = new Date(dCurrent.start);
@@ -506,13 +528,16 @@
                             <div class="label">Отложено</div><div class="val pos">${hideV(m.saved)}</div>${getTrendHtml(m.saved, p.saved, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openAnalyticsInfo()">
-                            <div class="label">Норма сбережений</div><div class="val">${(isHideAn || S.ui.globalHideBalances) ? '***' : m.rate.toFixed(0) + '%'}</div>${getTrendHtml(m.rate, p.rate, true)}
+                            <div class="label">Норма сбережений</div><div class="val">${(isHideAn || S.ui.globalHideBalances) ? '***' : formatPercent(m.rate)}</div>${getTrendHtml(m.rate, p.rate, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openAnalyticsList('passive')">
                             <div class="label">Свободный поток</div><div class="val pos">${hideV(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openCapitalDetails()">
-                            <div class="label">Чистый капитал</div><div class="val">${hideV(c.net)}</div>${getTrendHtml(c.net, prevCap, true)}
+                            <div class="label">Чистый капитал</div>
+                            <div class="val">${hideV(c.net)}</div>
+                            <div style="font-size:10px; color:var(--muted); margin-bottom:2px;">YTD: <span style="color:${ytdReturn>=0?'var(--green)':'var(--red)'}">${ytdReturn>=0?'+':'-'}${formatPercent(ytdReturn)}</span></div>
+                            ${getTrendHtml(c.net, prevCap, true)}
                         </div>
                     </div>
                 </div>
