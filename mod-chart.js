@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v131
+// МОДУЛЬ КРУГОВОЙ ДИАГРАММЫ КАПИТАЛА (mod-chart.js) v132
 // ==========================================
 (function() {
-    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v131)");
+    console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v132)");
 
     let myChart = null;
     window._chartDrillDown = null;
@@ -45,7 +45,31 @@
         return shades;
     }
 
-    // Перехват создания снимков (сохраняем структуру)
+    // ФИКС: Перезаписываем снимок за сегодня ПРАВИЛЬНОЙ суммой при старте
+    setTimeout(() => {
+        if (typeof S !== 'undefined' && S.snapshots) {
+            const dateStr = today();
+            const idx = S.snapshots.findIndex(s => s.date === dateStr);
+            if (idx > -1) S.snapshots.splice(idx, 1); // Удаляем старый неправильный
+            
+            const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
+            S.snapshots.push({ 
+                date: dateStr, 
+                total: c.net,
+                breakdown: {
+                    cushion: c.cushion,
+                    pds: c.pds,
+                    stocks: c.investments,
+                    savings: c.savings,
+                    crypto: c.crypto,
+                    debt: c.debt
+                }
+            });
+            if (typeof save === 'function') save(false);
+            if (typeof window.renderStats === 'function') window.renderStats();
+        }
+    }, 1000);
+
     const originalMaybeSnapshot = window.maybeSnapshot;
     window.maybeSnapshot = function() {
         if (typeof S === 'undefined') return;
