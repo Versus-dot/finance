@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js) v7
+// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js) v9
 // ==========================================
 (function() {
-    console.log("✅ Модуль уведомлений (mod-notifications.js) v7 загружен");
+    console.log("✅ Модуль уведомлений (mod-notifications.js) v9 загружен");
 
     if (typeof S !== 'undefined') {
         if (S.settings.graceYellowDays === undefined) S.settings.graceYellowDays = 7;
@@ -91,8 +91,11 @@
         openModal(html);
     };
 
+    // ФИКС: Сохраняем оригинальную функцию и вызываем её
+    const prevRenderMenu = window.renderMenuContent;
     window.renderMenuContent = function(level, type = '') {
         if (level === 'main') {
+            if (prevRenderMenu) prevRenderMenu(level, type);
             const content = document.getElementById('modalContent');
             if (content) {
                 const menuSection = content.querySelector('.menu-section');
@@ -130,6 +133,7 @@
             }
             return;
         }
+        if (prevRenderMenu) prevRenderMenu(level, type);
     };
 
     window.openGraceSettings = function() {
