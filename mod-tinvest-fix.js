@@ -1,21 +1,42 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v8
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v9
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v8 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v9 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
         return parseFloat(val.units || 0) + (parseFloat(val.nano || 0) / 1000000000);
     };
 
-    window.syncTInvest = async function() {
+    // Перехват пересчета балансов, чтобы игнорировать исторические операции
+    const originalRecalculateBalances = window.recalculateBalances;
+    window.recalculateBalances = function() {
+        S.accounts.forEach(a => a.balance = a.initialBalance || 0);
+        S.transactions.forEach(t => {
+            if (t.isHistory) return; // Пропускаем исторические операции
+            if (t.type === 'income') { const a = getAcc(t.accountId); if(a) a.balance += t.amount; }
+            else if (t.type === 'expense') { const a = getAcc(t.accountId); if(a) a.balance -= t.amount; }
+            else if (t.type === 'transfer') {
+                const f = getAcc(t.accountId); const to = getAcc(t.toAccountId);
+                if(f) f.balance -= t.amount; if(to) to.balance += t.amount;
+            } else if (t.type === 'debt') {
+                const a = getAcc(t.accountId);
+                if (a) {
+                    if(t.debtType === 'lent' || t.debtType === 'repaid') a.balance -= t.amount;
+                    else if(t.debtType === 'borrowed' || t.debtType === 'returned') a.balance += t.amount;
+                }
+            }
+        });
+    };
+
+    window.syncTInvest = async function(fetchAll = false) {
         const tokenInput = document.getElementById('secTInvestToken');
         const token = tokenInput ? tokenInput.value.trim() : (S.settings.tInvestToken || '');
         
         if (!token) { toast('Сначала вставьте токен в разделе Безопасность и нажмите Сохранить!'); return; }
         
-        toast('⏳ Запрашиваем счета из Т-Инвестиций...');
+        toast(`⏳ Запрашиваем счета (${fetchAll ? 'вся история' : 'за год'})...`);
         const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
         
         try {
@@ -49,11 +70,17 @@
                     createdCount++;
                 }
 
-                // 1. СИНХРОНИЗАЦИЯ ИСТОРИИ ОПЕРАЦИЙ
                 toast(`⏳ Запрашиваем операции (${apiAcc.name || 'Брокерский'})...`);
-                const now = new Date();
-                const fromDate = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString(); 
-                const toDate = now.toISOString();
+                
+                let fromDate;
+                if (fetchAll) {
+                    fromDate = new Date(2020, 0, 1).toISOString();
+                } else {
+                    const now = new Date();
+                    fromDate = new Date(now.getFullYear(), 0, 1).toISOString(); // С начала текущего года
+                }
+                
+                const toDate = new Date().toISOString();
                 let txSumForAcc = 0;
 
                 try {
@@ -71,8 +98,10 @@
                             const opType = opTypeRaw.toLowerCase(); 
                             
                             const amount = Math.abs(qv(op.payment));
+                            const dateStr = op.date ? op.date.slice(0, 10) : today();
+                            const isHistory = fetchAll && new Date(dateStr) < new Date(new Date().getFullYear(), 0, 1);
                             
-                            let type = null, catId = null, note = '';
+                            let type = null, catId = null, note = '', toAccId = null, fromAccId = null;
                             
                             if (opType.includes('купон') || opType.includes('coupon')) { 
                                 type = 'income'; catId = 'c_coupon'; note = 'Купон (авто)'; 
@@ -80,31 +109,49 @@
                                 type = 'income'; catId = 'c_dividend'; note = 'Дивиденды (авто)'; 
                             } else if (opType.includes('налог') || opType.includes('tax')) { 
                                 type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; 
+                            } else if (opType.includes('input') || opType.includes('пополнение') || opType.includes('ввод')) {
+                                type = 'transfer'; note = 'Пополнение Т-Инвест (Авто)';
+                                const linkedCardId = localAcc.linkedCardId;
+                                if (linkedCardId) { fromAccId = linkedCardId; toAccId = localAcc.id; }
+                            } else if (opType.includes('output') || opType.includes('вывод')) {
+                                type = 'transfer'; note = 'Вывод из Т-Инвест (Авто)';
+                                const linkedCardId = localAcc.linkedCardId;
+                                if (linkedCardId) { fromAccId = localAcc.id; toAccId = linkedCardId; }
                             }
                             
                             if (!type) return; 
                             if (amount <= 0.01) return; 
+                            if (!getCat(catId) && (type === 'income' || type === 'expense')) catId = type === 'income' ? 'c_other_inc' : 'c_other_exp';
 
-                            if (!getCat(catId)) catId = type === 'income' ? 'c_other_inc' : 'c_other_exp';
+                            // Умная защита от дублей для переводов
+                            if (type === 'transfer') {
+                                if (!fromAccId || !toAccId) return; // Нет привязанной карты, пропускаем
+                                const isDup = S.transactions.some(t => 
+                                    t.type === 'transfer' && t.date === dateStr && Math.abs(t.amount - amount) < 0.01 && 
+                                    t.accountId === fromAccId && t.toAccountId === toAccId
+                                );
+                                if (isDup) return;
+                            }
 
                             S.transactions.push({
                                 id: uid(),
                                 type: type,
                                 amount: amount,
-                                date: op.date ? op.date.slice(0, 10) : today(),
+                                date: dateStr,
                                 categoryId: catId,
-                                accountId: localAcc.id,
+                                accountId: type === 'transfer' ? fromAccId : localAcc.id,
+                                toAccountId: type === 'transfer' ? toAccId : null,
                                 note: note,
                                 tinvestOpId: op.id,
+                                isHistory: isHistory,
                                 _updatedAt: Date.now()
                             });
-                            txSumForAcc += (type === 'income' ? amount : -amount);
                             txCount++;
                         });
                     }
                 } catch (e) { console.warn('Ошибка операций', e); }
 
-                // 2. СИНХРОНИЗАЦИЯ БАЛАНСА (ПОСЛЕ операций)
+                // Синхронизация баланса
                 try {
                     const portRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'tinvest_portfolio', token: token, accountId: apiAcc.id }) });
                     const portData = await portRes.json();
@@ -112,11 +159,8 @@
                     if (portData && portData.totalAmountPortfolio) {
                         const totalRub = qv(portData.totalAmountPortfolio);
                         
-                        // Пересчитываем текущий баланс, учитывая только что добавленные транзакции
                         recalculateBalances(); 
                         const balanceWithNewTxs = accValue(localAcc);
-                        
-                        // Подгоняем initialBalance, чтобы итоговый баланс был ровно как в API
                         const diff = totalRub - balanceWithNewTxs;
                         
                         if (Math.abs(diff) > 1) {
@@ -153,7 +197,6 @@
         }
     };
 
-    // Остальные функции (cleanupFakeTInvestTransactions, renderStats) остаются без изменений
     window.cleanupFakeTInvestTransactions = function() {
         if (!confirm('Удалить все старые операции "Синхронизация с Т-Инвест"?\n\nЭто очистит статистику, но не затронет реальные доходы/расходы.')) return;
         const fakeTxs = S.transactions.filter(t => t.note === 'Синхронизация с Т-Инвест');
