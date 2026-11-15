@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v14
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v15
 // ==========================================
 (function() {
-    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v14 загружен");
+    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v15 загружен");
 
     if (typeof S !== 'undefined' && S.ui) {
         if (S.ui.collapsedAnalytics === undefined) S.ui.collapsedAnalytics = true;
@@ -480,6 +480,24 @@
         const p = calcDataForRange(dPrev.start, dPrev.end);
         const c = getCustomCapital();
 
+        // YTD calculation for Home Screen
+        const currentYearStr = new Date().getFullYear().toString();
+        let startCap = 0;
+        if (S.snapshots && S.snapshots.length > 0) {
+            const yearSnaps = S.snapshots.filter(s => s.date.startsWith(currentYearStr)).sort((a,b) => a.date.localeCompare(b.date));
+            if (yearSnaps.length > 0) startCap = yearSnaps[0].total;
+        }
+        let ytdNetFlow = 0;
+        S.transactions.filter(t => t.date.startsWith(currentYearStr) && !t.ignoreInStats).forEach(t => {
+            if (t.type === 'income') ytdNetFlow += t.amount;
+            if (t.type === 'expense') ytdNetFlow -= t.amount;
+        });
+        let ytdReturn = 0;
+        if (startCap > 0) {
+            const profit = (c.net - startCap) - ytdNetFlow;
+            ytdReturn = (profit / startCap) * 100;
+        }
+
         let prevCap = c.net;
         if (S.snapshots && S.snapshots.length > 0) {
             const pStart = new Date(dCurrent.start);
@@ -538,7 +556,9 @@
                         <div class="analytic-item" onclick="window.openCapitalDetails()">
                             <div class="label">Чистый капитал</div>
                             <div class="val">${hideV(c.net)}</div>
-                            <div style="font-size:10px; color:var(--muted); margin-bottom:2px;">YTD: <span style="color:${c.net - (S.snapshots.filter(s=>s.date.startsWith(new Date().getFullYear().toString())).sort((a,b)=>a.date.localeCompare(b.date))[0]?.total||0) >= 0 ?'var(--green)':'var(--red)'}">${/* Упрощенный расчет для отображения на главной */ ''}</span></div>
+                            <div style="font-size:10px; color:var(--muted); margin-bottom:2px;">
+                                YTD: <span style="color:${ytdReturn>=0?'var(--green)':'var(--red)'}">${ytdReturn>=0?'+':'-'}${formatPercent(ytdReturn)}</span>
+                            </div>
                             ${getTrendHtml(c.net, prevCap, true)}
                         </div>
                     </div>
