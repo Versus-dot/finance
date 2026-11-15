@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v13
+// МОДУЛЬ АНАЛИТИКИ И ДОЛГОВ (mod-analytics-widget.js) v14
 // ==========================================
 (function() {
-    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v13 загружен");
+    console.log("✅ Модуль виджетов низа главной (mod-analytics-widget.js) v14 загружен");
 
     if (typeof S !== 'undefined' && S.ui) {
         if (S.ui.collapsedAnalytics === undefined) S.ui.collapsedAnalytics = true;
@@ -85,11 +85,10 @@
     `;
     document.head.appendChild(styleEl);
 
-    // Умное форматирование процентов
     const formatPercent = (val) => {
         let absVal = Math.abs(val);
-        let str = absVal.toFixed(2); // "100.10"
-        str = parseFloat(str).toString(); // "100.1"
+        let str = absVal.toFixed(2);
+        str = parseFloat(str).toString();
         return str + '%';
     };
 
@@ -321,6 +320,26 @@
         const delta = prevCap > 0 ? ((c.net - prevCap) / prevCap * 100) : 0;
         const deltaHtml = prevCap > 0 ? `<span style="color:${delta>=0?'var(--green)':'var(--red)'}">${delta>=0?'↑':'↓'} ${formatPercent(delta)}</span>` : '—';
 
+        // YTD
+        const currentYearStr = new Date().getFullYear().toString();
+        let startCap = 0;
+        if (S.snapshots && S.snapshots.length > 0) {
+            const yearSnaps = S.snapshots.filter(s => s.date.startsWith(currentYearStr)).sort((a,b) => a.date.localeCompare(b.date));
+            if (yearSnaps.length > 0) startCap = yearSnaps[0].total;
+        }
+        let ytdNetFlow = 0;
+        S.transactions.filter(t => t.date.startsWith(currentYearStr) && !t.ignoreInStats).forEach(t => {
+            if (t.type === 'income') ytdNetFlow += t.amount;
+            if (t.type === 'expense') ytdNetFlow -= t.amount;
+        });
+        let ytdReturn = 0;
+        let ytdHtml = '';
+        if (startCap > 0) {
+            const profit = (c.net - startCap) - ytdNetFlow;
+            ytdReturn = (profit / startCap) * 100;
+            ytdHtml = `<div style="text-align:center; margin-top: 4px; font-size: 13px;">YTD: <span style="color:${ytdReturn>=0?'var(--green)':'var(--red)'}">${ytdReturn>=0?'+':'-'}${formatPercent(ytdReturn)}</span></div>`;
+        }
+
         openModal(`
             <div class="modal-header"><h2>Структура чистого капитала</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
             <div style="font-size: 14px; line-height: 1.8;">
@@ -337,6 +356,7 @@
                     <span>Итого</span> <span>${fmt(c.net)}</span>
                 </div>
                 <div style="text-align:center; margin-top: 8px; font-size: 13px;">Изменение: ${deltaHtml}</div>
+                ${ytdHtml}
             </div>
         `);
     };
@@ -371,7 +391,7 @@
         let sorted = [...list];
         if (window._modalSort === 'date') sorted.sort((a,b) => b.date.localeCompare(a.date));
         else sorted.sort((a,b) => b.amount - a.amount);
-        const titles = {income:'Доходы', expense:'Расходы', passive:'Свободный поток'};
+        const titles = {income:'Доходы', expense:'Расходы', passive:'Пассивный доход'};
         
         let html = `<div class="modal-header"><h2>${titles[type]}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
         html += `<div class="chips" style="margin-bottom: 12px;">
@@ -460,24 +480,6 @@
         const p = calcDataForRange(dPrev.start, dPrev.end);
         const c = getCustomCapital();
 
-        // Расчет YTD (Year-To-Date)
-        const currentYearStr = new Date().getFullYear().toString();
-        let startCap = 0;
-        if (S.snapshots && S.snapshots.length > 0) {
-            const yearSnaps = S.snapshots.filter(s => s.date.startsWith(currentYearStr)).sort((a,b) => a.date.localeCompare(b.date));
-            if (yearSnaps.length > 0) startCap = yearSnaps[0].total;
-        }
-        let ytdNetFlow = 0;
-        S.transactions.filter(t => t.date.startsWith(currentYearStr) && !t.ignoreInStats).forEach(t => {
-            if (t.type === 'income') ytdNetFlow += t.amount;
-            if (t.type === 'expense') ytdNetFlow -= t.amount;
-        });
-        let ytdReturn = 0;
-        if (startCap > 0) {
-            const profit = (c.net - startCap) - ytdNetFlow;
-            ytdReturn = (profit / startCap) * 100;
-        }
-
         let prevCap = c.net;
         if (S.snapshots && S.snapshots.length > 0) {
             const pStart = new Date(dCurrent.start);
@@ -531,12 +533,12 @@
                             <div class="label">Норма сбережений</div><div class="val">${(isHideAn || S.ui.globalHideBalances) ? '***' : formatPercent(m.rate)}</div>${getTrendHtml(m.rate, p.rate, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openAnalyticsList('passive')">
-                            <div class="label">Свободный поток</div><div class="val pos">${hideV(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
+                            <div class="label">Пассивный доход</div><div class="val pos">${hideV(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openCapitalDetails()">
                             <div class="label">Чистый капитал</div>
                             <div class="val">${hideV(c.net)}</div>
-                            <div style="font-size:10px; color:var(--muted); margin-bottom:2px;">YTD: <span style="color:${ytdReturn>=0?'var(--green)':'var(--red)'}">${ytdReturn>=0?'+':'-'}${formatPercent(ytdReturn)}</span></div>
+                            <div style="font-size:10px; color:var(--muted); margin-bottom:2px;">YTD: <span style="color:${c.net - (S.snapshots.filter(s=>s.date.startsWith(new Date().getFullYear().toString())).sort((a,b)=>a.date.localeCompare(b.date))[0]?.total||0) >= 0 ?'var(--green)':'var(--red)'}">${/* Упрощенный расчет для отображения на главной */ ''}</span></div>
                             ${getTrendHtml(c.net, prevCap, true)}
                         </div>
                     </div>
