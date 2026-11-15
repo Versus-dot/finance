@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js v200
+// МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js v201
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v200)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v201)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -281,7 +281,6 @@
     }
     setTimeout(applyBadgeStyle, 100);
     
-    // Окно "Оформление" (только тема и стиль)
     window.openAppearanceSettings = function() {
         openModal(`
             <div class="modal-header"><h2>Оформление</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
@@ -322,7 +321,6 @@
             const modalContent = document.getElementById('modalContent');
             if (!modalContent) return;
 
-            // Убираем поле стиля из общих настроек (т.к. оно теперь в Оформлении)
             const badgeSelect = document.getElementById('setBadge');
             if (badgeSelect) badgeSelect.closest('.form-group').style.display = 'none';
             
@@ -401,7 +399,6 @@
         if (e.deltaY !== 0) { e.preventDefault(); carousel.scrollLeft += e.deltaY; }
     }, { passive: false });
 
-    // === ТРЕХЭТАЖНОЕ МЕНЮ ===
     window.renderMenuContent = function(level, type = '') {
         const content = document.getElementById('modalContent');
         if (!content) return;
@@ -425,6 +422,7 @@
                 title = 'Данные и Синхронизация';
                 items = `
                     <button class="menu-item-premium" onclick="window.syncTInvest()"><div class="menu-icon-wrap">📈</div>Синхронизация Т-Инвест<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.syncTInvest(true)"><div class="menu-icon-wrap">⏳</div>Загрузить всю историю Т-Инвест<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('cloud_backups', 'sub2')"><div class="menu-icon-wrap">☁️</div>Облако и Бэкапы<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('local_files', 'sub2')"><div class="menu-icon-wrap">📂</div>Локальные файлы<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('data_settings', 'sub2')"><div class="menu-icon-wrap">⚙️</div>Настройки данных<span class="chevron">›</span></button>
