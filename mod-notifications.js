@@ -1,26 +1,24 @@
 // ==========================================
-// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js) v4
+// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js) v6
 // ==========================================
 (function() {
+    console.log("✅ Модуль уведомлений (mod-notifications.js) v6 загружен");
+
     if (typeof S !== 'undefined') {
         if (S.settings.graceYellowDays === undefined) S.settings.graceYellowDays = 7;
         if (S.settings.graceRedDays === undefined) S.settings.graceRedDays = 3;
         if (S.settings.graceGlowIntensity === undefined) S.settings.graceGlowIntensity = 60;
     }
 
-    // Функция обновления CSS-переменных для яркости
     function applyGlowIntensity() {
         const intensity = (S.settings.graceGlowIntensity || 60) / 100;
-        // Базовая прозрачность (при 100% яркости)
         document.documentElement.style.setProperty('--glow-alpha', (intensity * 0.8).toFixed(2));
         document.documentElement.style.setProperty('--glow-alpha-inner', (intensity * 0.4).toFixed(2));
     }
     setTimeout(applyGlowIntensity, 100);
 
-    // Добавляем стили с использованием CSS-переменных для яркости
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
-        /* Свечение для карточек банков (карусель) */
         .bank-chip.bg-warning { 
             background: var(--card) !important;
             border-color: var(--yellow) !important; 
@@ -31,8 +29,6 @@
             border-color: var(--red) !important; 
             box-shadow: 0 0 15px rgba(239, 68, 68, var(--glow-alpha, 0.5)), inset 0 0 0 1px rgba(239, 68, 68, var(--glow-alpha-inner, 0.25)) !important; 
         }
-        
-        /* Свечение для ВСЕГО блока банка (группы) */
         .bank-group.bg-warning { 
             border-color: var(--yellow) !important; 
             box-shadow: 0 0 15px rgba(245, 158, 11, var(--glow-alpha, 0.5)) !important;
@@ -42,7 +38,6 @@
             box-shadow: 0 0 15px rgba(239, 68, 68, var(--glow-alpha, 0.5)) !important;
         }
 
-        /* Пульсация свечения */
         @keyframes pulse-glow {
             0% { box-shadow: 0 0 10px rgba(239, 68, 68, var(--glow-alpha-inner, 0.3)), inset 0 0 0 1px rgba(239, 68, 68, 0.2); }
             50% { box-shadow: 0 0 25px rgba(239, 68, 68, var(--glow-alpha, 0.7)), inset 0 0 0 2px rgba(239, 68, 68, var(--glow-alpha-inner, 0.4)); }
@@ -56,14 +51,48 @@
 
         .bank-chip.bg-danger.pulse-bg { animation: pulse-glow 1.5s infinite !important; }
         .bank-group.bg-danger.pulse-bg { animation: pulse-glow-group 1.5s infinite !important; }
+
+        .global-grace-icon { font-size: 18px; margin-left: 8px; cursor: pointer; vertical-align: middle; display: inline-block; }
+        .global-grace-icon.warn { color: var(--yellow); animation: pulse-warn 2s infinite; }
+        .global-grace-icon.danger { color: var(--red); }
+        .global-grace-icon.pulse { color: var(--red); animation: pulse-danger 1.5s infinite; }
+        
+        @keyframes pulse-warn { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes pulse-danger { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
     `;
     document.head.appendChild(styleEl);
 
-    // 1. ПЕРЕХВАТ МЕНЮ
-    const origRenderMenu = window.renderMenuContent;
+    window.showGraceListModal = function() {
+        const cards = S.accounts.filter(a => a.type === 'credit' && a.gracePeriod && !a.archived && Math.max(0, (a.creditLimit || 0) - accValue(a)) > 0);
+        cards.sort((a,b) => new Date(a.gracePeriod) - new Date(b.gracePeriod));
+        
+        let html = `<div class="modal-header"><h2>Льготные периоды</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="max-height:60vh; overflow-y:auto;">`;
+        const today = new Date(); today.setHours(0,0,0,0);
+        
+        cards.forEach(a => {
+            const gp = new Date(a.gracePeriod); gp.setHours(0,0,0,0);
+            const diffDays = Math.ceil((gp - today) / (1000 * 60 * 60 * 24));
+            
+            let statusColor = 'var(--muted)';
+            let statusText = `Осталось ${diffDays} дн.`;
+            if (diffDays < 0) { statusColor = 'var(--red)'; statusText = `Просрочка ${Math.abs(diffDays)} дн.`; }
+            else if (diffDays === 0) { statusColor = 'var(--red)'; statusText = 'Сегодня!'; }
+            else if (diffDays <= S.settings.graceRedDays) { statusColor = 'var(--red)'; }
+            else if (diffDays <= S.settings.graceYellowDays) { statusColor = 'var(--yellow)'; }
+            else { return; }
+
+            const bank = S.banks.find(b => b.id === a.bankId);
+            html += `<div class="modal-list-item">
+                <div><div style="font-weight:600;">${esc(a.name)}</div><div style="font-size:11px; color:var(--muted);">${esc(bank ? bank.name : 'Банк')}</div></div>
+                <div style="font-weight:700; color:${statusColor};">${statusText}</div>
+            </div>`;
+        });
+        html += `</div>`;
+        openModal(html);
+    };
+
     window.renderMenuContent = function(level, type = '') {
         if (level === 'main') {
-            if (origRenderMenu) origRenderMenu(level, type);
             const content = document.getElementById('modalContent');
             if (content) {
                 const menuSection = content.querySelector('.menu-section');
@@ -72,7 +101,7 @@
                     btn.id = 'menuBtnNotifications';
                     btn.className = 'menu-item-premium';
                     btn.innerHTML = `<div class="menu-icon-wrap">🔔</div>Уведомления<span class="chevron">›</span>`;
-                    btn.onclick = () => window.openSubMenu('notifications');
+                    btn.onclick = () => window.openSubMenu('notifications', 'sub');
                     
                     const secBtn = Array.from(menuSection.children).find(el => el.textContent.includes('Безопасность'));
                     if (secBtn) menuSection.insertBefore(btn, secBtn);
@@ -101,10 +130,8 @@
             }
             return;
         }
-        if (origRenderMenu) origRenderMenu(level, type);
     };
 
-    // 2. ОКНО НАСТРОЕК
     window.openGraceSettings = function() {
         const y = S.settings.graceYellowDays || 7;
         const r = S.settings.graceRedDays || 3;
@@ -142,14 +169,13 @@
         save();
         closeModal();
         
-        applyGlowIntensity(); // Мгновенно применяем новую яркость
+        applyGlowIntensity(); 
         
         if (typeof renderDashboard === 'function') renderDashboard();
         if (typeof renderAccounts === 'function') renderAccounts();
         toast('Настройки сохранены');
     };
 
-    // 3. ПЕРЕХВАТ ОТРИСОВКИ КАРТОЧЕК СЧЕТОВ
     const prevRenderAccRow = window.renderAccountRow;
     window.renderAccountRow = function(a, bank) {
         let html = prevRenderAccRow(a, bank);
@@ -190,7 +216,6 @@
         return html;
     };
 
-    // 4. ПЕРЕХВАТ ОТРИСОВКИ БАНКОВ (Карусель и Группы)
     const prevRenderDash = window.renderDashboard;
     window.renderDashboard = function() {
         if (prevRenderDash) prevRenderDash();
@@ -200,6 +225,9 @@
         const rDays = S.settings.graceRedDays || 3;
         const bankStatus = {}; 
         
+        let worstGlobalStatus = null; 
+        let worstGlobalDiff = Infinity;
+
         S.accounts.forEach(a => {
             if (a.type === 'credit' && a.gracePeriod && !a.archived) {
                 const limit = a.creditLimit || 0; 
@@ -221,6 +249,11 @@
                         else if (existing === 'red') { /* keep */ }
                         else if (status === 'red') bankStatus[a.bankId] = 'red';
                         else if (!existing) bankStatus[a.bankId] = 'yellow';
+
+                        if (diffDays < worstGlobalDiff) {
+                            worstGlobalDiff = diffDays;
+                            worstGlobalStatus = status;
+                        }
                     }
                 }
             }
@@ -245,5 +278,26 @@
                 else if (bankStatus[bankId] === 'yellow') group.classList.add('bg-warning');
             }
         });
+
+        // Global indicator
+        const banksTitle = document.querySelector('.banks-header .banks-title');
+        if (banksTitle) {
+            const oldIcon = document.getElementById('globalGraceIcon');
+            if (oldIcon) oldIcon.remove();
+
+            if (worstGlobalStatus) {
+                const icon = document.createElement('span');
+                icon.id = 'globalGraceIcon';
+                let className = 'global-grace-icon ';
+                if (worstGlobalStatus === 'pulse') className += 'pulse';
+                else if (worstGlobalStatus === 'red') className += 'danger';
+                else if (worstGlobalStatus === 'yellow') className += 'warn';
+                icon.className = className;
+                icon.innerHTML = '⚠️';
+                icon.title = 'Есть карты с подходящим льготным периодом';
+                icon.onclick = window.showGraceListModal;
+                banksTitle.appendChild(icon);
+            }
+        }
     };
 })();
