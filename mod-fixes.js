@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ ФИКСОВ (mod-fixes.js) v217
+// МОДУЛЬ ФИКСОВ (mod-fixes.js) v219
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов (mod-fixes.js) v217 загружен");
+    console.log("✅ Модуль фиксов (mod-fixes.js) v219 загружен");
 
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
@@ -59,7 +59,6 @@
         const typeSel = document.getElementById('accType');
         const creditFields = document.getElementById('creditFields');
         
-        // Поле для связанной карты (для брокерских счетов)
         if (typeSel) {
             const linkedCardDiv = document.createElement('div');
             linkedCardDiv.className = 'form-group';
@@ -75,7 +74,6 @@
                 </select>
             `;
             
-            // Вставляем перед кнопкой Сохранить
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) submitBtn.before(linkedCardDiv);
             else form.appendChild(linkedCardDiv);
@@ -118,6 +116,18 @@
     window.openTxModal = function(id) {
         if (prevOpenTxModal) prevOpenTxModal(id);
         window._currentEditingTxId = id || null;
+        
+        // Сохраняем скрытые поля перед редактированием
+        if (id) {
+            const oldTx = S.transactions.find(t => t.id === id);
+            if (oldTx) {
+                window._editingTxIsHistory = oldTx.isHistory;
+                window._editingTxTInvestId = oldTx.tinvestOpId;
+            }
+        } else {
+            window._editingTxIsHistory = false;
+            window._editingTxTInvestId = null;
+        }
         
         const form = document.getElementById('txForm');
         if (!form) return;
@@ -181,7 +191,12 @@
         if (txForm && txIgnoreCb) {
             if (window._currentEditingTxId) {
                 const tx = S.transactions.find(t => t.id === window._currentEditingTxId);
-                if (tx) tx.ignoreInStats = txIgnoreCb.checked;
+                if (tx) {
+                    tx.ignoreInStats = txIgnoreCb.checked;
+                    // ФИКС: Восстанавливаем скрытые поля, если они были
+                    if (window._editingTxIsHistory) tx.isHistory = true;
+                    if (window._editingTxTInvestId) tx.tinvestOpId = window._editingTxTInvestId;
+                }
             } else {
                 const lastTx = S.transactions[S.transactions.length - 1];
                 if (lastTx) lastTx.ignoreInStats = txIgnoreCb.checked;
