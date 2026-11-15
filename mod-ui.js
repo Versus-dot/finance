@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js
+// МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js v200
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v199)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v200)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -281,6 +281,40 @@
     }
     setTimeout(applyBadgeStyle, 100);
     
+    // Окно "Оформление" (только тема и стиль)
+    window.openAppearanceSettings = function() {
+        openModal(`
+            <div class="modal-header"><h2>Оформление</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+            <div class="form-group">
+                <label>Тема приложения</label>
+                <select id="appThemeSelect">
+                    <option value="dark" ${S.settings.theme === 'dark' ? 'selected' : ''}>Тёмная</option>
+                    <option value="light" ${S.settings.theme === 'light' ? 'selected' : ''}>Светлая</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Стиль карточек (Главная)</label>
+                <select id="appStyleSelect">
+                    <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option>
+                    <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
+                    <option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>
+                </select>
+            </div>
+            <button class="btn-primary btn-block" onclick="window.saveAppearanceSettings()">Сохранить</button>
+        `);
+    };
+
+    window.saveAppearanceSettings = function() {
+        S.settings.theme = document.getElementById('appThemeSelect').value;
+        S.settings.badgeStyle = document.getElementById('appStyleSelect').value;
+        if (typeof save === 'function') save();
+        applyTheme();
+        applyBadgeStyle();
+        renderAll();
+        closeModal();
+        if (typeof toast === 'function') toast('Оформление обновлено');
+    };
+
     const prevOpenSettingsForBadge = window.openSettings;
     window.openSettings = function() {
         if (prevOpenSettingsForBadge) prevOpenSettingsForBadge();
@@ -288,12 +322,9 @@
             const modalContent = document.getElementById('modalContent');
             if (!modalContent) return;
 
+            // Убираем поле стиля из общих настроек (т.к. оно теперь в Оформлении)
             const badgeSelect = document.getElementById('setBadge');
-            if (badgeSelect) badgeSelect.innerHTML = `
-                <option value="stripe" ${S.settings.badgeStyle==='stripe'?'selected':''}>Цветные полосы</option>
-                <option value="bg" ${S.settings.badgeStyle==='bg'?'selected':''}>Легкий фон</option>
-                <option value="minimal" ${S.settings.badgeStyle==='minimal'?'selected':''}>Минимализм</option>
-            `;
+            if (badgeSelect) badgeSelect.closest('.form-group').style.display = 'none';
             
             const setSnap = document.getElementById('setSnap');
             if (setSnap) setSnap.closest('.form-group').style.display = 'none';
@@ -379,6 +410,7 @@
             content.innerHTML = `
                 <div class="modal-header"><h2>Меню</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
                 <div class="menu-section">
+                    <button class="menu-item-premium" onclick="window.openSettings()"><div class="menu-icon-wrap">⚙️</div>Настройки приложения<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('sync', 'sub')"><div class="menu-icon-wrap">☁️</div>Данные и Синхронизация<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('appearance', 'sub')"><div class="menu-icon-wrap">🎨</div>Оформление<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('directories', 'sub')"><div class="menu-icon-wrap">📑</div>Справочники<span class="chevron">›</span></button>
@@ -400,7 +432,7 @@
             } else if (type === 'appearance') {
                 title = 'Оформление';
                 items = `
-                    <button class="menu-item-premium" onclick="window.openSettings()"><div class="menu-icon-wrap">🎨</div>Настройки приложения<span class="chevron">›</span></button>
+                    <button class="menu-item-premium" onclick="window.openAppearanceSettings()"><div class="menu-icon-wrap">🎨</div>Тема и Стиль<span class="chevron">›</span></button>
                 `;
             } else if (type === 'directories') {
                 title = 'Справочники';
