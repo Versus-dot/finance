@@ -1,13 +1,21 @@
 // ==========================================
-// МОДУЛЬ ФИКСОВ (mod-fixes.js) v219
+// МОДУЛЬ ФИКСОВ (mod-fixes.js) v220
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов (mod-fixes.js) v219 загружен");
+    console.log("✅ Модуль фиксов (mod-fixes.js) v220 загружен");
 
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
         if (!S.meta.deletedIds) S.meta.deletedIds = [];
     }
+
+    // ФИКС: Убираем -0 и микроскопические погрешности
+    const prevAccValue = window.accValue;
+    window.accValue = function(a) {
+        let val = prevAccValue(a);
+        if (Math.abs(val) < 0.01) return 0;
+        return val;
+    };
 
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
@@ -43,6 +51,10 @@
         const acc = id ? getAcc(id) : null; const form = document.getElementById('accForm'); if (!form) return;
         
         window._currentEditingAccId = id || null; 
+
+        // СКРЫВАЕМ "Начальный баланс", чтобы не было путаницы
+        const accBalanceGroup = form.querySelector('input[id="accBalance"]').closest('.form-group');
+        if (accBalanceGroup) accBalanceGroup.style.display = 'none';
 
         const cushionLabel = form.querySelector('input[id="accCushion"]').closest('.form-group');
         
@@ -112,12 +124,63 @@
         }, 100);
     };
 
+    // ПОЛНОСТЬЮ ПЕРЕПИСАНА КОРРЕКТИРОВКА (без выбора "Просто исправить")
+    window.openReconcileModal = function(accId) {
+        const acc = getAcc(accId);
+        if (!acc) return;
+        const currentBal = window.accValue(acc);
+
+        openModal(`
+            <div class="modal-header"><h2>Корректировка баланса</h2><button class="btn-icon" onclick="openAccountModal('${accId}')">✕</button></div>
+            <form id="reconcileFormNew">
+                <div class="form-group">
+                    <label>Фактический баланс на сегодня</label>
+                    <input id="recNewBal" type="number" step="0.01" value="${currentBal}" required>
+                </div>
+                <div style="font-size: 12px; color: var(--muted); margin-bottom: 16px;">
+                    Разница будет учтена как техническая корректировка и не повлияет на доходы/расходы в аналитике.
+                </div>
+                <button type="submit" class="btn-primary btn-block">Применить</button>
+            </form>
+        `);
+
+        document.getElementById('reconcileFormNew').onsubmit = (e) => {
+            e.preventDefault();
+            const newBal = parseFloat(document.getElementById('recNewBal').value) || 0;
+            const diff = newBal - currentBal;
+
+            if (Math.abs(diff) < 0.01) { toast('Баланс не изменился'); closeModal(); return; }
+
+            let txType = diff > 0 ? 'income' : 'expense';
+            if (acc.type === 'credit') txType = diff > 0 ? 'expense' : 'income';
+
+            const txAmount = Math.abs(diff);
+            const catId = txType === 'income' ? 'c_other_inc' : 'c_other_exp';
+            
+            S.transactions.push({
+                id: uid(),
+                type: txType,
+                amount: txAmount,
+                date: today(),
+                categoryId: catId,
+                accountId: accId,
+                note: `Корректировка баланса (${diff > 0 ? '+' : ''}${diff})`,
+                ignoreInStats: true,
+                _updatedAt: Date.now()
+            });
+
+            save();
+            renderAll();
+            closeModal();
+            toast('Баланс обновлен');
+        };
+    };
+
     const prevOpenTxModal = window.openTxModal;
     window.openTxModal = function(id) {
         if (prevOpenTxModal) prevOpenTxModal(id);
         window._currentEditingTxId = id || null;
         
-        // Сохраняем скрытые поля перед редактированием
         if (id) {
             const oldTx = S.transactions.find(t => t.id === id);
             if (oldTx) {
@@ -138,24 +201,6 @@
         const ignoreDiv = document.createElement('div');
         ignoreDiv.className = 'form-group';
         ignoreDiv.innerHTML = `<label style="color:var(--muted);"><input type="checkbox" id="txIgnoreInStats" style="width:auto;margin-right:8px" ${isChecked}>🙈 Не учитывать в аналитике</label>`;
-        
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) submitBtn.before(ignoreDiv);
-        else form.appendChild(ignoreDiv);
-    };
-
-    const prevOpenReconcileModal = window.openReconcileModal;
-    window.openReconcileModal = function(accId) {
-        if (prevOpenReconcileModal) prevOpenReconcileModal(accId);
-        
-        const modal = document.getElementById('modalContent');
-        if (!modal) return;
-        const form = modal.querySelector('form');
-        if (!form) return;
-        
-        const ignoreDiv = document.createElement('div');
-        ignoreDiv.className = 'form-group';
-        ignoreDiv.innerHTML = `<label style="color:var(--muted);"><input type="checkbox" id="recIgnoreInStats" style="width:auto;margin-right:8px">🙈 Переоценка (не в аналитику)</label>`;
         
         const submitBtn = form.querySelector('button[type="submit"]');
         if (submitBtn) submitBtn.before(ignoreDiv);
@@ -193,7 +238,6 @@
                 const tx = S.transactions.find(t => t.id === window._currentEditingTxId);
                 if (tx) {
                     tx.ignoreInStats = txIgnoreCb.checked;
-                    // ФИКС: Восстанавливаем скрытые поля, если они были
                     if (window._editingTxIsHistory) tx.isHistory = true;
                     if (window._editingTxTInvestId) tx.tinvestOpId = window._editingTxTInvestId;
                 }
@@ -201,12 +245,6 @@
                 const lastTx = S.transactions[S.transactions.length - 1];
                 if (lastTx) lastTx.ignoreInStats = txIgnoreCb.checked;
             }
-        }
-
-        const recIgnoreCb = document.getElementById('recIgnoreInStats');
-        if (recIgnoreCb) {
-            const lastTx = S.transactions[S.transactions.length - 1];
-            if (lastTx) lastTx.ignoreInStats = recIgnoreCb.checked;
         }
 
         if (prevSaveWithIgnore) prevSaveWithIgnore.call(this, isUserAction);
