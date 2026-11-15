@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ ФИКСОВ (mod-fixes.js)
+// МОДУЛЬ ФИКСОВ (mod-fixes.js) v217
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов (mod-fixes.js) загружен v216");
+    console.log("✅ Модуль фиксов (mod-fixes.js) v217 загружен");
 
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
@@ -16,7 +16,6 @@
     `;
     document.head.appendChild(styleEl);
 
-    // 🗑 МОГИЛЬНЫЕ ПЛИТЫ (Удаление)
     const originalDeleteAccount = window.deleteAccount;
     window.deleteAccount = function(id) {
         const acc = getAcc(id); if (!acc) return;
@@ -37,9 +36,6 @@
         if (originalDeleteTx) originalDeleteTx(id);
     };
 
-    // ==========================================
-    // ФИКСЫ ОКНА СЧЕТА (Игнор баланса, Срок в днях, Архив)
-    // ==========================================
     const prevOpenAccountModal = window.openAccountModal;
     window.openAccountModal = function(id, bankId) {
         if (prevOpenAccountModal) prevOpenAccountModal(id, bankId);
@@ -60,6 +56,37 @@
         archiveDiv.innerHTML = `<label><input type="checkbox" id="accArchived" style="width:auto;margin-right:8px" ${acc && acc.archived ? 'checked' : ''}>🗄️ Отправить в архив (скрыть из списка)</label>`;
         ignoreDiv.after(archiveDiv);
         
+        const typeSel = document.getElementById('accType');
+        const creditFields = document.getElementById('creditFields');
+        
+        // Поле для связанной карты (для брокерских счетов)
+        if (typeSel) {
+            const linkedCardDiv = document.createElement('div');
+            linkedCardDiv.className = 'form-group';
+            linkedCardDiv.id = 'linkedCardGroup';
+            linkedCardDiv.style.display = ['brokerage', 'iis'].includes(typeSel.value) ? 'block' : 'none';
+            
+            const debitCards = S.accounts.filter(a => (a.type === 'debit' || a.type === 'cash') && !a.archived);
+            linkedCardDiv.innerHTML = `
+                <label>Связанная карта (для переводов Т-Инвест)</label>
+                <select id="accLinkedCard">
+                    <option value="">Не привязана</option>
+                    ${debitCards.map(c => `<option value="${c.id}" ${acc && acc.linkedCardId === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+                </select>
+            `;
+            
+            // Вставляем перед кнопкой Сохранить
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.before(linkedCardDiv);
+            else form.appendChild(linkedCardDiv);
+
+            const originalOnchange = typeSel.onchange;
+            typeSel.onchange = function(e) {
+                if (originalOnchange) originalOnchange.call(this, e);
+                linkedCardDiv.style.display = ['brokerage', 'iis'].includes(this.value) ? 'block' : 'none';
+            };
+        }
+
         const termSelect = document.getElementById('accTerm');
         if (termSelect) {
             termSelect.insertAdjacentHTML('beforeend', `<option value="custom">Свой срок (в днях)</option>`);
@@ -87,9 +114,6 @@
         }, 100);
     };
 
-    // ==========================================
-    // ФИКС ОКНА ОПЕРАЦИЙ (Не учитывать в аналитике)
-    // ==========================================
     const prevOpenTxModal = window.openTxModal;
     window.openTxModal = function(id) {
         if (prevOpenTxModal) prevOpenTxModal(id);
@@ -110,7 +134,6 @@
         else form.appendChild(ignoreDiv);
     };
 
-    // ФИКС ОКНА КОРРЕКТИРОВКИ БАЛАНСА (Reconcile)
     const prevOpenReconcileModal = window.openReconcileModal;
     window.openReconcileModal = function(accId) {
         if (prevOpenReconcileModal) prevOpenReconcileModal(accId);
@@ -129,30 +152,30 @@
         else form.appendChild(ignoreDiv);
     };
 
-    // ФИКС СОХРАНЕНИЯ ГАЛОЧЕК
     const prevSaveWithIgnore = window.save;
     window.save = function(isUserAction = true) {
-        // 1. Сохранение настроек счета
         const accForm = document.getElementById('accForm');
         const ignoreCb = document.getElementById('accIgnoreBalance');
         const archCb = document.getElementById('accArchived');
+        const linkedCardCb = document.getElementById('accLinkedCard');
         if (accForm) {
             if (window._currentEditingAccId) {
                 const acc = S.accounts.find(a => a.id === window._currentEditingAccId);
                 if (acc) {
                     if (ignoreCb) acc.ignoreBalance = ignoreCb.checked;
                     if (archCb) acc.archived = archCb.checked;
+                    if (linkedCardCb) acc.linkedCardId = linkedCardCb.value || null;
                 }
             } else {
                 if (S.accounts.length > 0) {
                     const lastAcc = S.accounts[S.accounts.length - 1];
                     if (ignoreCb) lastAcc.ignoreBalance = ignoreCb.checked;
                     if (archCb) lastAcc.archived = archCb.checked;
+                    if (linkedCardCb) lastAcc.linkedCardId = linkedCardCb.value || null;
                 }
             }
         }
 
-        // 2. Сохранение транзакции
         const txForm = document.getElementById('txForm');
         const txIgnoreCb = document.getElementById('txIgnoreInStats');
         if (txForm && txIgnoreCb) {
@@ -165,7 +188,6 @@
             }
         }
 
-        // 3. Сохранение корректировки баланса
         const recIgnoreCb = document.getElementById('recIgnoreInStats');
         if (recIgnoreCb) {
             const lastTx = S.transactions[S.transactions.length - 1];
@@ -175,7 +197,6 @@
         if (prevSaveWithIgnore) prevSaveWithIgnore.call(this, isUserAction);
     };
 
-    // Визуальный стиль для архивных счетов
     const prevRenderAccRowForArch = window.renderAccountRow;
     window.renderAccountRow = function(a, bank) {
         let html = prevRenderAccRowForArch(a, bank);
@@ -189,7 +210,6 @@
         return html;
     };
 
-    // ПЕРЕСЧЕТ ИТОГОВ (Игнор баланса)
     const originalComputeTotals = window.computeTotals;
     window.computeTotals = function() {
         let totals = originalComputeTotals();
@@ -207,7 +227,6 @@
     
     setTimeout(() => { if (typeof renderAll === 'function') renderAll(); }, 100);
 
-    // ФИКС КНОПКИ "+" НА ВКЛАДКЕ ОПЕРАЦИЙ
     const prevRenderTransactions = window.renderTransactions; 
     window.renderTransactions = function() { 
         if (prevRenderTransactions) prevRenderTransactions(); 
