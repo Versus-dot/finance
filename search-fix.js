@@ -1,5 +1,5 @@
 // ==========================================
-// Умный поиск и фикс курсора (v56) - search-fix.js
+// Умный поиск и фикс курсора (v57) - search-fix.js
 // ==========================================
 
 window.renderTransactions = function() {
@@ -122,4 +122,4 @@ function renderTxItem(t){
 
     return `<div class="tx-item" style="${ignoreStyle}" onclick="openTxModal('${t.id}')"><div class="icon ${cls}">${icon}</div><div class="body"><div class="title">${esc(title)}</div><div class="meta">${esc(meta)}${t.note?' · '+esc(t.note):''}</div></div><div class="amount ${cls}">${sign}${fmt(amount)}</div></div>`;
 }
-console.log('✅ Умный поиск (v56) загружен');
+console.log('✅ Умный поиск (v57) загружен');
