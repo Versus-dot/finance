@@ -1,20 +1,19 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v10
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v12
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v10 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v12 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
         return parseFloat(val.units || 0) + (parseFloat(val.nano || 0) / 1000000000);
     };
 
-    // Перехват пересчета балансов, чтобы игнорировать исторические операции (только для старых доходов/расходов)
     const originalRecalculateBalances = window.recalculateBalances;
     window.recalculateBalances = function() {
         S.accounts.forEach(a => a.balance = a.initialBalance || 0);
         S.transactions.forEach(t => {
-            if (t.isHistory && t.type !== 'transfer') return; // Пропускаем исторические операции, КРОМЕ переводов
+            if (t.isHistory && t.type !== 'transfer') return; 
             if (t.type === 'income') { const a = getAcc(t.accountId); if(a) a.balance += t.amount; }
             else if (t.type === 'expense') { const a = getAcc(t.accountId); if(a) a.balance -= t.amount; }
             else if (t.type === 'transfer') {
@@ -28,6 +27,51 @@
                 }
             }
         });
+    };
+
+    // Функция очистки дублей (только те, что с пометкой Т-Инвест)
+    window.cleanupTInvestDuplicates = function() {
+        if (!confirm('Удалить дубликаты авто-переводов Т-Инвест?\nОни будут удалены, останется только одна копия.')) return;
+        const map = new Map();
+        const toRemove = [];
+        
+        S.transactions.filter(t => t.type === 'transfer' && (t.note.includes('Т-Инвест') || t.tinvestOpId)).forEach(t => {
+            const key = `${t.date}_${t.amount}_${t.accountId}_${t.toAccountId}`;
+            if (map.has(key)) {
+                toRemove.push(t.id);
+            } else {
+                map.set(key, t);
+            }
+        });
+
+        if (toRemove.length > 0) {
+            if (!S.meta) S.meta = { deletedIds: [] };
+            toRemove.forEach(id => S.meta.deletedIds.push(id));
+            S.transactions = S.transactions.filter(t => !toRemove.includes(t.id));
+            save(); 
+            renderAll(); 
+            if (typeof syncSmart === 'function') syncSmart(true);
+            toast(`✅ Удалено ${toRemove.length} дублей`);
+        } else {
+            toast('Дублей не найдено');
+        }
+    };
+
+    // Функция полного удаления операций брокера (для чистого старта)
+    window.deleteAllTInvestOperations = function() {
+        if (!confirm('Удалить ВСЕ операции, пришедшие из Т-Инвеста?\nТвои ручные операции останутся. Баланс брокерского счета нужно будет скорректировать вручную.')) return;
+        const toRemove = S.transactions.filter(t => t.tinvestOpId);
+        if (toRemove.length > 0) {
+            if (!S.meta) S.meta = { deletedIds: [] };
+            toRemove.forEach(t => S.meta.deletedIds.push(t.id));
+            S.transactions = S.transactions.filter(t => !t.tinvestOpId);
+            save();
+            renderAll();
+            if (typeof syncSmart === 'function') syncSmart(true);
+            toast(`✅ Удалено ${toRemove.length} операций Т-Инвеста`);
+        } else {
+            toast('Операций Т-Инвеста не найдено');
+        }
     };
 
     window.syncTInvest = async function(fetchAll = false) {
@@ -55,7 +99,6 @@
                 S.banks.push(tBank); 
             }
 
-            // Находим дефолтную карту для переводов (первая дебетовая)
             let defaultCard = S.accounts.find(a => (a.type === 'debit' || a.type === 'cash') && !a.archived);
 
             for (const apiAcc of accData.accounts) {
@@ -80,11 +123,10 @@
                     fromDate = new Date(2020, 0, 1).toISOString();
                 } else {
                     const now = new Date();
-                    fromDate = new Date(now.getFullYear(), 0, 1).toISOString(); // С начала текущего года
+                    fromDate = new Date(now.getFullYear(), 0, 1).toISOString(); 
                 }
                 
                 const toDate = new Date().toISOString();
-                let txSumForAcc = 0;
 
                 try {
                     const opRes = await fetch(PROXY, { 
@@ -101,7 +143,10 @@
                             const opType = opTypeRaw.toLowerCase(); 
                             
                             const amount = Math.abs(qv(op.payment));
-                            const dateStr = op.date ? op.date.slice(0, 10) : today();
+                            
+                            // ФИКС: Перевод в местное время
+                            const d = new Date(op.date);
+                            const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                             
                             let type = null, catId = null, note = '', toAccId = null, fromAccId = null;
                             
@@ -125,14 +170,16 @@
                             if (amount <= 0.01) return; 
                             if (!getCat(catId) && (type === 'income' || type === 'expense')) catId = type === 'income' ? 'c_other_inc' : 'c_other_exp';
 
-                            // Умная защита от дублей для переводов
+                            // ЖЕЛЕЗНАЯ ЗАЩИТА ОТ ДУБЛЕЙ (по дате и сумме)
                             if (type === 'transfer') {
                                 if (!fromAccId || !toAccId) return; 
-                                const isDup = S.transactions.some(t => 
-                                    t.type === 'transfer' && t.date === dateStr && Math.abs(t.amount - amount) < 0.01 && 
-                                    t.accountId === fromAccId && t.toAccountId === toAccId
+                                const existingTx = S.transactions.find(t => 
+                                    t.type === 'transfer' && t.date === dateStr && Math.abs(t.amount - amount) < 0.01
                                 );
-                                if (isDup) return;
+                                if (existingTx) {
+                                    if (!existingTx.tinvestOpId) existingTx.tinvestOpId = op.id;
+                                    return; 
+                                }
                             }
 
                             S.transactions.push({
@@ -153,7 +200,6 @@
                     }
                 } catch (e) { console.warn('Ошибка операций', e); }
 
-                // Синхронизация баланса
                 try {
                     const portRes = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'tinvest_portfolio', token: token, accountId: apiAcc.id }) });
                     const portData = await portRes.json();
@@ -197,28 +243,5 @@
             console.error(e); 
             toast('❌ Ошибка синхронизации. Проверьте токен.'); 
         }
-    };
-
-    window.cleanupFakeTInvestTransactions = function() {
-        if (!confirm('Удалить все старые операции "Синхронизация с Т-Инвест"?\n\nЭто очистит статистику, но не затронет реальные доходы/расходы.')) return;
-        const fakeTxs = S.transactions.filter(t => t.note === 'Синхронизация с Т-Инвест');
-        if (fakeTxs.length > 0) {
-            if (!S.meta) S.meta = { deletedIds: [] };
-            if (!S.meta.deletedIds) S.meta.deletedIds = [];
-            fakeTxs.forEach(t => S.meta.deletedIds.push(t.id));
-            S.transactions = S.transactions.filter(t => t.note !== 'Синхронизация с Т-Инвест');
-            save(); 
-            if (typeof syncSmart === 'function') syncSmart(true); 
-            renderAll();
-            toast(`✅ Удалено ${fakeTxs.length} фейковых операций`);
-        } else {
-            toast('Мусорных операций не найдено');
-        }
-    };
-
-    const prevRenderStats = window.renderStats;
-    window.renderStats = function() {
-        if (prevRenderStats) prevRenderStats();
-        setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 150);
     };
 })();
