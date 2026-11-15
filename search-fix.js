@@ -1,5 +1,5 @@
 // ==========================================
-// Умный поиск и фикс курсора (v55) - search-fix.js
+// Умный поиск и фикс курсора (v56) - search-fix.js
 // ==========================================
 
 window.renderTransactions = function() {
@@ -96,4 +96,30 @@ window.renderTransactions = function() {
     }
     listWrapper.innerHTML = listHtml;
 };
-console.log('✅ Умный поиск (v55) загружен');
+
+function renderTxItem(t){
+    let icon,title,meta,amount,sign,cls;
+    if(t.type==='income'){
+        const c=getCat(t.categoryId);icon='↓';title=c?c.name:'Доход';cls='income';
+        const a=getAcc(t.accountId);meta=a?a.name:'';sign='+';amount=t.amount;
+    }else if(t.type==='expense'){
+        const c=getCat(t.categoryId);icon='↑';title=c?c.name:'Расход';cls='expense';
+        const a=getAcc(t.accountId);meta=a?a.name:'';sign='−';amount=t.amount;
+    }else if(t.type==='transfer'){
+        const f=getAcc(t.accountId),to=getAcc(t.toAccountId);icon='⇄';title=(f?f.name:'?')+' → '+(to?to.name:'?');cls='transfer';
+        const k=t.savingsKind||classifyTransfer(t.accountId,t.toAccountId);meta={savings:'в накопления',investment:'в инвестиции',withdraw:'снятие',ignore:'между'}[k]||'';sign='';amount=t.amount;
+    }else{
+        const cp=S.counterparties.find(c=>c.id===t.counterpartyId);icon='🤝';cls='debt';
+        if(t.debtType==='lent'){title='Дал в долг: '+(cp?cp.name:'');sign='−';}
+        else if(t.debtType==='returned'){title='Вернули: '+(cp?cp.name:'');sign='+';}
+        else if(t.debtType==='borrowed'){title='Взял в долг: '+(cp?cp.name:'');sign='+';}
+        else if(t.debtType==='repaid'){title='Отдал долг: '+(cp?cp.name:'');sign='−';}
+        meta=getAcc(t.accountId)?.name||'';amount=t.amount;
+    }
+
+    // ФИКС: Добавляем стили для игнорируемых операций
+    const ignoreStyle = t.ignoreInStats ? 'opacity: 0.4; filter: grayscale(100%);' : '';
+
+    return `<div class="tx-item" style="${ignoreStyle}" onclick="openTxModal('${t.id}')"><div class="icon ${cls}">${icon}</div><div class="body"><div class="title">${esc(title)}</div><div class="meta">${esc(meta)}${t.note?' · '+esc(t.note):''}</div></div><div class="amount ${cls}">${sign}${fmt(amount)}</div></div>`;
+}
+console.log('✅ Умный поиск (v56) загружен');
