@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v11
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v12
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v11 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v12 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -322,6 +322,97 @@
         return total;
     }
 
+    window.openStatsList = function(type) {
+        const dates = getPeriodDates(window._statsPeriod);
+        let list = S.transactions.filter(t => {
+            const d = new Date(t.date).getTime();
+            return d >= dates.start.getTime() && d <= dates.end.getTime() && !t.ignoreInStats;
+        });
+
+        if (type === 'income') list = list.filter(t => t.type === 'income');
+        else if (type === 'expense') list = list.filter(t => t.type === 'expense');
+        else if (type === 'saved') list = list.filter(t => t.type === 'transfer' && (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'savings');
+        else if (type === 'invest') list = list.filter(t => t.type === 'transfer' && (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'investment');
+
+        list.sort((a,b) => b.amount - a.amount);
+        const limit = 100;
+        const displayList = list.slice(0, limit);
+
+        let html = `<div class="modal-header"><h2>${type === 'income' ? 'Доходы' : type === 'expense' ? 'Расходы' : type === 'saved' ? 'В накопления' : 'В инвестиции'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
+        if (list.length > limit) {
+            html += `<div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Показаны топ-${limit} операций по сумме. Всего: ${list.length}.</div>`;
+        }
+        if (displayList.length === 0) {
+            html += `<div class="empty">Нет операций</div>`;
+        } else {
+            html += `<div style="max-height:60vh; overflow-y:auto;">`;
+            displayList.forEach(t => {
+                const cat = getCat(t.categoryId);
+                const acc = getAcc(t.accountId);
+                const toAcc = getAcc(t.toAccountId);
+                let title = cat ? cat.name : (t.type === 'transfer' ? 'Перевод' : 'Операция');
+                let meta = t.date + (acc ? ' · ' + acc.name : '') + (toAcc ? ' → ' + toAcc.name : '');
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(title)}</div><div style="font-size:12px; color:var(--muted);">${meta}</div></div><div style="font-weight:700;">${fmt(t.amount)}</div></div>`;
+            });
+            html += `</div>`;
+        }
+        openModal(html);
+    };
+
+    window.openStatsFCF = function() {
+        const dates = getPeriodDates(window._statsPeriod);
+        let incList = [], expList = [];
+        let incTotal = 0, expTotal = 0;
+
+        S.transactions.filter(t => {
+            const d = new Date(t.date).getTime();
+            return d >= dates.start.getTime() && d <= dates.end.getTime() && !t.ignoreInStats;
+        }).forEach(t => {
+            if (t.type === 'income') { incList.push(t); incTotal += t.amount; }
+            if (t.type === 'expense') { expList.push(t); expTotal += t.amount; }
+        });
+
+        incList.sort((a,b) => b.amount - a.amount);
+        expList.sort((a,b) => b.amount - a.amount);
+        
+        const limit = 50;
+        const dispInc = incList.slice(0, limit);
+        const dispExp = expList.slice(0, limit);
+
+        const fcf = incTotal - expTotal;
+
+        let html = `<div class="modal-header"><h2>Свободный поток</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
+        html += `<div style="font-size: 24px; font-weight: 800; color: ${fcf>=0?'var(--green)':'var(--red)'}; margin-bottom: 16px;">${fmt(fcf)}</div>`;
+
+        html += `<div style="max-height:60vh; overflow-y:auto;">`;
+        
+        html += `<div style="font-weight:700; color:var(--green); margin-bottom:8px;">Доходы (${fmt(incTotal)})</div>`;
+        if (dispInc.length === 0) html += `<div class="empty" style="padding:8px;">Нет доходов</div>`;
+        else {
+            dispInc.forEach(t => {
+                const cat = getCat(t.categoryId);
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${cat?esc(cat.name):'Доход'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div><div style="font-weight:700; color:var(--green);">+${fmt(t.amount)}</div></div>`;
+            });
+            if (incList.length > limit) html += `<div style="font-size:11px; color:var(--muted); text-align:right;">...и еще ${incList.length - limit}</div>`;
+        }
+
+        html += `<div style="font-weight:700; color:var(--red); margin:16px 0 8px;">Расходы (${fmt(expTotal)})</div>`;
+        if (dispExp.length === 0) html += `<div class="empty" style="padding:8px;">Нет расходов</div>`;
+        else {
+            dispExp.forEach(t => {
+                const cat = getCat(t.categoryId);
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${cat?esc(cat.name):'Расход'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div><div style="font-weight:700; color:var(--red);">-${fmt(t.amount)}</div></div>`;
+            });
+            if (expList.length > limit) html += `<div style="font-size:11px; color:var(--muted); text-align:right;">...и еще ${expList.length - limit}</div>`;
+        }
+
+        html += `</div>`;
+        html += `<div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border); display:flex; justify-content:space-between; font-weight:800;">
+            <span>Итого:</span><span>${fmt(fcf)}</span>
+        </div>`;
+        openModal(html);
+    };
+
     window.renderStats = function() {
         const el = document.getElementById('page-stats');
         if (!el) return;
@@ -410,7 +501,8 @@
 
         rows.forEach((row, i) => {
             const isSelected = window._statsSelectedRows.includes(row.key);
-            const bg = isSelected ? 'rgba(255,255,255,0.05)' : (i % 2 === 0 ? 'var(--card)' : 'var(--card2)');
+            // ИСПРАВЛЕНО: Фон сделан непрозрачным (используем --bg2 для выделения)
+            const bg = isSelected ? 'var(--bg2)' : (i % 2 === 0 ? 'var(--card)' : 'var(--card2)');
             const activeBar = isSelected ? `<div style="position:absolute; left:0; top:0; bottom:0; width:4px; background:${row.color};"></div>` : '';
             
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
@@ -445,22 +537,22 @@
                 </div>
                 <div class="fw-body" id="stats-body-topBlock" style="display: ${window._statsUI.topBlock ? 'none' : 'block'};">
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                        <div class="analytic-item">
+                        <div class="analytic-item" onclick="window.openStatsList('income')">
                             <div class="label">Доходы</div><div class="val pos">${fmt(m.inc)}</div>${getTrendHtml(m.inc, p.inc, true)}
                         </div>
-                        <div class="analytic-item">
+                        <div class="analytic-item" onclick="window.openStatsList('expense')">
                             <div class="label">Расходы</div><div class="val neg">${fmt(m.exp)}</div>${getTrendHtml(m.exp, p.exp, false)}
                         </div>
-                        <div class="analytic-item">
+                        <div class="analytic-item" onclick="window.openStatsList('saved')">
                             <div class="label">В накопления</div><div class="val pos">${fmt(m.sav)}</div>${getTrendHtml(m.sav, p.sav, true)}
                         </div>
-                        <div class="analytic-item">
+                        <div class="analytic-item" onclick="window.openStatsList('invest')">
                             <div class="label">В инвестиции</div><div class="val pos">${fmt(m.inv)}</div>${getTrendHtml(m.inv, p.inv, true)}
                         </div>
-                        <div class="analytic-item">
-                            <div class="label">Свободный поток</div><div class="val pos">${fmt(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
+                        <div class="analytic-item" onclick="window.openStatsFCF()">
+                            <div class="label">Свободный поток</div><div class="val pos">${fmt(m.inc - m.exp)}</div>${getTrendHtml(m.inc - m.exp, p.inc - p.exp, true)}
                         </div>
-                        <div class="analytic-item">
+                        <div class="analytic-item" onclick="window.openAnalyticsInfo()">
                             <div class="label">Норма сбережений</div><div class="val">${formatPercent(m.rate)}</div>${getTrendHtml(m.rate, p.rate, true)}
                         </div>
                     </div>
