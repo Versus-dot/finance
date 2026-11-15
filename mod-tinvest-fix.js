@@ -1,20 +1,20 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v9
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v10
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v9 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v10 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
         return parseFloat(val.units || 0) + (parseFloat(val.nano || 0) / 1000000000);
     };
 
-    // Перехват пересчета балансов, чтобы игнорировать исторические операции
+    // Перехват пересчета балансов, чтобы игнорировать исторические операции (только для старых доходов/расходов)
     const originalRecalculateBalances = window.recalculateBalances;
     window.recalculateBalances = function() {
         S.accounts.forEach(a => a.balance = a.initialBalance || 0);
         S.transactions.forEach(t => {
-            if (t.isHistory) return; // Пропускаем исторические операции
+            if (t.isHistory && t.type !== 'transfer') return; // Пропускаем исторические операции, КРОМЕ переводов
             if (t.type === 'income') { const a = getAcc(t.accountId); if(a) a.balance += t.amount; }
             else if (t.type === 'expense') { const a = getAcc(t.accountId); if(a) a.balance -= t.amount; }
             else if (t.type === 'transfer') {
@@ -54,6 +54,9 @@
                 tBank = { id: uid(), name: 'Т-Банк', color: '#f5b945', parentId: null, order: S.banks.length, _updatedAt: Date.now() }; 
                 S.banks.push(tBank); 
             }
+
+            // Находим дефолтную карту для переводов (первая дебетовая)
+            let defaultCard = S.accounts.find(a => (a.type === 'debit' || a.type === 'cash') && !a.archived);
 
             for (const apiAcc of accData.accounts) {
                 if (apiAcc.status !== 'ACCOUNT_STATUS_OPEN') continue;
@@ -99,7 +102,6 @@
                             
                             const amount = Math.abs(qv(op.payment));
                             const dateStr = op.date ? op.date.slice(0, 10) : today();
-                            const isHistory = fetchAll && new Date(dateStr) < new Date(new Date().getFullYear(), 0, 1);
                             
                             let type = null, catId = null, note = '', toAccId = null, fromAccId = null;
                             
@@ -111,11 +113,11 @@
                                 type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; 
                             } else if (opType.includes('input') || opType.includes('пополнение') || opType.includes('ввод')) {
                                 type = 'transfer'; note = 'Пополнение Т-Инвест (Авто)';
-                                const linkedCardId = localAcc.linkedCardId;
+                                const linkedCardId = localAcc.linkedCardId || (defaultCard ? defaultCard.id : null);
                                 if (linkedCardId) { fromAccId = linkedCardId; toAccId = localAcc.id; }
                             } else if (opType.includes('output') || opType.includes('вывод')) {
                                 type = 'transfer'; note = 'Вывод из Т-Инвест (Авто)';
-                                const linkedCardId = localAcc.linkedCardId;
+                                const linkedCardId = localAcc.linkedCardId || (defaultCard ? defaultCard.id : null);
                                 if (linkedCardId) { fromAccId = localAcc.id; toAccId = linkedCardId; }
                             }
                             
@@ -125,7 +127,7 @@
 
                             // Умная защита от дублей для переводов
                             if (type === 'transfer') {
-                                if (!fromAccId || !toAccId) return; // Нет привязанной карты, пропускаем
+                                if (!fromAccId || !toAccId) return; 
                                 const isDup = S.transactions.some(t => 
                                     t.type === 'transfer' && t.date === dateStr && Math.abs(t.amount - amount) < 0.01 && 
                                     t.accountId === fromAccId && t.toAccountId === toAccId
@@ -143,7 +145,7 @@
                                 toAccountId: type === 'transfer' ? toAccId : null,
                                 note: note,
                                 tinvestOpId: op.id,
-                                isHistory: isHistory,
+                                isHistory: (fetchAll && new Date(dateStr) < new Date(new Date().getFullYear(), 0, 1)) ? true : false,
                                 _updatedAt: Date.now()
                             });
                             txCount++;
