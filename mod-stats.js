@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v14
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v15
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v14 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v15 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -26,6 +26,7 @@
         active: '#34D399',
         passive: '#8B5CF6',
         expense: '#EF4444',
+        taxes: '#F87171',
         saved: '#F59E0B',
         invest: '#4d7fff',
         fcf: '#00d2d3',
@@ -168,7 +169,7 @@
     }
 
     function calcStatsData(start, end) {
-        let inc = 0, exp = 0, sav = 0, inv = 0, passive = 0;
+        let inc = 0, exp = 0, tax = 0, sav = 0, inv = 0, passive = 0;
         S.transactions.filter(t => {
             const d = new Date(t.date).getTime();
             return d >= start.getTime() && d <= end.getTime() && !t.ignoreInStats;
@@ -178,14 +179,18 @@
                 const c = getCat(t.categoryId);
                 if (c && c.passive) passive += t.amount; 
             }
-            if (t.type === 'expense') exp += t.amount;
+            if (t.type === 'expense') {
+                exp += t.amount;
+                const c = getCat(t.categoryId);
+                if (c && (c.id === 'c_taxes' || c.name.toLowerCase().includes('налог'))) tax += t.amount;
+            }
             if (t.type === 'transfer') {
                 const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
                 if (k === 'savings') sav += t.amount;
                 if (k === 'investment') inv += t.amount;
             }
         });
-        return { inc, exp, sav, inv, passive, rate: inc > 0 ? ((sav + inv) / inc * 100) : 0 };
+        return { inc, exp, tax, sav, inv, passive, rate: inc > 0 ? ((sav + inv) / inc * 100) : 0 };
     }
 
     function getTrendHtml(current, previous, isGoodWhenUp) {
@@ -263,10 +268,14 @@
         let total = 0;
         const isDateMatch = (d) => monthsArray.some(m => d.startsWith(m));
 
-        if (['income', 'active', 'passive', 'expense', 'saved', 'invest'].includes(row)) {
+        if (['income', 'active', 'passive', 'expense', 'taxes', 'saved', 'invest'].includes(row)) {
             S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
                 if (row === 'income' && t.type === 'income') total += t.amount;
                 if (row === 'expense' && t.type === 'expense') total += t.amount;
+                if (row === 'taxes' && t.type === 'expense') {
+                    const c = getCat(t.categoryId);
+                    if (c && (c.id === 'c_taxes' || c.name.toLowerCase().includes('налог'))) total += t.amount;
+                }
                 if (row === 'active' && t.type === 'income') { const c = getCat(t.categoryId); if (!c || !c.passive) total += t.amount; }
                 if (row === 'passive' && t.type === 'income') { const c = getCat(t.categoryId); if (c && c.passive) total += t.amount; }
                 if (row === 'saved' && t.type === 'transfer') { const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId); if (k === 'savings') total += t.amount; }
@@ -330,6 +339,11 @@
 
         if (type === 'income') list = list.filter(t => t.type === 'income');
         else if (type === 'expense') list = list.filter(t => t.type === 'expense');
+        else if (type === 'taxes') list = list.filter(t => {
+            if (t.type !== 'expense') return false;
+            const c = getCat(t.categoryId);
+            return c && (c.id === 'c_taxes' || c.name.toLowerCase().includes('налог'));
+        });
         else if (type === 'saved') list = list.filter(t => t.type === 'transfer' && (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'savings');
         else if (type === 'invest') list = list.filter(t => t.type === 'transfer' && (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'investment');
 
@@ -337,7 +351,7 @@
         const limit = 100;
         const displayList = list.slice(0, limit);
 
-        let html = `<div class="modal-header"><h2>${type === 'income' ? 'Доходы' : type === 'expense' ? 'Расходы' : type === 'saved' ? 'В накопления' : 'В инвестиции'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
+        let html = `<div class="modal-header"><h2>${type === 'income' ? 'Доходы' : type === 'expense' ? 'Расходы' : type === 'taxes' ? 'Налоги' : type === 'saved' ? 'В накопления' : 'В инвестиции'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
         if (list.length > limit) {
             html += `<div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Показаны топ-${limit} операций по сумме. Всего: ${list.length}.</div>`;
         }
@@ -466,6 +480,7 @@
             { key: 'active', label: 'Активный', indent: 1, color: COLORS.active },
             { key: 'passive', label: 'Пассивный', indent: 1, color: COLORS.passive },
             { key: 'expense', label: 'Расходы', indent: 0, color: COLORS.expense, bold: true },
+            { key: 'taxes', label: 'Налоги', indent: 1, color: COLORS.taxes },
             { key: 'saved', label: 'Отложено', indent: 0, color: COLORS.saved },
             { key: 'invest', label: 'Инвестиции', indent: 0, color: COLORS.invest },
             { key: 'fcf', label: 'Свободный поток', indent: 0, color: COLORS.fcf, bold: true },
@@ -613,6 +628,7 @@
                 { key: 'active', label: 'Активный', type: 'bar' },
                 { key: 'passive', label: 'Пассивный', type: 'bar' },
                 { key: 'expense', label: 'Расходы', type: 'bar' },
+                { key: 'taxes', label: 'Налоги', type: 'bar' },
                 { key: 'saved', label: 'Отложено', type: 'bar' },
                 { key: 'invest', label: 'Инвестиции', type: 'bar' },
                 { key: 'fcf', label: 'Свободный поток', type: 'bar' },
