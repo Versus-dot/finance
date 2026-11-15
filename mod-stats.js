@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v15
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v16
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v15 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v16 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -190,7 +190,7 @@
                 if (k === 'investment') inv += t.amount;
             }
         });
-        return { inc, exp, tax, sav, inv, passive, rate: inc > 0 ? ((sav + inv) / inc * 100) : 0 };
+        return { inc, exp, tax, sav, inv, passive, rate: inc > 0 ? Math.min(100, ((sav + inv) / inc * 100)) : 0 };
     }
 
     function getTrendHtml(current, previous, isGoodWhenUp) {
@@ -298,7 +298,7 @@
                     if (k === 'investment') inv += t.amount;
                 }
             });
-            total = inc > 0 ? ((sav + inv) / inc * 100) : 0;
+            total = inc > 0 ? Math.min(100, ((sav + inv) / inc * 100)) : 0;
         } else if (['capital', 'cushion', 'pds', 'stocks', 'savings', 'debt'].includes(row)) {
             const currentMonthStr = today().slice(0, 7);
             
@@ -465,14 +465,15 @@
 
         const periods = generateTablePeriods();
         
-        let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%;">
+        let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%; position:relative;">
             <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:right;">
                 <thead>
                     <tr style="background:var(--card2); border-bottom:1px solid var(--border);">
-                        <th style="position:sticky; left:0; background:var(--card2); z-index:2; padding:10px; text-align:left; font-weight:700; min-width:140px;">Параметр</th>`;
+                        <th style="position:sticky; left:0; background:var(--card2); z-index:3; padding:10px; text-align:left; font-weight:700; min-width:140px; border-right:1px solid var(--border);">Параметр</th>`;
         periods.forEach(p => {
             tableHtml += `<th style="padding:10px; font-weight:600;">${p.label}</th>`;
         });
+        tableHtml += `<th style="position:sticky; right:0; background:var(--card2); z-index:3; padding:10px; font-weight:700; border-left:1px solid var(--border);">Итого</th>`;
         tableHtml += `</tr></thead><tbody>`;
 
         const rows = [
@@ -500,7 +501,7 @@
             
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
                 <td onclick="window.toggleTableRow('${row.key}')" 
-                    style="position:sticky; left:0; background:${bg}; z-index:1; padding:10px 10px 10px ${10 + row.indent * 15}px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
+                    style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px 10px 10px ${10 + row.indent * 15}px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
                     ${activeBar}
                     ${row.label}
                 </td>`;
@@ -512,6 +513,39 @@
                 if (row.key === 'capital' && val === 0) display = '-';
                 tableHtml += `<td style="padding:10px;">${display}</td>`;
             });
+
+            // Calculate Total
+            let totalVal = 0;
+            if (['income', 'active', 'passive', 'expense', 'taxes', 'saved', 'invest', 'fcf'].includes(row.key)) {
+                totalVal = periods.reduce((sum, p) => {
+                    const monthsArr = p.months ? p.months : [p.dateStr];
+                    return sum + calcTableRow(row.key, monthsArr);
+                }, 0);
+            } else if (row.key === 'rate') {
+                let totalInc = 0, totalSav = 0;
+                periods.forEach(p => {
+                    const monthsArr = p.months ? p.months : [p.dateStr];
+                    S.transactions.filter(t => monthsArr.some(m => t.date.startsWith(m)) && !t.ignoreInStats).forEach(t => {
+                        if (t.type === 'income') totalInc += t.amount;
+                        if (t.type === 'transfer') {
+                            const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
+                            if (k === 'savings' || k === 'investment') totalSav += t.amount;
+                        }
+                    });
+                });
+                totalVal = totalInc > 0 ? Math.min(100, (totalSav / totalInc * 100)) : 0;
+            } else {
+                const lastPeriod = periods[periods.length - 1];
+                if (lastPeriod) {
+                    const monthsArr = lastPeriod.months ? lastPeriod.months : [lastPeriod.dateStr];
+                    totalVal = calcTableRow(row.key, monthsArr);
+                }
+            }
+
+            let displayTotal = totalVal === 0 ? '-' : (row.suffix ? formatPercent(totalVal) : fmt(totalVal));
+            if (row.key === 'capital' && totalVal === 0) displayTotal = '-';
+
+            tableHtml += `<td style="position:sticky; right:0; background:${bg}; z-index:2; padding:10px; font-weight:700; border-left:1px solid var(--border);">${displayTotal}</td>`;
             tableHtml += `</tr>`;
         });
         tableHtml += `</tbody></table></div>`;
