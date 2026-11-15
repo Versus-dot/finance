@@ -1,19 +1,18 @@
 // ==========================================
-// МОДУЛЬ ФИКСОВ (mod-fixes.js) v220
+// МОДУЛЬ ФИКСОВ (mod-fixes.js) v221
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов (mod-fixes.js) v220 загружен");
+    console.log("✅ Модуль фиксов (mod-fixes.js) v221 загружен");
 
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
         if (!S.meta.deletedIds) S.meta.deletedIds = [];
     }
 
-    // ФИКС: Убираем -0 и микроскопические погрешности
     const prevAccValue = window.accValue;
     window.accValue = function(a) {
         let val = prevAccValue(a);
-        if (Math.abs(val) < 0.01) return 0;
+        if (Math.abs(val) < 0.01) return 0; // ФИКС: Убираем -0
         return val;
     };
 
@@ -52,8 +51,8 @@
         
         window._currentEditingAccId = id || null; 
 
-        // СКРЫВАЕМ "Начальный баланс", чтобы не было путаницы
-        const accBalanceGroup = form.querySelector('input[id="accBalance"]').closest('.form-group');
+        // СКРЫВАЕМ "Начальный баланс"
+        const accBalanceGroup = form.querySelector('input[id="accBalance"]')?.closest('.form-group');
         if (accBalanceGroup) accBalanceGroup.style.display = 'none';
 
         const cushionLabel = form.querySelector('input[id="accCushion"]').closest('.form-group');
@@ -69,7 +68,6 @@
         ignoreDiv.after(archiveDiv);
         
         const typeSel = document.getElementById('accType');
-        const creditFields = document.getElementById('creditFields');
         
         if (typeSel) {
             const linkedCardDiv = document.createElement('div');
@@ -124,7 +122,6 @@
         }, 100);
     };
 
-    // ПОЛНОСТЬЮ ПЕРЕПИСАНА КОРРЕКТИРОВКА (без выбора "Просто исправить")
     window.openReconcileModal = function(accId) {
         const acc = getAcc(accId);
         if (!acc) return;
