@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js) v6
+// МОДУЛЬ УВЕДОМЛЕНИЙ (mod-notifications.js) v7
 // ==========================================
 (function() {
-    console.log("✅ Модуль уведомлений (mod-notifications.js) v6 загружен");
+    console.log("✅ Модуль уведомлений (mod-notifications.js) v7 загружен");
 
     if (typeof S !== 'undefined') {
         if (S.settings.graceYellowDays === undefined) S.settings.graceYellowDays = 7;
@@ -52,13 +52,13 @@
         .bank-chip.bg-danger.pulse-bg { animation: pulse-glow 1.5s infinite !important; }
         .bank-group.bg-danger.pulse-bg { animation: pulse-glow-group 1.5s infinite !important; }
 
-        .global-grace-icon { font-size: 18px; margin-left: 8px; cursor: pointer; vertical-align: middle; display: inline-block; }
-        .global-grace-icon.warn { color: var(--yellow); animation: pulse-warn 2s infinite; }
+        .global-grace-icon { display: inline-flex; align-items: center; margin-left: 8px; cursor: pointer; vertical-align: middle; }
+        .global-grace-icon svg { width: 20px; height: 20px; }
+        .global-grace-icon.warn { color: var(--yellow); }
         .global-grace-icon.danger { color: var(--red); }
         .global-grace-icon.pulse { color: var(--red); animation: pulse-danger 1.5s infinite; }
         
-        @keyframes pulse-warn { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        @keyframes pulse-danger { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        @keyframes pulse-danger { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: 0.7; } }
     `;
     document.head.appendChild(styleEl);
 
@@ -293,7 +293,7 @@
                 else if (worstGlobalStatus === 'red') className += 'danger';
                 else if (worstGlobalStatus === 'yellow') className += 'warn';
                 icon.className = className;
-                icon.innerHTML = '⚠️';
+                icon.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" style="vertical-align: text-bottom;"><path d="M12 2L1 21h22L12 2zm1 16h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>`;
                 icon.title = 'Есть карты с подходящим льготным периодом';
                 icon.onclick = window.showGraceListModal;
                 banksTitle.appendChild(icon);
