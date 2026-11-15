@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v12
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v14
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v12 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v14 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -15,8 +15,7 @@
         window._statsUI = {
             topBlock: false,
             reportWidget: false,
-            snapshots: false,
-            budgets: false
+            snapshots: false
         };
     }
 
@@ -450,26 +449,6 @@
             snapHTML = '<div class="empty">Нет снимков</div>';
         }
 
-        let budgetHTML = '';
-        if (!S.budgets.length) {
-            budgetHTML = '<div class="empty" style="padding:14px">Нет бюджетов</div>';
-        } else {
-            S.budgets.forEach(b => {
-                const cat = getCat(b.categoryId);
-                if (!cat) return;
-                const spent = S.transactions.filter(t => t.type === 'expense' && t.categoryId === b.categoryId && t.date.startsWith(thisMonth())).reduce((s,t) => s + t.amount, 0);
-                const pct = b.limit > 0 ? Math.min(100, spent / b.limit * 100) : 0;
-                const cls = pct > 100 ? 'red' : pct > 80 ? 'yellow' : 'green';
-                budgetHTML += `<div style="padding:10px 0; border-bottom:1px solid var(--border)">
-                    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-                        <strong>${esc(cat.name)}</strong>
-                        <div><span>${fmt(spent)} / ${fmt(b.limit)}</span> <button class="btn-icon" onclick="openBudgetModal('${b.categoryId}')">✏️</button></div>
-                    </div>
-                    <div class="progress"><div class="progress-bar ${cls}" style="width:${pct}%"></div></div>
-                </div>`;
-            });
-        }
-
         const periods = generateTablePeriods();
         
         let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%;">
@@ -501,7 +480,6 @@
 
         rows.forEach((row, i) => {
             const isSelected = window._statsSelectedRows.includes(row.key);
-            // ИСПРАВЛЕНО: Фон сделан непрозрачным (используем --bg2 для выделения)
             const bg = isSelected ? 'var(--bg2)' : (i % 2 === 0 ? 'var(--card)' : 'var(--card2)');
             const activeBar = isSelected ? `<div style="position:absolute; left:0; top:0; bottom:0; width:4px; background:${row.color};"></div>` : '';
             
@@ -598,18 +576,6 @@
                 </div>
                 <div class="fw-body" id="stats-body-snapshots" style="display: ${window._statsUI.snapshots ? 'none' : 'block'};">
                     ${snapHTML}
-                </div>
-            </div>
-
-            <div class="fullwidth-widget" style="margin-bottom:16px;">
-                <div class="fw-header" onclick="window.toggleStatsBlock('budgets')">
-                    <div class="fw-header-left">
-                        <span id="stats-icon-budgets">${window._statsUI.budgets ? '▶' : '▼'}</span> Бюджеты
-                    </div>
-                    <button class="btn-small btn-secondary" onclick="event.stopPropagation(); openBudgetModal()">+</button>
-                </div>
-                <div class="fw-body" id="stats-body-budgets" style="display: ${window._statsUI.budgets ? 'none' : 'block'};">
-                    ${budgetHTML}
                 </div>
             </div>
         `;
