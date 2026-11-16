@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v16
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v17
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v16 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v17 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -268,7 +268,7 @@
         let total = 0;
         const isDateMatch = (d) => monthsArray.some(m => d.startsWith(m));
 
-        if (['income', 'active', 'passive', 'expense', 'taxes', 'saved', 'invest'].includes(row)) {
+        if (['income', 'active', 'passive', 'expense', 'taxes', 'saved'].includes(row)) {
             S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
                 if (row === 'income' && t.type === 'income') total += t.amount;
                 if (row === 'expense' && t.type === 'expense') total += t.amount;
@@ -279,8 +279,24 @@
                 if (row === 'active' && t.type === 'income') { const c = getCat(t.categoryId); if (!c || !c.passive) total += t.amount; }
                 if (row === 'passive' && t.type === 'income') { const c = getCat(t.categoryId); if (c && c.passive) total += t.amount; }
                 if (row === 'saved' && t.type === 'transfer') { const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId); if (k === 'savings') total += t.amount; }
-                if (row === 'invest' && t.type === 'transfer') { const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId); if (k === 'investment') total += t.amount; }
             });
+        } else if (row === 'invest_total' || row.startsWith('inv_bank_') || row.startsWith('inv_acc_')) {
+            let targetAccIds = [];
+            if (row === 'invest_total') {
+                targetAccIds = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived).map(a => a.id);
+            } else if (row.startsWith('inv_bank_')) {
+                const bankId = row.replace('inv_bank_', '');
+                targetAccIds = S.accounts.filter(a => a.bankId === bankId && ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived).map(a => a.id);
+            } else if (row.startsWith('inv_acc_')) {
+                targetAccIds = [row.replace('inv_acc_', '')];
+            }
+
+            let inSum = 0, outSum = 0;
+            S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
+                if (t.type === 'transfer' && targetAccIds.includes(t.toAccountId)) inSum += t.amount;
+                if (t.type === 'transfer' && targetAccIds.includes(t.accountId)) outSum += t.amount;
+            });
+            total = inSum - outSum;
         } else if (row === 'fcf') {
             let inc = 0, exp = 0;
             S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
@@ -345,13 +361,12 @@
             return c && (c.id === 'c_taxes' || c.name.toLowerCase().includes('налог'));
         });
         else if (type === 'saved') list = list.filter(t => t.type === 'transfer' && (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'savings');
-        else if (type === 'invest') list = list.filter(t => t.type === 'transfer' && (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'investment');
 
         list.sort((a,b) => b.amount - a.amount);
         const limit = 100;
         const displayList = list.slice(0, limit);
 
-        let html = `<div class="modal-header"><h2>${type === 'income' ? 'Доходы' : type === 'expense' ? 'Расходы' : type === 'taxes' ? 'Налоги' : type === 'saved' ? 'В накопления' : 'В инвестиции'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
+        let html = `<div class="modal-header"><h2>${type === 'income' ? 'Доходы' : type === 'expense' ? 'Расходы' : type === 'taxes' ? 'Налоги' : 'В накопления'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
         if (list.length > limit) {
             html += `<div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Показаны топ-${limit} операций по сумме. Всего: ${list.length}.</div>`;
         }
@@ -465,6 +480,50 @@
 
         const periods = generateTablePeriods();
         
+        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ИНВЕСТИЦИЙ
+        let dynamicRows = [];
+        dynamicRows.push({ key: 'invest_total', label: 'Инвестировано (Всего)', indent: 0, color: COLORS.invest, bold: true });
+        
+        const investAccounts = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived);
+        const bankGroups = {};
+        investAccounts.forEach(a => {
+            if (!bankGroups[a.bankId]) bankGroups[a.bankId] = [];
+            bankGroups[a.bankId].push(a);
+        });
+
+        Object.keys(bankGroups).forEach(bankId => {
+            const bank = getBank(bankId);
+            if (!bank) return;
+            const accs = bankGroups[bankId];
+            
+            if (accs.length > 1) {
+                dynamicRows.push({ key: 'inv_bank_' + bankId, label: '↳ ' + esc(bank.name), indent: 1, color: COLORS.invest });
+                accs.forEach(acc => {
+                    dynamicRows.push({ key: 'inv_acc_' + acc.id, label: '↳↳ ' + esc(acc.name), indent: 2, color: COLORS.invest });
+                });
+            } else if (accs.length === 1) {
+                dynamicRows.push({ key: 'inv_acc_' + accs[0].id, label: '↳ ' + esc(bank.name), indent: 1, color: COLORS.invest });
+            }
+        });
+
+        const rows = [
+            { key: 'income', label: 'Доходы', indent: 0, color: COLORS.income, bold: true },
+            { key: 'active', label: 'Активный', indent: 1, color: COLORS.active },
+            { key: 'passive', label: 'Пассивный', indent: 1, color: COLORS.passive },
+            { key: 'expense', label: 'Расходы', indent: 0, color: COLORS.expense, bold: true },
+            { key: 'taxes', label: 'Налоги', indent: 1, color: COLORS.taxes },
+            { key: 'saved', label: 'Отложено', indent: 0, color: COLORS.saved },
+            ...dynamicRows,
+            { key: 'fcf', label: 'Свободный поток', indent: 0, color: COLORS.fcf, bold: true },
+            { key: 'rate', label: 'Норма сбережений', indent: 0, color: COLORS.rate, suffix: '%' },
+            { key: 'capital', label: 'Капитал', indent: 0, color: COLORS.capital, bold: true, isHeader: true },
+            { key: 'cushion', label: 'Подушка', indent: 1, color: COLORS.cushion },
+            { key: 'pds', label: 'ПДС', indent: 1, color: COLORS.pds },
+            { key: 'stocks', label: 'Фондовый рынок', indent: 1, color: COLORS.stocks },
+            { key: 'savings', label: 'Накопления', indent: 1, color: COLORS.savings },
+            { key: 'debt', label: 'Долги', indent: 1, color: COLORS.debt }
+        ];
+
         let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%; position:relative;">
             <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:right;">
                 <thead>
@@ -475,24 +534,6 @@
         });
         tableHtml += `<th style="position:sticky; right:0; background:var(--card2); z-index:3; padding:10px; font-weight:700; border-left:1px solid var(--border);">Итого</th>`;
         tableHtml += `</tr></thead><tbody>`;
-
-        const rows = [
-            { key: 'income', label: 'Доходы', indent: 0, color: COLORS.income, bold: true },
-            { key: 'active', label: 'Активный', indent: 1, color: COLORS.active },
-            { key: 'passive', label: 'Пассивный', indent: 1, color: COLORS.passive },
-            { key: 'expense', label: 'Расходы', indent: 0, color: COLORS.expense, bold: true },
-            { key: 'taxes', label: 'Налоги', indent: 1, color: COLORS.taxes },
-            { key: 'saved', label: 'Отложено', indent: 0, color: COLORS.saved },
-            { key: 'invest', label: 'Инвестиции', indent: 0, color: COLORS.invest },
-            { key: 'fcf', label: 'Свободный поток', indent: 0, color: COLORS.fcf, bold: true },
-            { key: 'rate', label: 'Норма сбережений', indent: 0, color: COLORS.rate, suffix: '%' },
-            { key: 'capital', label: 'Капитал', indent: 0, color: COLORS.capital, bold: true, isHeader: true },
-            { key: 'cushion', label: 'Подушка', indent: 1, color: COLORS.cushion },
-            { key: 'pds', label: 'ПДС', indent: 1, color: COLORS.pds },
-            { key: 'stocks', label: 'Фондовый рынок', indent: 1, color: COLORS.stocks },
-            { key: 'savings', label: 'Накопления', indent: 1, color: COLORS.savings },
-            { key: 'debt', label: 'Долги', indent: 1, color: COLORS.debt }
-        ];
 
         rows.forEach((row, i) => {
             const isSelected = window._statsSelectedRows.includes(row.key);
@@ -516,7 +557,7 @@
 
             // Calculate Total
             let totalVal = 0;
-            if (['income', 'active', 'passive', 'expense', 'taxes', 'saved', 'invest', 'fcf'].includes(row.key)) {
+            if (['income', 'active', 'passive', 'expense', 'taxes', 'saved', 'fcf'].includes(row.key) || row.key === 'invest_total' || row.key.startsWith('inv_bank_') || row.key.startsWith('inv_acc_')) {
                 totalVal = periods.reduce((sum, p) => {
                     const monthsArr = p.months ? p.months : [p.dateStr];
                     return sum + calcTableRow(row.key, monthsArr);
@@ -573,8 +614,9 @@
                         <div class="analytic-item" onclick="window.openStatsList('saved')">
                             <div class="label">В накопления</div><div class="val pos">${fmt(m.sav)}</div>${getTrendHtml(m.sav, p.sav, true)}
                         </div>
-                        <div class="analytic-item" onclick="window.openStatsList('invest')">
-                            <div class="label">В инвестиции</div><div class="val pos">${fmt(m.inv)}</div>${getTrendHtml(m.inv, p.inv, true)}
+                        <div class="analytic-item">
+                            <div class="label">Инвестировано</div><div class="val pos">${fmt(calcTableRow('invest_total', [today().slice(0,7)]))}</div>
+                            <div style="font-size:10px; color:var(--muted);">За текущий месяц</div>
                         </div>
                         <div class="analytic-item" onclick="window.openStatsFCF()">
                             <div class="label">Свободный поток</div><div class="val pos">${fmt(m.inc - m.exp)}</div>${getTrendHtml(m.inc - m.exp, p.inc - p.exp, true)}
@@ -657,43 +699,51 @@
         let hasPct = false;
 
         window._statsSelectedRows.forEach((key, idx) => {
-            const rowDef = [
-                { key: 'income', label: 'Доходы', type: 'bar' },
-                { key: 'active', label: 'Активный', type: 'bar' },
-                { key: 'passive', label: 'Пассивный', type: 'bar' },
-                { key: 'expense', label: 'Расходы', type: 'bar' },
-                { key: 'taxes', label: 'Налоги', type: 'bar' },
-                { key: 'saved', label: 'Отложено', type: 'bar' },
-                { key: 'invest', label: 'Инвестиции', type: 'bar' },
-                { key: 'fcf', label: 'Свободный поток', type: 'bar' },
-                { key: 'rate', label: 'Норма сбережений', type: 'line', isPct: true },
-                { key: 'capital', label: 'Капитал', type: 'line' },
-                { key: 'cushion', label: 'Подушка', type: 'bar' },
-                { key: 'pds', label: 'ПДС', type: 'bar' },
-                { key: 'stocks', label: 'Фондовый рынок', type: 'bar' },
-                { key: 'savings', label: 'Накопления', type: 'bar' },
-                { key: 'debt', label: 'Долги', type: 'bar' }
-            ].find(r => r.key === key);
+            let label = '';
+            let type = 'bar';
+            let isPct = false;
+            let color = COLORS.invest;
 
-            if (!rowDef) return;
-            if (rowDef.isPct) hasPct = true; else hasRub = true;
+            if (key === 'income') { label = 'Доходы'; color = COLORS.income; }
+            else if (key === 'active') { label = 'Активный'; color = COLORS.active; }
+            else if (key === 'passive') { label = 'Пассивный'; color = COLORS.passive; }
+            else if (key === 'expense') { label = 'Расходы'; color = COLORS.expense; }
+            else if (key === 'taxes') { label = 'Налоги'; color = COLORS.taxes; }
+            else if (key === 'saved') { label = 'Отложено'; color = COLORS.saved; }
+            else if (key === 'invest_total') { label = 'Инвестировано (Всего)'; color = COLORS.invest; }
+            else if (key.startsWith('inv_bank_') || key.startsWith('inv_acc_')) { 
+                label = 'Инвестиции'; color = COLORS.invest;
+                // Найдем реальное имя для подписи
+                const rowDef = document.querySelector(`td[onclick*="'${key}'"]`);
+                if (rowDef) label = rowDef.textContent.trim().replace('↳', '').trim();
+            }
+            else if (key === 'fcf') { label = 'Свободный поток'; color = COLORS.fcf; }
+            else if (key === 'rate') { label = 'Норма сбережений'; type = 'line'; isPct = true; color = COLORS.rate; }
+            else if (key === 'capital') { label = 'Капитал'; type = 'line'; color = COLORS.capital; }
+            else if (key === 'cushion') { label = 'Подушка'; color = COLORS.cushion; }
+            else if (key === 'pds') { label = 'ПДС'; color = COLORS.pds; }
+            else if (key === 'stocks') { label = 'Фондовый рынок'; color = COLORS.stocks; }
+            else if (key === 'savings') { label = 'Накопления'; color = COLORS.savings; }
+            else if (key === 'debt') { label = 'Долги'; color = COLORS.debt; }
+            else return; // Неизвестный ключ
+
+            if (isPct) hasPct = true; else hasRub = true;
 
             const data = periods.map(p => {
                 const monthsArr = p.months ? p.months : [p.dateStr];
                 return calcTableRow(key, monthsArr);
             });
 
-            const color = COLORS[key];
             datasets.push({
-                type: rowDef.type,
-                label: rowDef.label,
+                type: type,
+                label: label,
                 data: data,
-                backgroundColor: rowDef.type === 'bar' ? color : color + '33',
+                backgroundColor: type === 'bar' ? color : color + '33',
                 borderColor: color,
-                borderWidth: rowDef.type === 'line' ? 2 : 0,
-                fill: rowDef.type === 'line',
+                borderWidth: type === 'line' ? 2 : 0,
+                fill: type === 'line',
                 tension: 0.3,
-                yAxisID: rowDef.isPct ? 'y1' : 'y',
+                yAxisID: isPct ? 'y1' : 'y',
                 maxBarThickness: 30
             });
         });
