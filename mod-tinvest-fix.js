@@ -1,8 +1,8 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v15
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v16
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v15 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v16 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
@@ -13,7 +13,6 @@
     window.recalculateBalances = function() {
         S.accounts.forEach(a => a.balance = a.initialBalance || 0);
         S.transactions.forEach(t => {
-            // ГЛАВНЫЙ ФИКС: Полностью игнорируем исторические операции при расчете баланса
             if (t.isHistory) return; 
             
             if (t.type === 'income') { const a = getAcc(t.accountId); if(a) a.balance += t.amount; }
@@ -108,74 +107,95 @@
 
                 toast(`⏳ Запрашиваем операции (${apiAcc.name || 'Брокерский'})...`);
                 
-                let fromDate;
-                if (fetchAll) {
-                    fromDate = new Date(2020, 0, 1).toISOString();
-                } else {
-                    const now = new Date();
-                    fromDate = new Date(now.getFullYear(), 0, 1).toISOString(); 
-                }
-                
-                const toDate = new Date().toISOString();
+                let allOps = [];
 
                 try {
-                    const opRes = await fetch(PROXY, { 
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ action: 'tinvest_operations', token: token, accountId: apiAcc.id, from: fromDate, to: toDate }) 
-                    });
-                    const opData = await opRes.json();
-                    
-                    if (opData && opData.operations && Array.isArray(opData.operations)) {
-                        opData.operations.forEach(op => {
-                            if (S.transactions.some(t => t.tinvestOpId === op.id)) return;
-
-                            const opTypeRaw = op.operationType || op.type || '';
-                            const opType = opTypeRaw.toLowerCase(); 
+                    if (fetchAll) {
+                        const curYear = new Date().getFullYear();
+                        for (let y = 2020; y <= curYear; y++) {
+                            toast(`⏳ Загрузка (${apiAcc.name || 'Счет'}) за ${y} год...`);
+                            let yFrom = new Date(y, 0, 1).toISOString();
+                            let yTo = (y === curYear) ? new Date().toISOString() : new Date(y, 11, 31, 23, 59, 59, 999).toISOString();
                             
-                            const amount = Math.abs(qv(op.payment));
-                            const d = new Date(op.date);
-                            const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                            
-                            let type = null, catId = null, note = '', toAccId = null, fromAccId = null;
-                            
-                            if (opType.includes('купон') || opType.includes('coupon')) { 
-                                type = 'income'; catId = 'c_coupon'; note = 'Купон (авто)'; 
-                            } else if (opType.includes('дивиденд') || opType.includes('dividend')) { 
-                                type = 'income'; catId = 'c_dividend'; note = 'Дивиденды (авто)'; 
-                            } else if (opType.includes('налог') || opType.includes('tax')) { 
-                                type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; 
-                            } else if (opType.includes('input') || opType.includes('пополнение') || opType.includes('ввод')) {
-                                type = 'transfer'; note = 'Пополнение Т-Инвест (Авто)';
-                                const linkedCardId = localAcc.linkedCardId;
-                                if (linkedCardId) { fromAccId = linkedCardId; toAccId = localAcc.id; }
-                            } else if (opType.includes('output') || opType.includes('вывод')) {
-                                type = 'transfer'; note = 'Вывод из Т-Инвест (Авто)';
-                                const linkedCardId = localAcc.linkedCardId;
-                                if (linkedCardId) { fromAccId = localAcc.id; toAccId = linkedCardId; }
-                            }
-                            
-                            if (!type) return; 
-                            if (amount <= 0.01) return; 
-                            if (!getCat(catId) && (type === 'income' || type === 'expense')) catId = type === 'income' ? 'c_other_inc' : 'c_other_exp';
-
-                            if (type === 'transfer' && (!fromAccId || !toAccId)) return; 
-
-                            S.transactions.push({
-                                id: uid(),
-                                type: type,
-                                amount: amount,
-                                date: dateStr,
-                                categoryId: catId,
-                                accountId: type === 'transfer' ? fromAccId : localAcc.id,
-                                toAccountId: type === 'transfer' ? toAccId : null,
-                                note: note,
-                                tinvestOpId: op.id,
-                                isHistory: (fetchAll && new Date(dateStr) < new Date(new Date().getFullYear(), 0, 1)) ? true : false,
-                                _updatedAt: Date.now()
+                            const opRes = await fetch(PROXY, { 
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                                body: JSON.stringify({ action: 'tinvest_operations', token: token, accountId: apiAcc.id, from: yFrom, to: yTo }) 
                             });
-                            txCount++;
+                            const opData = await opRes.json();
+                            
+                            if (opData && opData.operations && Array.isArray(opData.operations)) {
+                                allOps = allOps.concat(opData.operations);
+                            }
+                            // Пауза, чтобы не превысить лимиты API
+                            await new Promise(r => setTimeout(r, 300));
+                        }
+                    } else {
+                        const now = new Date();
+                        let yFrom = new Date(now.getFullYear(), 0, 1).toISOString();
+                        let yTo = now.toISOString();
+                        
+                        const opRes = await fetch(PROXY, { 
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ action: 'tinvest_operations', token: token, accountId: apiAcc.id, from: yFrom, to: yTo }) 
                         });
+                        const opData = await opRes.json();
+                        
+                        if (opData && opData.operations && Array.isArray(opData.operations)) {
+                            allOps = opData.operations;
+                        }
                     }
+
+                    // Обработка собранных операций
+                    allOps.forEach(op => {
+                        if (S.transactions.some(t => t.tinvestOpId === op.id)) return;
+
+                        const opTypeRaw = op.operationType || op.type || '';
+                        const opType = opTypeRaw.toLowerCase(); 
+                        
+                        const amount = Math.abs(qv(op.payment));
+                        const d = new Date(op.date);
+                        const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        
+                        let type = null, catId = null, note = '', toAccId = null, fromAccId = null;
+                        
+                        if (opType.includes('купон') || opType.includes('coupon')) { 
+                            type = 'income'; catId = 'c_coupon'; note = 'Купон (авто)'; 
+                        } else if (opType.includes('дивиденд') || opType.includes('dividend')) { 
+                            type = 'income'; catId = 'c_dividend'; note = 'Дивиденды (авто)'; 
+                        } else if (opType.includes('налог') || opType.includes('tax')) { 
+                            type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; 
+                        } else if (opType.includes('input') || opType.includes('пополнение') || opType.includes('ввод')) {
+                            type = 'transfer'; note = 'Пополнение Т-Инвест (Авто)';
+                            const linkedCardId = localAcc.linkedCardId;
+                            if (linkedCardId) { fromAccId = linkedCardId; toAccId = localAcc.id; }
+                        } else if (opType.includes('output') || opType.includes('вывод')) {
+                            type = 'transfer'; note = 'Вывод из Т-Инвест (Авто)';
+                            const linkedCardId = localAcc.linkedCardId;
+                            if (linkedCardId) { fromAccId = localAcc.id; toAccId = linkedCardId; }
+                        }
+                        
+                        if (!type) return; 
+                        if (amount <= 0.01) return; 
+                        if (!getCat(catId) && (type === 'income' || type === 'expense')) catId = type === 'income' ? 'c_other_inc' : 'c_other_exp';
+
+                        if (type === 'transfer' && (!fromAccId || !toAccId)) return; 
+
+                        S.transactions.push({
+                            id: uid(),
+                            type: type,
+                            amount: amount,
+                            date: dateStr,
+                            categoryId: catId,
+                            accountId: type === 'transfer' ? fromAccId : localAcc.id,
+                            toAccountId: type === 'transfer' ? toAccId : null,
+                            note: note,
+                            tinvestOpId: op.id,
+                            isHistory: (fetchAll && new Date(dateStr) < new Date(new Date().getFullYear(), 0, 1)) ? true : false,
+                            _updatedAt: Date.now()
+                        });
+                        txCount++;
+                    });
+
                 } catch (e) { console.warn('Ошибка операций', e); }
 
                 try {
