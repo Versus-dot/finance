@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ ФИКСОВ (mod-fixes.js) v223
+// МОДУЛЬ ФИКСОВ (mod-fixes.js) v224
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов (mod-fixes.js) v223 загружен");
+    console.log("✅ Модуль фиксов (mod-fixes.js) v224 загружен");
 
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
@@ -52,7 +52,6 @@
         
         window._currentEditingAccId = id || null; 
 
-        // ЖЕСТКО СКРЫВАЕМ "Начальный баланс" при редактировании
         if (id) {
             const accBalanceInput = document.getElementById('accBalance');
             if (accBalanceInput) {
@@ -136,6 +135,7 @@
         const acc = getAcc(accId);
         if (!acc) return;
         const currentBal = window.accValue(acc);
+        const isInvestment = ['brokerage', 'iis', 'deposit', 'savings', 'invest_kopilka', 'pds', 'finu_wallet'].includes(acc.type);
 
         openModal(`
             <div class="modal-header"><h2>Корректировка баланса</h2><button class="btn-icon" onclick="openAccountModal('${accId}')">✕</button></div>
@@ -144,9 +144,18 @@
                     <label>Фактический баланс на сегодня</label>
                     <input id="recNewBal" type="number" step="0.01" value="${currentBal}" required>
                 </div>
-                <div style="font-size: 12px; color: var(--muted); margin-bottom: 16px;">
-                    Разница будет учтена как техническая корректировка и не повлияет на доходы/расходы в аналитике.
+                ${isInvestment ? `
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label style="display:flex; align-items:center; gap:8px; color:var(--text); font-size:14px; cursor:pointer;">
+                        <input type="checkbox" id="recCountInStats" checked style="width:auto; margin:0;">
+                        Учесть разницу как прирост/убыток (в аналитику)
+                    </label>
                 </div>
+                ` : `
+                <div style="font-size: 12px; color: var(--muted); margin-bottom: 16px;">
+                    Разница будет учтена как техническая корректировка и не повлияет на доходы/расходы.
+                </div>
+                `}
                 <button type="submit" class="btn-primary btn-block">Применить</button>
             </form>
         `);
@@ -158,11 +167,18 @@
 
             if (Math.abs(diff) < 0.01) { toast('Баланс не изменился'); closeModal(); return; }
 
+            const countInStats = document.getElementById('recCountInStats') ? document.getElementById('recCountInStats').checked : false;
+            
             let txType = diff > 0 ? 'income' : 'expense';
             if (acc.type === 'credit') txType = diff > 0 ? 'expense' : 'income';
 
             const txAmount = Math.abs(diff);
-            const catId = txType === 'income' ? 'c_other_inc' : 'c_other_exp';
+            let catId = txType === 'income' ? 'c_other_inc' : 'c_other_exp';
+            
+            if (countInStats && txType === 'income') {
+                if (['deposit', 'savings', 'finu_wallet', 'pds'].includes(acc.type)) catId = 'c_interest';
+                else if (['brokerage', 'iis', 'invest_kopilka'].includes(acc.type)) catId = 'c_dividend'; // или c_other_inc
+            }
             
             S.transactions.push({
                 id: uid(),
@@ -171,8 +187,8 @@
                 date: today(),
                 categoryId: catId,
                 accountId: accId,
-                note: `Корректировка баланса (${diff > 0 ? '+' : ''}${diff})`,
-                ignoreInStats: true,
+                note: `Корректировка (${diff > 0 ? '+' : ''}${diff})`,
+                ignoreInStats: countInStats ? false : true,
                 _updatedAt: Date.now()
             });
 
