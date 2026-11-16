@@ -1,8 +1,8 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v14
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v15
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v14 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v15 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
@@ -13,7 +13,9 @@
     window.recalculateBalances = function() {
         S.accounts.forEach(a => a.balance = a.initialBalance || 0);
         S.transactions.forEach(t => {
-            if (t.isHistory && t.type !== 'transfer') return; 
+            // ГЛАВНЫЙ ФИКС: Полностью игнорируем исторические операции при расчете баланса
+            if (t.isHistory) return; 
+            
             if (t.type === 'income') { const a = getAcc(t.accountId); if(a) a.balance += t.amount; }
             else if (t.type === 'expense') { const a = getAcc(t.accountId); if(a) a.balance -= t.amount; }
             else if (t.type === 'transfer') {
@@ -35,19 +37,12 @@
 
         toast('🧹 Очистка истории...');
 
-        // 1. Очищаем транзакции и снимки
         S.transactions = [];
         S.snapshots = [];
         if (S.meta) S.meta.deletedIds = [];
-
-        // 2. Сбрасываем балансы счетов к начальным (которые мы настроим вручную)
-        // Или просто обнуляем, чтобы ты сам выставил "Скорректировать"
-        // Для безопасности оставим initialBalance как есть, но без транзакций баланс будет равен ему.
         
-        // 3. Сохраняем локально
         save();
 
-        // 4. Принудительно заливаем в облако, чтобы стереть старые данные
         if (S.settings.yandexToken) {
             toast('☁️ Перезапись облака...');
             const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
@@ -68,8 +63,6 @@
                 toast('⚠️ Локально очищено, но облако не перезаписалось');
             }
         }
-
-        // 5. Перерисовываем
         renderAll();
     };
 
