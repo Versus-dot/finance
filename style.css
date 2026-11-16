@@ -298,3 +298,23 @@ body:has(#page-home.active) #fabBtn, body:has(#page-stats.active) #fabBtn {displ
 :root[data-theme="light"] .cushion-mini {
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
+
+/* === АДАПТИВ ПОД ЛАНДШАФТ === */
+@media (orientation: landscape) and (max-height: 600px) {
+    body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+    .app-header { padding: 8px 16px; }
+    .page { padding: 10px; }
+    .total-bar { padding: 12px; margin-bottom: 12px; }
+    .total-val { font-size: 22px; }
+    .bottom-nav { bottom: 8px; width: calc(100% - 16px); padding: 4px; border-radius: 16px; }
+    .nav-tab { padding: 6px 4px; font-size: 10px; gap: 2px; }
+    .nav-tab .nav-icon svg { width: 18px; height: 18px; }
+    .fab { bottom: calc(70px + env(safe-area-inset-bottom)); width: 48px; height: 48px; font-size: 24px; right: 12px; }
+    .modal { max-height: 95vh; padding: 16px; }
+    .bank-chip { padding: 10px; min-width: 110px; }
+    .bottom-widgets-grid { grid-template-columns: 1fr 1fr; }
+    .form-row { gap: 8px; }
+    .account-row { padding: 8px 12px; }
+    .acc-icon-wrap { width: 36px; height: 36px; }
+    .acc-balance { font-size: 16px; }
+}
