@@ -1,5 +1,5 @@
 // ==========================================
-// Умный поиск и фикс курсора (v57) - search-fix.js
+// Умный поиск и фикс курсора (v58) - search-fix.js
 // ==========================================
 
 window.renderTransactions = function() {
@@ -8,6 +8,14 @@ window.renderTransactions = function() {
 
     // 1. Если это первый рендер — создаем статичную часть (поиск, фильтры)
     if (!listWrapper) {
+        // Генерируем список счетов для фильтра
+        let accOpts = `<option value="all" ${window.txAccFilter === 'all' || !window.txAccFilter ? 'selected' : ''}>🏦 Все счета</option>`;
+        if (typeof S !== 'undefined' && S.accounts) {
+            S.accounts.filter(a => !a.archived).forEach(a => {
+                accOpts += `<option value="${a.id}" ${window.txAccFilter === a.id ? 'selected' : ''}>${esc(a.name)}</option>`;
+            });
+        }
+
         let html = `
         <div class="search-input"><input id="txSearchInp" type="text" placeholder="Поиск по всему..." value="${typeof esc === 'function' ? esc(txSearch) : txSearch}"></div>
         <div class="chips">
@@ -20,6 +28,11 @@ window.renderTransactions = function() {
         <div class="form-row" style="margin-bottom:12px">
             <input type="date" id="txDateStart" value="${txDateStart}" onchange="txDateStart=this.value;renderTransactions()" title="С даты">
             <input type="date" id="txDateEnd" value="${txDateEnd}" onchange="txDateEnd=this.value;renderTransactions()" title="По дату">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+            <select id="txAccSelect" onchange="window.txAccFilter=this.value;renderTransactions()" style="padding: 10px 14px; border-radius: 12px; font-size: 14px; background: var(--card2); color: var(--text); border: 1px solid var(--border); width: 100%; outline:none;">
+                ${accOpts}
+            </select>
         </div>
         <div id="txListWrapper"></div>`;
         
@@ -43,11 +56,18 @@ window.renderTransactions = function() {
         el.querySelectorAll('.chip').forEach(c => {
             c.classList.toggle('active', c.dataset.f === txFilter);
         });
+        // Синхронизируем селект, если он слетел
+        const accSel = document.getElementById('txAccSelect');
+        if (accSel && window.txAccFilter) accSel.value = window.txAccFilter;
     }
 
     // 2. Фильтруем данные
     let list = [...S.transactions].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
     if (txFilter !== 'all') list = list.filter(t => t.type === txFilter);
+
+    if (window.txAccFilter && window.txAccFilter !== 'all') {
+        list = list.filter(t => t.accountId === window.txAccFilter || t.toAccountId === window.txAccFilter);
+    }
 
     // Умный поиск (ищет по всему)
     if (txSearch.trim()) {
@@ -88,7 +108,10 @@ window.renderTransactions = function() {
         let last = '';
         list.forEach(t => {
             if (t.date !== last) {
-                listHtml += `<div style="font-size:11px;color:var(--muted);font-weight:700;padding:8px 4px 4px;text-transform:uppercase">${new Date(t.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', weekday: 'short' })}</div>`;
+                // Убрали weekday, добавили year
+                const d = new Date(t.date);
+                const dateStr = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+                listHtml += `<div style="font-size:11px;color:var(--muted);font-weight:700;padding:8px 4px 4px;text-transform:uppercase">${dateStr}</div>`;
                 last = t.date;
             }
             listHtml += renderTxItem(t);
@@ -122,4 +145,4 @@ function renderTxItem(t){
 
     return `<div class="tx-item" style="${ignoreStyle}" onclick="openTxModal('${t.id}')"><div class="icon ${cls}">${icon}</div><div class="body"><div class="title">${esc(title)}</div><div class="meta">${esc(meta)}${t.note?' · '+esc(t.note):''}</div></div><div class="amount ${cls}">${sign}${fmt(amount)}</div></div>`;
 }
-console.log('✅ Умный поиск (v57) загружен');
+console.log('✅ Умный поиск (v58) загружен');
