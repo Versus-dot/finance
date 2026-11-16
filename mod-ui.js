@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js v203
+// МОДУЛЬ UI (Темы, Анимации, Меню) - mod-ui.js v204
 // ==========================================
 (function() {
-    console.log("✅ Модуль UI (mod-ui.js) загружен (v203)");
+    console.log("✅ Модуль UI (mod-ui.js) загружен (v204)");
 
     let lastBackPress = 0;
     let isMenuOpen = false;
@@ -425,6 +425,7 @@
                     <button class="menu-item-premium" onclick="window.syncTInvest(true)"><div class="menu-icon-wrap">⏳</div>Загрузить всю историю Т-Инвест<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.deleteAllTInvestOperations()"><div class="menu-icon-wrap">🗑</div>Удалить все операции Т-Инвест<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.cleanupTInvestDuplicates()"><div class="menu-icon-wrap">🧹</div>Очистить дубли Т-Инвест<span class="chevron">›</span></button>
+                    <button class="menu-item-premium warn" onclick="window.wipeTransactionHistory()"><div class="menu-icon-wrap">🔥</div>Полный сброс операций (Оставить счета)<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('cloud_backups', 'sub2')"><div class="menu-icon-wrap">☁️</div>Облако и Бэкапы<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('local_files', 'sub2')"><div class="menu-icon-wrap">📂</div>Локальные файлы<span class="chevron">›</span></button>
                     <button class="menu-item-premium" onclick="window.openSubMenu('data_settings', 'sub2')"><div class="menu-icon-wrap">⚙️</div>Настройки данных<span class="chevron">›</span></button>
