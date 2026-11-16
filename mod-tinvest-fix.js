@@ -1,8 +1,8 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v12
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v13
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v12 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v13 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
@@ -29,7 +29,6 @@
         });
     };
 
-    // Функция очистки дублей (только те, что с пометкой Т-Инвест)
     window.cleanupTInvestDuplicates = function() {
         if (!confirm('Удалить дубликаты авто-переводов Т-Инвест?\nОни будут удалены, останется только одна копия.')) return;
         const map = new Map();
@@ -57,7 +56,6 @@
         }
     };
 
-    // Функция полного удаления операций брокера (для чистого старта)
     window.deleteAllTInvestOperations = function() {
         if (!confirm('Удалить ВСЕ операции, пришедшие из Т-Инвеста?\nТвои ручные операции останутся. Баланс брокерского счета нужно будет скорректировать вручную.')) return;
         const toRemove = S.transactions.filter(t => t.tinvestOpId);
@@ -98,8 +96,6 @@
                 tBank = { id: uid(), name: 'Т-Банк', color: '#f5b945', parentId: null, order: S.banks.length, _updatedAt: Date.now() }; 
                 S.banks.push(tBank); 
             }
-
-            let defaultCard = S.accounts.find(a => (a.type === 'debit' || a.type === 'cash') && !a.archived);
 
             for (const apiAcc of accData.accounts) {
                 if (apiAcc.status !== 'ACCOUNT_STATUS_OPEN') continue;
@@ -143,8 +139,6 @@
                             const opType = opTypeRaw.toLowerCase(); 
                             
                             const amount = Math.abs(qv(op.payment));
-                            
-                            // ФИКС: Перевод в местное время
                             const d = new Date(op.date);
                             const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                             
@@ -158,11 +152,13 @@
                                 type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; 
                             } else if (opType.includes('input') || opType.includes('пополнение') || opType.includes('ввод')) {
                                 type = 'transfer'; note = 'Пополнение Т-Инвест (Авто)';
-                                const linkedCardId = localAcc.linkedCardId || (defaultCard ? defaultCard.id : null);
+                                // ФИКС: Строго используем привязанную карту, без fallback
+                                const linkedCardId = localAcc.linkedCardId;
                                 if (linkedCardId) { fromAccId = linkedCardId; toAccId = localAcc.id; }
                             } else if (opType.includes('output') || opType.includes('вывод')) {
                                 type = 'transfer'; note = 'Вывод из Т-Инвест (Авто)';
-                                const linkedCardId = localAcc.linkedCardId || (defaultCard ? defaultCard.id : null);
+                                // ФИКС: Строго используем привязанную карту, без fallback
+                                const linkedCardId = localAcc.linkedCardId;
                                 if (linkedCardId) { fromAccId = localAcc.id; toAccId = linkedCardId; }
                             }
                             
@@ -170,17 +166,8 @@
                             if (amount <= 0.01) return; 
                             if (!getCat(catId) && (type === 'income' || type === 'expense')) catId = type === 'income' ? 'c_other_inc' : 'c_other_exp';
 
-                            // ЖЕЛЕЗНАЯ ЗАЩИТА ОТ ДУБЛЕЙ (по дате и сумме)
-                            if (type === 'transfer') {
-                                if (!fromAccId || !toAccId) return; 
-                                const existingTx = S.transactions.find(t => 
-                                    t.type === 'transfer' && t.date === dateStr && Math.abs(t.amount - amount) < 0.01
-                                );
-                                if (existingTx) {
-                                    if (!existingTx.tinvestOpId) existingTx.tinvestOpId = op.id;
-                                    return; 
-                                }
-                            }
+                            // Если перевод, но карта не привязана - пропускаем, чтобы не сломать баланс
+                            if (type === 'transfer' && (!fromAccId || !toAccId)) return; 
 
                             S.transactions.push({
                                 id: uid(),
