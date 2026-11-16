@@ -1,8 +1,8 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v13
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v14
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v13 загружен");
+    console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v14 загружен");
 
     const qv = (val) => {
         if (!val) return 0;
@@ -29,47 +29,48 @@
         });
     };
 
-    window.cleanupTInvestDuplicates = function() {
-        if (!confirm('Удалить дубликаты авто-переводов Т-Инвест?\nОни будут удалены, останется только одна копия.')) return;
-        const map = new Map();
-        const toRemove = [];
+    window.wipeTransactionHistory = async function() {
+        if (!confirm('⚠️ ВНИМАНИЕ! Это удалит ВСЕ операции (включая твои ручные) и снимки.\n\nСчета и банки останутся на месте.\n\nПродолжить?')) return;
+        if (!confirm('Точно продолжить? Отменить это будет невозможно.')) return;
+
+        toast('🧹 Очистка истории...');
+
+        // 1. Очищаем транзакции и снимки
+        S.transactions = [];
+        S.snapshots = [];
+        if (S.meta) S.meta.deletedIds = [];
+
+        // 2. Сбрасываем балансы счетов к начальным (которые мы настроим вручную)
+        // Или просто обнуляем, чтобы ты сам выставил "Скорректировать"
+        // Для безопасности оставим initialBalance как есть, но без транзакций баланс будет равен ему.
         
-        S.transactions.filter(t => t.type === 'transfer' && (t.note.includes('Т-Инвест') || t.tinvestOpId)).forEach(t => {
-            const key = `${t.date}_${t.amount}_${t.accountId}_${t.toAccountId}`;
-            if (map.has(key)) {
-                toRemove.push(t.id);
-            } else {
-                map.set(key, t);
+        // 3. Сохраняем локально
+        save();
+
+        // 4. Принудительно заливаем в облако, чтобы стереть старые данные
+        if (S.settings.yandexToken) {
+            toast('☁️ Перезапись облака...');
+            const PROXY = 'https://functions.yandexcloud.net/d4ef6t7rvpthq7cihjtm';
+            const cloudS = JSON.parse(JSON.stringify(S));
+            const localSettings = ['theme', 'badgeStyle', 'pinCode', 'yandexToken', 'tInvestToken', 'appTitle'];
+            localSettings.forEach(k => delete cloudS.settings[k]);
+
+            try {
+                await fetch(PROXY, { 
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ action: 'yandex_upload', token: S.settings.yandexToken, fileContent: JSON.stringify(cloudS, null, 2) }) 
+                });
+                localStorage.setItem('financeApp_lastSync', Date.now());
+                localStorage.setItem('financeApp_localChange', Date.now());
+                toast('✅ База очищена и перезаписана в облако');
+            } catch (e) {
+                console.error('Ошибка очистки облака', e);
+                toast('⚠️ Локально очищено, но облако не перезаписалось');
             }
-        });
-
-        if (toRemove.length > 0) {
-            if (!S.meta) S.meta = { deletedIds: [] };
-            toRemove.forEach(id => S.meta.deletedIds.push(id));
-            S.transactions = S.transactions.filter(t => !toRemove.includes(t.id));
-            save(); 
-            renderAll(); 
-            if (typeof syncSmart === 'function') syncSmart(true);
-            toast(`✅ Удалено ${toRemove.length} дублей`);
-        } else {
-            toast('Дублей не найдено');
         }
-    };
 
-    window.deleteAllTInvestOperations = function() {
-        if (!confirm('Удалить ВСЕ операции, пришедшие из Т-Инвеста?\nТвои ручные операции останутся. Баланс брокерского счета нужно будет скорректировать вручную.')) return;
-        const toRemove = S.transactions.filter(t => t.tinvestOpId);
-        if (toRemove.length > 0) {
-            if (!S.meta) S.meta = { deletedIds: [] };
-            toRemove.forEach(t => S.meta.deletedIds.push(t.id));
-            S.transactions = S.transactions.filter(t => !t.tinvestOpId);
-            save();
-            renderAll();
-            if (typeof syncSmart === 'function') syncSmart(true);
-            toast(`✅ Удалено ${toRemove.length} операций Т-Инвеста`);
-        } else {
-            toast('Операций Т-Инвеста не найдено');
-        }
+        // 5. Перерисовываем
+        renderAll();
     };
 
     window.syncTInvest = async function(fetchAll = false) {
@@ -152,12 +153,10 @@
                                 type = 'expense'; catId = 'c_taxes'; note = 'Налог (авто)'; 
                             } else if (opType.includes('input') || opType.includes('пополнение') || opType.includes('ввод')) {
                                 type = 'transfer'; note = 'Пополнение Т-Инвест (Авто)';
-                                // ФИКС: Строго используем привязанную карту, без fallback
                                 const linkedCardId = localAcc.linkedCardId;
                                 if (linkedCardId) { fromAccId = linkedCardId; toAccId = localAcc.id; }
                             } else if (opType.includes('output') || opType.includes('вывод')) {
                                 type = 'transfer'; note = 'Вывод из Т-Инвест (Авто)';
-                                // ФИКС: Строго используем привязанную карту, без fallback
                                 const linkedCardId = localAcc.linkedCardId;
                                 if (linkedCardId) { fromAccId = localAcc.id; toAccId = linkedCardId; }
                             }
@@ -166,7 +165,6 @@
                             if (amount <= 0.01) return; 
                             if (!getCat(catId) && (type === 'income' || type === 'expense')) catId = type === 'income' ? 'c_other_inc' : 'c_other_exp';
 
-                            // Если перевод, но карта не привязана - пропускаем, чтобы не сломать баланс
                             if (type === 'transfer' && (!fromAccId || !toAccId)) return; 
 
                             S.transactions.push({
