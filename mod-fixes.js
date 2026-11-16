@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ ФИКСОВ (mod-fixes.js) v221
+// МОДУЛЬ ФИКСОВ (mod-fixes.js) v222
 // ==========================================
 (function() {
-    console.log("✅ Модуль фиксов (mod-fixes.js) v221 загружен");
+    console.log("✅ Модуль фиксов (mod-fixes.js) v222 загружен");
 
     if (typeof S !== 'undefined') {
         if (!S.meta) S.meta = { deletedIds: [] };
@@ -12,7 +12,7 @@
     const prevAccValue = window.accValue;
     window.accValue = function(a) {
         let val = prevAccValue(a);
-        if (Math.abs(val) < 0.01) return 0; // ФИКС: Убираем -0
+        if (Math.abs(val) < 0.01) return 0;
         return val;
     };
 
@@ -20,6 +20,7 @@
     styleEl.innerHTML = `
         .account-row.archived-acc { opacity: 0.5; filter: grayscale(100%); transition: opacity 0.2s; }
         .account-row.archived-acc:hover { opacity: 0.8; }
+        .hide-initial-balance { display: none !important; }
     `;
     document.head.appendChild(styleEl);
 
@@ -51,9 +52,14 @@
         
         window._currentEditingAccId = id || null; 
 
-        // СКРЫВАЕМ "Начальный баланс"
-        const accBalanceGroup = form.querySelector('input[id="accBalance"]')?.closest('.form-group');
-        if (accBalanceGroup) accBalanceGroup.style.display = 'none';
+        // ФИКС: Жестко скрываем "Начальный баланс" при редактировании
+        if (id) {
+            const accBalanceInput = document.getElementById('accBalance');
+            if (accBalanceInput) {
+                const group = accBalanceInput.closest('.form-group');
+                if (group) group.classList.add('hide-initial-balance');
+            }
+        }
 
         const cushionLabel = form.querySelector('input[id="accCushion"]').closest('.form-group');
         
