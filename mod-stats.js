@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v17
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v18
 // ==========================================
 (function() {
-    console.log("✅ Модуль Статистики (mod-stats.js) v17 загружен");
+    console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
 
     window._statsPeriod = window._statsPeriod || 'month';
     window._statsStart = window._statsStart || null;
@@ -292,7 +292,8 @@
             }
 
             let inSum = 0, outSum = 0;
-            S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
+            // ФИКС: Убрана проверка !t.ignoreInStats для инвестиций
+            S.transactions.filter(t => isDateMatch(t.date)).forEach(t => {
                 if (t.type === 'transfer' && targetAccIds.includes(t.toAccountId)) inSum += t.amount;
                 if (t.type === 'transfer' && targetAccIds.includes(t.accountId)) outSum += t.amount;
             });
@@ -713,7 +714,6 @@
             else if (key === 'invest_total') { label = 'Инвестировано (Всего)'; color = COLORS.invest; }
             else if (key.startsWith('inv_bank_') || key.startsWith('inv_acc_')) { 
                 label = 'Инвестиции'; color = COLORS.invest;
-                // Найдем реальное имя для подписи
                 const rowDef = document.querySelector(`td[onclick*="'${key}'"]`);
                 if (rowDef) label = rowDef.textContent.trim().replace('↳', '').trim();
             }
@@ -725,7 +725,7 @@
             else if (key === 'stocks') { label = 'Фондовый рынок'; color = COLORS.stocks; }
             else if (key === 'savings') { label = 'Накопления'; color = COLORS.savings; }
             else if (key === 'debt') { label = 'Долги'; color = COLORS.debt; }
-            else return; // Неизвестный ключ
+            else return; 
 
             if (isPct) hasPct = true; else hasRub = true;
 
