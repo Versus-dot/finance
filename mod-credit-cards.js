@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v7
+// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v8
 // ==========================================
 (function() {
     const prevOpenAccountModal = window.openAccountModal;
@@ -40,7 +40,8 @@
             if (isCredit) {
                 if (accBalanceGroup) accBalanceGroup.style.display = 'none'; 
                 if (currencyGroup) currencyGroup.style.display = 'none';
-                if (topBalanceBlock) topBalanceBlock.style.display = 'none';
+                // ФИКС: Теперь показываем кнопку корректировки для кредиток
+                if (topBalanceBlock) topBalanceBlock.style.display = 'flex';
                 
                 creditFields.style.display = 'block';
                 buildUI();
@@ -70,7 +71,6 @@
                 ccUI.style.marginBottom = '16px';
                 ccUI.style.gap = '12px';
                 
-                // Добавил стиль только для инпута с долгом: красный цвет и жирность
                 ccUI.innerHTML = `
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Задолженность (₽)</label>
