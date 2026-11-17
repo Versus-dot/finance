@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v9
+// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v10
 // ==========================================
 (function() {
-    console.log("✅ Модуль кредитных карт (mod-credit-cards.js) v9 загружен");
+    console.log("✅ Модуль кредитных карт (mod-credit-cards.js) v10 загружен");
     
     const prevOpenAccountModal = window.openAccountModal;
     
@@ -88,11 +88,10 @@
                     </div>
                 `;
                 
-                // Вставляем перед формой отправки
                 const limitRow = creditFields.querySelector('.form-row');
                 if (limitRow) limitRow.after(ccUI); else creditFields.appendChild(ccUI);
 
-                // Скрываем оригинальные поля кредитного лимита, чтобы не было дублей
+                // Скрываем оригинальное поле лимита, чтобы не было дублей
                 const origLimitGroup = document.getElementById('accCreditLimit').closest('.form-group');
                 if (origLimitGroup) origLimitGroup.style.display = 'none';
 
@@ -121,16 +120,18 @@
                 balInp.addEventListener('input', updateDebtUI);
                 updateDebtUI(); // Первичный расчет
 
-                // МАГИЯ СОХРАНЕНИЯ БАЛАНСА
-                form.addEventListener('submit', () => {
+                // ПЕРЕХВАТ СОХРАНЕНИЯ ФОРМЫ
+                const originalSubmit = form.onsubmit;
+                form.onsubmit = function(e) {
                     const L = parseFloat(limitInp.value) || 0;
                     const B = parseFloat(balInp.value) || 0;
 
-                    // Передаем лимит в оригинальное (скрытое) поле
-                    document.getElementById('accCreditLimit').value = L;
+                    // Записываем лимит в оригинальное (скрытое) поле
+                    const origLimitInp = document.getElementById('accCreditLimit');
+                    if (origLimitInp) origLimitInp.value = L;
 
                     if (acc) {
-                        // Если это редактирование, считаем чистый поток операций
+                        // Считаем чистый поток операций (без истории)
                         let netFlow = 0;
                         S.transactions.forEach(t => {
                             if (t.isHistory) return;
@@ -141,13 +142,15 @@
                                 if (t.toAccountId === acc.id) netFlow += t.amount;
                             }
                         });
-                        // Новый начальный баланс = Желаемый баланс минус все операции
+                        // Новый начальный баланс = Желаемый баланс - операции
                         accBalanceInput.value = B - netFlow;
                     } else {
-                        // Если создаем новый счет, операций нет
+                        // Для нового счета операций нет
                         accBalanceInput.value = B;
                     }
-                });
+
+                    if (originalSubmit) return originalSubmit.call(this, e);
+                };
             }
             ccUI.style.display = 'flex';
         }
