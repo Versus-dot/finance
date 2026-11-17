@@ -1,8 +1,8 @@
 // ==========================================
-// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v10
+// МОДУЛЬ КРЕДИТНЫХ КАРТ (mod-credit-cards.js) v11
 // ==========================================
 (function() {
-    console.log("✅ Модуль кредитных карт (mod-credit-cards.js) v10 загружен");
+    console.log("✅ Модуль кредитных карт (mod-credit-cards.js) v11 загружен");
     
     const prevOpenAccountModal = window.openAccountModal;
     
@@ -17,19 +17,19 @@
         const accBalanceInput = document.getElementById('accBalance');
         if (!creditFields || !accBalanceInput) return;
         
-        const accBalanceGroup = accBalanceInput.closest('.form-group');
+        const accBalanceGroup = accBalanceInput.closest('.form-group') || accBalanceInput.closest('.form-row');
         const acc = id ? getAcc(id) : null;
 
         const accCurrency = document.getElementById('accCurrency');
         const currencyGroup = accCurrency ? accCurrency.closest('.form-group') : null;
         
         const modalContent = document.getElementById('modalContent');
+        let topBalanceBlock = null;
         
-        // Скрываем блок корректировки сверху (он больше не нужен для кредиток)
+        // Ищем блок корректировки сверху
         const reconcileBtn = modalContent.querySelector('button[onclick^="openReconcileModal"]');
         if (reconcileBtn) {
-            const topBalanceBlock = reconcileBtn.closest('div[style*="background:var(--card2)"]');
-            if (topBalanceBlock) topBalanceBlock.style.display = 'none';
+            topBalanceBlock = reconcileBtn.closest('div[style*="background:var(--card2)"]');
         }
 
         const originalOnchange = typeSel.onchange;
@@ -42,16 +42,25 @@
             const isCredit = (typeSel.value === 'credit');
             
             if (isCredit) {
+                // ДЛЯ КРЕДИТОК: скрываем старое, показываем новое
                 if (accBalanceGroup) accBalanceGroup.style.display = 'none'; 
                 if (currencyGroup) currencyGroup.style.display = 'none';
+                if (topBalanceBlock) topBalanceBlock.style.display = 'none'; 
+                
                 creditFields.style.display = 'block';
                 buildUI();
             } else {
+                // ДЛЯ ОСТАЛЬНЫХ: возвращаем всё как было
                 if (accBalanceGroup) accBalanceGroup.style.display = 'block';
                 if (currencyGroup) currencyGroup.style.display = 'block';
+                if (topBalanceBlock) topBalanceBlock.style.display = 'flex'; 
                 
                 const ccUI = document.getElementById('ccCustomUI');
                 if (ccUI) ccUI.style.display = 'none';
+                
+                // Возвращаем стандартное поле лимита (если оно было скрыто)
+                const origLimitGroup = document.getElementById('accCreditLimit')?.closest('.form-group');
+                if (origLimitGroup) origLimitGroup.style.display = 'block';
             }
         }
         
@@ -60,7 +69,6 @@
         function buildUI() {
             let ccUI = document.getElementById('ccCustomUI');
             
-            // Считаем текущий баланс и лимит
             const limit = acc ? (acc.creditLimit || 0) : 0;
             const currentBalance = acc ? accValue(acc) : 0;
             
@@ -71,7 +79,7 @@
                 ccUI.style.marginTop = '0'; 
                 ccUI.style.marginBottom = '16px';
                 ccUI.style.gap = '8px';
-                ccUI.style.gridTemplateColumns = '1fr 1fr'; // 2 колонки
+                ccUI.style.gridTemplateColumns = '1fr 1fr';
                 
                 ccUI.innerHTML = `
                     <div class="form-group" style="margin-bottom: 0;">
@@ -88,12 +96,13 @@
                     </div>
                 `;
                 
-                const limitRow = creditFields.querySelector('.form-row');
-                if (limitRow) limitRow.after(ccUI); else creditFields.appendChild(ccUI);
-
-                // Скрываем оригинальное поле лимита, чтобы не было дублей
-                const origLimitGroup = document.getElementById('accCreditLimit').closest('.form-group');
-                if (origLimitGroup) origLimitGroup.style.display = 'none';
+                const origLimitGroup = document.getElementById('accCreditLimit')?.closest('.form-group');
+                if (origLimitGroup) {
+                    origLimitGroup.style.display = 'none';
+                    origLimitGroup.after(ccUI);
+                } else {
+                    creditFields.appendChild(ccUI);
+                }
 
                 const limitInp = document.getElementById('ccLimitInput');
                 const balInp = document.getElementById('ccBalanceInput');
@@ -118,20 +127,18 @@
 
                 limitInp.addEventListener('input', updateDebtUI);
                 balInp.addEventListener('input', updateDebtUI);
-                updateDebtUI(); // Первичный расчет
+                updateDebtUI(); 
 
-                // ПЕРЕХВАТ СОХРАНЕНИЯ ФОРМЫ
+                // Перехват сохранения для кредиток
                 const originalSubmit = form.onsubmit;
                 form.onsubmit = function(e) {
                     const L = parseFloat(limitInp.value) || 0;
                     const B = parseFloat(balInp.value) || 0;
 
-                    // Записываем лимит в оригинальное (скрытое) поле
                     const origLimitInp = document.getElementById('accCreditLimit');
                     if (origLimitInp) origLimitInp.value = L;
 
                     if (acc) {
-                        // Считаем чистый поток операций (без истории)
                         let netFlow = 0;
                         S.transactions.forEach(t => {
                             if (t.isHistory) return;
@@ -142,10 +149,8 @@
                                 if (t.toAccountId === acc.id) netFlow += t.amount;
                             }
                         });
-                        // Новый начальный баланс = Желаемый баланс - операции
                         accBalanceInput.value = B - netFlow;
                     } else {
-                        // Для нового счета операций нет
                         accBalanceInput.value = B;
                     }
 
