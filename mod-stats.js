@@ -525,16 +525,16 @@
             { key: 'debt', label: 'Долги', indent: 1, color: COLORS.debt }
         ];
 
-        // ФИКС: Добавлен table-layout: fixed для жесткой фиксации ширины
+        // ФИКС: Убран table-layout: fixed, добавлены min-width для колонок
         let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%; position:relative;">
-            <table style="width: max-content; min-width: 100%; border-collapse:collapse; font-size:13px; text-align:right; table-layout: fixed;">
+            <table style="width: max-content; min-width: 100%; border-collapse:collapse; font-size:13px; text-align:right;">
                 <thead>
                     <tr style="background:var(--card2); border-bottom:1px solid var(--border);">
-                        <th style="position:sticky; left:0; background:var(--card2); z-index:3; padding:10px; text-align:left; font-weight:700; width: 80px; min-width: 80px; max-width: 80px; border-right:1px solid var(--border);">Параметр</th>`;
+                        <th style="position:sticky; left:0; background:var(--card2); z-index:3; padding:10px; text-align:left; font-weight:700; width: 110px; min-width: 110px; max-width: 110px; border-right:1px solid var(--border);">Параметр</th>`;
         periods.forEach(p => {
-            tableHtml += `<th style="padding:10px; font-weight:600; width: 60px; min-width: 60px; max-width: 60px;">${p.label}</th>`;
+            tableHtml += `<th style="padding:10px; font-weight:600; min-width: 90px; text-align:right;">${p.label}</th>`;
         });
-        tableHtml += `<th style="position:sticky; right:0; background:var(--card2); z-index:3; padding:10px; font-weight:700; width: 90px; min-width: 90px; max-width: 90px; border-left:1px solid var(--border); text-align:right;">Итого</th>`;
+        tableHtml += `<th style="position:sticky; right:0; background:var(--card2); z-index:3; padding:10px; font-weight:700; min-width: 110px; border-left:1px solid var(--border); text-align:right;">Итого</th>`;
         tableHtml += `</tr></thead><tbody>`;
 
         rows.forEach((row, i) => {
@@ -544,9 +544,9 @@
             
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
                 <td onclick="window.toggleTableRow('${row.key}')" 
-                    style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); width: 80px; min-width: 80px; max-width: 80px; ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
+                    style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); width: 110px; min-width: 110px; max-width: 110px; ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
                     ${activeBar}
-                    <div style="overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; padding-left: ${row.indent * 10}px;">
+                    <div style="overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; touch-action: pan-x; padding-left: ${row.indent * 10}px;">
                         ${row.label}
                     </div>
                 </td>`;
@@ -556,7 +556,7 @@
                 let val = calcTableRow(row.key, monthsArr);
                 let display = val === 0 ? '-' : (row.suffix ? formatPercent(val) : fmt(val));
                 if (row.key === 'capital' && val === 0) display = '-';
-                tableHtml += `<td style="padding:10px; width: 60px; min-width: 60px; max-width: 60px; overflow:hidden; text-overflow:ellipsis;">${display}</td>`;
+                tableHtml += `<td style="padding:10px; min-width: 90px; white-space: nowrap;">${display}</td>`;
             });
 
             // Calculate Total
@@ -590,7 +590,7 @@
             let displayTotal = totalVal === 0 ? '-' : (row.suffix ? formatPercent(totalVal) : fmt(totalVal));
             if (row.key === 'capital' && totalVal === 0) displayTotal = '-';
 
-            tableHtml += `<td style="position:sticky; right:0; background:${bg}; z-index:2; padding:10px; font-weight:700; border-left:1px solid var(--border); width: 90px; min-width: 90px; max-width: 90px; text-align:right; overflow:hidden; text-overflow:ellipsis;">${displayTotal}</td>`;
+            tableHtml += `<td style="position:sticky; right:0; background:${bg}; z-index:2; padding:10px; font-weight:700; border-left:1px solid var(--border); min-width: 110px; text-align:right; white-space: nowrap;">${displayTotal}</td>`;
             tableHtml += `</tr>`;
         });
         tableHtml += `</tbody></table></div>`;
