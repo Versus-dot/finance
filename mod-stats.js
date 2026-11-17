@@ -525,15 +525,16 @@
             { key: 'debt', label: 'Долги', indent: 1, color: COLORS.debt }
         ];
 
+        // ФИКС: Добавлен table-layout: fixed для жесткой фиксации ширины
         let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%; position:relative;">
-            <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:right;">
+            <table style="width: max-content; min-width: 100%; border-collapse:collapse; font-size:13px; text-align:right; table-layout: fixed;">
                 <thead>
                     <tr style="background:var(--card2); border-bottom:1px solid var(--border);">
-                        <th style="position:sticky; left:0; background:var(--card2); z-index:3; padding:10px; text-align:left; font-weight:700; min-width:140px; border-right:1px solid var(--border);">Параметр</th>`;
+                        <th style="position:sticky; left:0; background:var(--card2); z-index:3; padding:10px; text-align:left; font-weight:700; width: 80px; min-width: 80px; max-width: 80px; border-right:1px solid var(--border);">Параметр</th>`;
         periods.forEach(p => {
-            tableHtml += `<th style="padding:10px; font-weight:600;">${p.label}</th>`;
+            tableHtml += `<th style="padding:10px; font-weight:600; width: 60px; min-width: 60px; max-width: 60px;">${p.label}</th>`;
         });
-        tableHtml += `<th style="position:sticky; right:0; background:var(--card2); z-index:3; padding:10px; font-weight:700; border-left:1px solid var(--border);">Итого</th>`;
+        tableHtml += `<th style="position:sticky; right:0; background:var(--card2); z-index:3; padding:10px; font-weight:700; width: 90px; min-width: 90px; max-width: 90px; border-left:1px solid var(--border); text-align:right;">Итого</th>`;
         tableHtml += `</tr></thead><tbody>`;
 
         rows.forEach((row, i) => {
@@ -543,9 +544,11 @@
             
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
                 <td onclick="window.toggleTableRow('${row.key}')" 
-                    style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px 10px 10px ${10 + row.indent * 15}px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
+                    style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); width: 80px; min-width: 80px; max-width: 80px; ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
                     ${activeBar}
-                    ${row.label}
+                    <div style="overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; padding-left: ${row.indent * 10}px;">
+                        ${row.label}
+                    </div>
                 </td>`;
             
             periods.forEach(p => {
@@ -553,7 +556,7 @@
                 let val = calcTableRow(row.key, monthsArr);
                 let display = val === 0 ? '-' : (row.suffix ? formatPercent(val) : fmt(val));
                 if (row.key === 'capital' && val === 0) display = '-';
-                tableHtml += `<td style="padding:10px;">${display}</td>`;
+                tableHtml += `<td style="padding:10px; width: 60px; min-width: 60px; max-width: 60px; overflow:hidden; text-overflow:ellipsis;">${display}</td>`;
             });
 
             // Calculate Total
@@ -587,7 +590,7 @@
             let displayTotal = totalVal === 0 ? '-' : (row.suffix ? formatPercent(totalVal) : fmt(totalVal));
             if (row.key === 'capital' && totalVal === 0) displayTotal = '-';
 
-            tableHtml += `<td style="position:sticky; right:0; background:${bg}; z-index:2; padding:10px; font-weight:700; border-left:1px solid var(--border);">${displayTotal}</td>`;
+            tableHtml += `<td style="position:sticky; right:0; background:${bg}; z-index:2; padding:10px; font-weight:700; border-left:1px solid var(--border); width: 90px; min-width: 90px; max-width: 90px; text-align:right; overflow:hidden; text-overflow:ellipsis;">${displayTotal}</td>`;
             tableHtml += `</tr>`;
         });
         tableHtml += `</tbody></table></div>`;
