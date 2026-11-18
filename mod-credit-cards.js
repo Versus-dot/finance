@@ -75,22 +75,22 @@
             if (!ccUI) {
                 ccUI = document.createElement('div');
                 ccUI.id = 'ccCustomUI';
-                ccUI.className = 'form-row';
                 ccUI.style.marginTop = '0'; 
                 ccUI.style.marginBottom = '16px';
+                ccUI.style.display = 'flex';
+                ccUI.style.flexDirection = 'column';
                 ccUI.style.gap = '8px';
-                ccUI.style.gridTemplateColumns = '1fr 1fr';
-                
+
                 ccUI.innerHTML = `
-                    <div class="form-group" style="margin-bottom: 0;">
+                    <div class="form-group" style="margin-bottom:0;">
                         <label>Кредитный лимит</label>
                         <input type="number" step="0.01" id="ccLimitInput" value="${limit}">
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;">
+                    <div class="form-group" style="margin-bottom:0;">
                         <label>Текущий баланс</label>
                         <input type="number" step="0.01" id="ccBalanceInput" value="${currentBalance}">
                     </div>
-                    <div class="form-group" style="margin-bottom: 0; grid-column: span 2;">
+                    <div class="form-group" style="margin-bottom:0;">
                         <label>Задолженность</label>
                         <input type="text" id="ccDebtInput" readonly style="background: transparent; border: 1px solid var(--border); padding: 14px 16px; font-weight: 700; font-size: 15px; outline: none;">
                     </div>
@@ -129,7 +129,6 @@
                 balInp.addEventListener('input', updateDebtUI);
                 updateDebtUI(); 
 
-                // Перехват сохранения для кредиток
                 const originalSubmit = form.onsubmit;
                 form.onsubmit = function(e) {
                     const L = parseFloat(limitInp.value) || 0;
