@@ -1,0 +1,22 @@
+{
+  "name": "finance",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "backup": "xcopy . ..\\\\finance_backup\\\\finance_backup_%date:~-4,4%-%date:~3,2%-%date:~0,2%_%time:~0,2%-%time:~3,2%-%time:~6,2% /E /H /C /I /Y"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/versus-dot/finance.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/versus-dot/finance/issues"
+  },
+  "homepage": "https://github.com/versus-dot/finance#readme"
+}
