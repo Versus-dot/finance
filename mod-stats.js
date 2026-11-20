@@ -526,7 +526,8 @@
         ];
 
         // ФИКС: Убран table-layout: fixed, добавлены min-width для колонок
-        let tableHtml = `<div style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%; position:relative;">
+        let topScrollbarHtml = `<div id="stats-top-scroll" style="overflow-x:auto; overflow-y:hidden; border-radius:12px; margin-bottom: 4px; display:none;"><div id="stats-top-scroll-inner" style="height:1px;"></div></div>`;
+        let tableHtml = `<div id="stats-table-container" style="overflow-x:auto; white-space:nowrap; border-radius:12px; border:1px solid var(--border); max-width: 100%; position:relative;">
             <table style="width: max-content; min-width: 100%; border-collapse:collapse; font-size:13px; text-align:right;">
                 <thead>
                     <tr style="background:var(--card2); border-bottom:1px solid var(--border);">
@@ -659,7 +660,7 @@
                         </select>
                     </div>
                     <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px;">💡 Нажмите на параметр в таблице, чтобы отобразить его на графике.</div>
-                    ${tableHtml}
+                    ${topScrollbarHtml}${tableHtml}
                 </div>
             </div>
 
@@ -680,6 +681,29 @@
                 window.renderDonutChart();
             }
             renderReportChart();
+
+            // Синхронизация ползунков
+            const tableContainer = document.getElementById('stats-table-container');
+            const topScroll = document.getElementById('stats-top-scroll');
+            const topScrollInner = document.getElementById('stats-top-scroll-inner');
+
+            if (tableContainer && topScroll && topScrollInner) {
+                topScrollInner.style.width = tableContainer.scrollWidth + 'px';
+
+                topScroll.onscroll = function() {
+                    tableContainer.scrollLeft = topScroll.scrollLeft;
+                };
+
+                tableContainer.onscroll = function() {
+                    topScroll.scrollLeft = tableContainer.scrollLeft;
+                };
+
+                if (tableContainer.scrollWidth > tableContainer.clientWidth) {
+                    topScroll.style.display = 'block';
+                } else {
+                    topScroll.style.display = 'none';
+                }
+            }
         }, 50);
     };
 
