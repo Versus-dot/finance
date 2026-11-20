@@ -115,12 +115,12 @@
             const customData = chart.config._centerText || { val: 0, label: 'Чистый капитал' };
             const valStr = isPrivacyMode ? '*** ₽' : fmtPlain(customData.val);
             ctx.font = 'bold 20px -apple-system, system-ui, sans-serif';
-            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#fff';
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#fff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(valStr, centerX, centerY - 8);
             ctx.font = '11px -apple-system, system-ui, sans-serif';
-            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#888';
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted').trim() || '#888';
             ctx.fillText(customData.label, centerX, centerY + 14);
             ctx.restore();
         }
@@ -236,7 +236,7 @@
                             boxWidth: 12,
                             font: { size: 11 },
                             generateLabels: (chart) => {
-                                const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text').trim();
+                                const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim();
                                 const defaults = Chart.defaults.plugins.legend.labels.generateLabels(chart);
                                 return defaults.map(item => ({ ...item, fontColor: textColor }));
                             }
