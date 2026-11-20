@@ -232,7 +232,15 @@
                 plugins: {
                     legend: {
                         position: 'right',
-                        labels: { boxWidth: 12, font: { size: 11 }, color: getComputedStyle(document.documentElement).getPropertyValue('--text').trim() }
+                        labels: {
+                            boxWidth: 12,
+                            font: { size: 11 },
+                            generateLabels: (chart) => {
+                                const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text').trim();
+                                const defaults = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                return defaults.map(item => ({ ...item, fontColor: textColor }));
+                            }
+                        }
                     },
                     tooltip: {
                         backgroundColor: 'rgba(30, 37, 50, 1)', titleColor: '#ffffff', bodyColor: '#ffffff',
