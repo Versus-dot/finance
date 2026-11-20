@@ -68,8 +68,32 @@ function getUSDTRate(){return S.settings.usdtRate.mode==='auto'?(S.settings.usdt
 function accValue(a){if(!a)return 0;if(a.currency==='USDT')return a.balance*getUSDTRate();return a.balance||0;}
 function isTarget(a){return a&&TARGET_TYPES.includes(a.type)&&!a.isTransit;}
 function getBankIndicatorHtml(bank){if(!bank)return '';const bColor=bank.color||'#888';const style=S.settings.badgeStyle;if(style==='bg')return `<span class="bank-badge" style="background:${bColor}20;color:${bColor};border:1px solid ${bColor}40;">${esc(bank.name)}</span>`;if(style==='dot')return `<span class="bank-dot" style="background:${bColor}"></span>`;if(style==='text')return `<span style="color:${bColor};font-size:10px;font-weight:700;margin-left:6px;">${esc(bank.name)}</span>`;if(style==='stripe')return `<span class="bank-stripe" style="background:${bColor}"></span>`;return '';}
-function classifyTransfer(f,t){const fA=getAcc(f),tA=getAcc(t);if(!fA||!tA)return 'ignore';const fT=isTarget(fA),tT=isTarget(tA);if(fT===tT)return 'ignore';if(!fT&&tT){if(SAVINGS_TYPES.includes(tA.type))return 'savings';if(INVEST_TYPES.includes(tA.type))return 'investment';return 'ignore';}if(fT&&!tT)return 'withdraw';return 'ignore';}
-function recalculateBalances(){S.accounts.forEach(a=>a.balance=a.initialBalance||0);S.transactions.forEach(t=>{if(t.type==='income'){const a=getAcc(t.accountId);if(a)a.balance+=t.amount;}else if(t.type==='expense'){const a=getAcc(t.accountId);if(a)a.balance-=t.amount;}else if(t.type==='transfer'){const f=getAcc(t.accountId);const to=getAcc(t.toAccountId);if(f)f.balance-=t.amount;if(to)to.balance+=t.amount;}else if(t.type==='debt'){const a=getAcc(t.accountId);if(t.debtType==='lent'||t.debtType==='repaid'){if(a)a.balance-=t.amount;}else if(t.debtType==='borrowed'||t.debtType==='returned'){if(a)a.balance+=t.amount;}}});}
+function classifyTransfer(f,t){
+    const fA=getAcc(f),tA=getAcc(t);
+    if(!fA||!tA) return 'ignore';
+    if(tA.hedgeFor) return 'ignore';
+    const fT=isTarget(fA),tT=isTarget(tA);
+    if(fT===tT) return 'ignore';
+    if(!fT && tT){
+        if(tA.inCushion) return 'savings';
+        if(SAVINGS_TYPES.includes(tA.type)) return 'savings';
+        if(INVEST_TYPES.includes(tA.type)) return 'investment';
+        return 'ignore';
+    }
+    if(fT && !tT) return 'withdraw';
+    return 'ignore';
+}
+function recalculateBalances(){S.accounts.forEach(a=>a.balance=a.initialBalance||0);S.transactions.forEach(t=>{if(t.type==='income'){const a=getAcc(t.accountId);if(a)a.balance+=t.amount;}else if(t.type==='expense'){const a=getAcc(t.accountId);if(a)a.balance-=t.amount;}else if(t.type==='transfer'){const f=getAcc(t.accountId);const to=getAcc(t.toAccountId);if(f)f.balance-=t.amount;if(to)to.balance+=t.amount;}else if(t.type==='debt'){const a=getAcc(t.accountId);if(t.debtType==='lent'||t.debtType==='repaid'){if(a)a.balance-=t.amount;}else if(t.debtType==='borrowed'||t.debtType==='returned'){if(a)a.balance+=t.amount;}}});
+    // Автоочистка хеджа, если кредит полностью погашен
+    S.accounts.forEach(a => {
+        if (a.hedgeFor) {
+            const targetAcc = getAcc(a.hedgeFor);
+            if (!targetAcc || targetAcc.type !== 'credit' || accValue(targetAcc) >= (targetAcc.creditLimit || 0)) {
+                delete a.hedgeFor;
+            }
+        }
+    });
+}
 
 function computeTotals(){
     let totalCap=0,debt=0,creditLimit=0,cushion=0,deposits=0,brokerage=0,crypto=0,pds=0,free=0,cash=0;
