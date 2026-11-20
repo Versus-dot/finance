@@ -85,7 +85,7 @@
         const globalBtn = document.getElementById('globalPrivacyBtn');
         if (globalBtn) {
             const isHidden = S.ui.globalHideBalances;
-            globalBtn.innerHTML = isHidden ? eyeOpenGlobal : eyeClosedGlobal;
+            globalBtn.innerHTML = isHidden ? eyeClosedGlobal : eyeOpenGlobal;
             globalBtn.title = isHidden ? "Показать все балансы" : "Скрыть все балансы";
             globalBtn.onclick = window.toggleGlobalPrivacy;
         }

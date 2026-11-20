@@ -461,7 +461,7 @@
             if (lentSums[cpId] > 0) {
                 const cp = S.counterparties.find(c => c.id === cpId);
                 totalOwed += lentSums[cpId];
-                owedListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'lent')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="pos">${fmt(lentSums[cpId])}</span></div>`;
+                owedListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'lent')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="pos">${(S.ui.hideDebtsNumbers || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(lentSums[cpId])}</span></div>`;
             }
         });
 
