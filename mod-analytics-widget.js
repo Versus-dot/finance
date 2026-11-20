@@ -470,7 +470,7 @@
             if (borrowedSums[cpId] > 0) {
                 const cp = S.counterparties.find(c => c.id === cpId);
                 totalOwe += borrowedSums[cpId];
-                oweListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'borrowed')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="neg">${fmt(borrowedSums[cpId])}</span></div>`;
+                oweListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'borrowed')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="neg">${(isHideDebt || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(borrowedSums[cpId])}</span></div>`;
             }
         });
 
@@ -516,7 +516,7 @@
         const isHideAn = S.ui.hideAnalyticsNumbers;
         const isHideDebt = S.ui.hideDebtsNumbers;
         
-        const hideV = (v) => (isHideAn || S.ui.globalHideBalances) ? '***' : fmt(v);
+        const hideV = (v) => (isHideAn || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(v);
 
         const periodOpts = { day:'День', week:'Неделя', month:'Месяц', year:'Год', ytd:'С начала года', custom:'Период ⚙️' };
         let selectHtml = `<select onchange="window.setAnalyticsPeriod(this.value)" style="padding: 4px 8px; border-radius: 8px; font-size: 12px; background: var(--card); color: var(--text); border: 1px solid var(--border); outline: none;">`;
@@ -548,7 +548,7 @@
                             <div class="label">Отложено</div><div class="val pos">${hideV(m.saved)}</div>${getTrendHtml(m.saved, p.saved, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openAnalyticsInfo()">
-                            <div class="label">Норма сбережений</div><div class="val">${(isHideAn || S.ui.globalHideBalances) ? '***' : formatPercent(m.rate)}</div>${getTrendHtml(m.rate, p.rate, true)}
+                            <div class="label">Норма сбережений</div><div class="val">${(isHideAn || S.ui.globalHideBalances) ? '❄️❄️❄️' : formatPercent(m.rate)}</div>${getTrendHtml(m.rate, p.rate, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openAnalyticsList('passive')">
                             <div class="label">Пассивный доход</div><div class="val pos">${hideV(m.passive)}</div>${getTrendHtml(m.passive, p.passive, true)}
@@ -580,14 +580,14 @@
                     <div style="margin-bottom: 12px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <div style="font-size:13px; font-weight:700; color:var(--green);">🟢 Мне должны</div>
-                            <div style="font-size:13px; font-weight:700; color:var(--green);">${(isHideDebt || S.ui.globalHideBalances) ? '***' : fmt(totalOwed)}</div>
+                            <div style="font-size:13px; font-weight:700; color:var(--green);">${(isHideDebt || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(totalOwed)}</div>
                         </div>
                         ${owedListHtml || '<div style="font-size:12px; color:var(--muted);">Нет</div>'}
                     </div>
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <div style="font-size:13px; font-weight:700; color:var(--red);">🔴 Я должен</div>
-                            <div style="font-size:13px; font-weight:700; color:var(--red);">${(isHideDebt || S.ui.globalHideBalances) ? '***' : fmt(totalOwe)}</div>
+                            <div style="font-size:13px; font-weight:700; color:var(--red);">${(isHideDebt || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(totalOwe)}</div>
                         </div>
                         ${oweListHtml || '<div style="font-size:12px; color:var(--muted);">Нет</div>'}
                     </div>

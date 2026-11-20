@@ -65,7 +65,7 @@
             html = html.replace(/Ваши деньги:\s*\+?([^<]*)<\/div>/, `Ваши деньги: +${HIDDEN_BALANCE}</div>`);
         }
 
-        const eyeIcon = isHidden ? eyeOpenSvg : eyeClosedSvg;
+        const eyeIcon = isHidden ? eyeClosedSvg : eyeOpenSvg;
         const eyeBtn = `<span class="privacy-eye-btn" style="cursor:pointer;margin-left:6px;display:inline-flex;align-items:center;color:var(--muted);transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'" onclick="event.stopPropagation(); window.toggleAccountPrivacy('${a.id}')" title="${isHidden ? 'Показать' : 'Скрыть'}">${eyeIcon}</span>`;
         
         if (!S.ui.globalHideBalances) {
@@ -163,5 +163,21 @@
             }
         });
     };
+
+    // Перехват отрисовки операций для скрытия сумм
+    const prevRenderTxItem = window.renderTxItem;
+    if (prevRenderTxItem) {
+        window.renderTxItem = function(t) {
+            let html = prevRenderTxItem(t);
+            if (S.ui && S.ui.globalHideBalances) {
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+                const amtEl = temp.querySelector('.amount');
+                if (amtEl) amtEl.textContent = '❄️❄️❄️';
+                html = temp.innerHTML;
+            }
+            return html;
+        };
+    }
 
 })();
