@@ -348,7 +348,7 @@ async function fetchUSDT(){
         }
     }catch(e){console.log('Курс USDT временно недоступен. Используется сохраненный.');}
 }
-function applyTheme(){document.documentElement.setAttribute('data-theme',S.settings.theme);$('themeBtn').textContent=S.settings.theme==='dark'?'🌙':'☀️';}
+function applyTheme(){document.documentElement.setAttribute('data-theme',S.settings.theme);$('themeBtn').textContent=S.settings.theme==='dark'?'🌙':'☀️';if(typeof window.updateDonutChartTheme==='function')window.updateDonutChartTheme();}
 $('themeBtn').onclick=()=>{S.settings.theme=S.settings.theme==='dark'?'light':'dark';save();applyTheme();};
 
 function setActiveTab(tab,fromPop=false){

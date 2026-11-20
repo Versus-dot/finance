@@ -154,6 +154,10 @@
         }
     };
 
+    window.updateDonutChartTheme = function() {
+        if (myChart) myChart.update();
+    };
+
     window.resetChartDrillDown = function() {
         window._chartDrillDown = null;
         window.renderDonutChart();
