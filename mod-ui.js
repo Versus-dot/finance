@@ -627,7 +627,7 @@
                 </div>`;
             });
             accs.forEach(a => { html += `<div data-acc-id="${a.id}">${renderAccountRow(a, b)}</div>`; });
-            html += `</div><div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;"><div style="display:flex;gap:8px;"><button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>${b.isPlatform?`<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>`:''}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="openBankModal('${b.id}')" title="Редактировать банк">✏️</button>${!b.isPlatform?`<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>`:''}</div></div></div>`;
+            html += `<div class="bottom-panel" style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;"><div style="display:flex;gap:8px;"><button class="btn-secondary btn-small" onclick="openAccountModal(null,'${b.id}')">+ Счёт</button>${b.isPlatform?`<button class="btn-secondary btn-small" onclick="openSubBankModal('${b.id}')">+ Банк платформы</button>`:''}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="openBankModal('${b.id}')" title="Редактировать банк">✏️</button>${!b.isPlatform?`<button class="btn-icon" onclick="deleteBank('${b.id}')" title="Удалить банк">🗑</button>`:''}</div></div></div></div>`;
         });
         html += `</div>`;
         html += `<button class="btn-secondary btn-block" style="margin-top:12px" onclick="window.toggleArchiveView()">${showArch?'Скрыть архив':'Показать архив'}</button>`;
@@ -635,7 +635,7 @@
         if (typeof Sortable !== 'undefined') {
             const banksContainer = document.getElementById('banksSortable');
             if (banksContainer) { new Sortable(banksContainer, { animation: 150, handle: '.drag-handle', filter: 'button, input, select, .sub-bank-section', onEnd: function() { const items = banksContainer.querySelectorAll(':scope > .bank-section'); items.forEach((item, index) => { const id = item.dataset.bankId; const b = getBank(id); if (b) b.order = index; }); save(); renderAll(); } }); }
-            document.querySelectorAll('.bank-accounts-list').forEach(container => { new Sortable(container, { animation: 150, group: { name: 'accounts', pull: false, put: false }, handle: '.drag-handle', filter: 'button, input, select, .sub-bank-section', onEnd: function() { const items = container.querySelectorAll(':scope > [data-acc-id]'); items.forEach((item, index) => { const id = item.dataset.accId; const a = getAcc(id); if (a) a.order = index; }); save(); renderAll(); } }); });
+            document.querySelectorAll('.bank-accounts-list').forEach(container => { new Sortable(container, { animation: 150, group: { name: 'accounts', pull: false, put: false }, handle: '.drag-handle', filter: 'button, input, select, .sub-bank-section, .bottom-panel', onEnd: function() { const items = container.querySelectorAll(':scope > [data-acc-id]'); items.forEach((item, index) => { const id = item.dataset.accId; const a = getAcc(id); if (a) a.order = index; }); save(); renderAll(); } }); });
         }
     };
 })();
