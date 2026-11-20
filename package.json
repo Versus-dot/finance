@@ -1,11 +1,13 @@
 {
   "name": "finance",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.1.0",
+  "description": "Finance app (updated)",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "backup": "xcopy . ..\\\\finance_backup\\\\finance_backup_%date:~-4,4%-%date:~3,2%-%date:~0,2%_%time:~0,2%-%time:~3,2%-%time:~6,2% /E /H /C /I /Y"
+    "backup": "xcopy . ..\\\\finance_backup\\\\finance_backup_%date:~-4,4%-%date:~3,2%-%date:~0,2%_%time:~0,2%-%time:~3,2%-%time:~6,2% /E /H /C /I /Y",
+    "lint": "eslint . --ext .js --ignore-path .eslintignore",
+    "git-push": "git add . && git commit -m \"Auto backup: %date% %time%\" && git push"
   },
   "repository": {
     "type": "git",
