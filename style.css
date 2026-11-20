@@ -199,7 +199,8 @@ button:active{transform:scale(0.98)}
     color:#fff;border:none;font-size:28px;line-height:1;cursor:pointer;
     box-shadow:0 8px 24px rgba(99,102,241,0.4);z-index:101;
     display:flex;align-items:center;justify-content:center;padding:0;
-    transition:transform 0.2s
+    transition:transform 0.2s;
+    display: none !important;
 }
 .fab:active{transform:scale(0.95)}
 
