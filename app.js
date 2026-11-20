@@ -22,7 +22,7 @@ const $=id=>document.getElementById(id);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const today=()=>new Date().toISOString().slice(0,10);
 const thisMonth=()=>new Date().toISOString().slice(0,7);
-const fmt=n=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:0}).format(n||0);
+const fmt=n=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:0,maximumFractionDigits:2}).format(n||0);
 const fmtNum=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n||0);
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(m,actionFn,actionText){const t=$('toast');t.innerHTML=`<span>${m}</span>`+(actionFn?`<button id="toastAction">${actionText}</button>`:'');t.classList.add('show');if(actionFn)$('toastAction').onclick=()=>{actionFn();t.classList.remove('show');};clearTimeout(t._t);t._t=setTimeout(()=>{t.classList.remove('show');t.innerHTML='';},actionFn?5000:2000);}
