@@ -470,7 +470,7 @@
             if (borrowedSums[cpId] > 0) {
                 const cp = S.counterparties.find(c => c.id === cpId);
                 totalOwe += borrowedSums[cpId];
-                oweListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'borrowed')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="neg">${(isHideDebt || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(borrowedSums[cpId])}</span></div>`;
+                oweListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'borrowed')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="neg">${(S.ui.hideDebtsNumbers || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(borrowedSums[cpId])}</span></div>`;
             }
         });
 
