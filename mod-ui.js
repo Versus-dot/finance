@@ -562,6 +562,7 @@
     }, 500);
 
     window.toggleArchiveView = function() {
+        console.log('[TOGGLE] before toggle, showArchived=', S.ui.showArchived);
         if (!S.ui.showArchived) {
             prevCollapsedState = [...S.ui.collapsedBanks];
             const archBanks = new Set();
@@ -577,6 +578,7 @@
             }
         }
         S.ui.showArchived = !S.ui.showArchived;
+        console.log('[TOGGLE] after toggle, showArchived=', S.ui.showArchived);
         save();
         renderAccounts();
     };
@@ -584,6 +586,7 @@
     window.renderAccounts = function() {
         const el = document.getElementById('page-accounts'); if (!el) return;
         const showArch = S.ui.showArchived;
+        console.log('[RENDER] showArchived=', showArch);
         let html = `<button class="btn-primary btn-block" style="margin-bottom:12px" onclick="openBankModal()">+ Добавить банк</button>`;
         if (showArch) html += `<div style="font-size:12px; color:var(--muted); text-align:center; margin-bottom:12px;">Показаны архивные счета (они выделены серым)</div>`;
         const topBanks = filterBanksForDisplay(S.banks.filter(b => !b.parentId)).sort((a,b) => (a.order||0) - (b.order||0));

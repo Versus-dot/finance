@@ -50,7 +50,9 @@ function load(){
             }
             if(S.ui.showArchived===undefined||S.ui.showArchived===false){
                 S.ui.showArchived=true;
+                save(false);
             }
+            console.log('[ARCHIVE] showArchived=', S.ui.showArchived);
         }else{
             const o=localStorage.getItem('financeApp_v24')||localStorage.getItem('financeApp_v23');
             if(o){const p=JSON.parse(o);S={...defaultState(),...p};S.settings.badgeStyle='stripe';}
