@@ -235,11 +235,7 @@
                         labels: {
                             boxWidth: 12,
                             font: { size: 11 },
-                            generateLabels: (chart) => {
-                                const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim();
-                                const defaults = Chart.defaults.plugins.legend.labels.generateLabels(chart);
-                                return defaults.map(item => ({ ...item, fontColor: textColor }));
-                            }
+                            color: () => getComputedStyle(document.documentElement).getPropertyValue('--text').trim()
                         }
                     },
                     tooltip: {
