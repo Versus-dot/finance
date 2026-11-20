@@ -113,7 +113,7 @@
             const centerY = top + height / 2;
             const isPrivacyMode = (typeof S !== 'undefined' && S.ui && S.ui.globalHideBalances);
             const customData = chart.config._centerText || { val: 0, label: 'Чистый капитал' };
-            const valStr = isPrivacyMode ? '*** ₽' : fmt(customData.val);
+            const valStr = isPrivacyMode ? '*** ₽' : fmtPlain(customData.val);
             ctx.font = 'bold 20px -apple-system, system-ui, sans-serif';
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#fff';
             ctx.textAlign = 'center';
@@ -239,7 +239,7 @@
                                 const val = context.raw;
                                 const pct = ((val / totalSum) * 100).toFixed(1);
                                 const prefix = context.label.includes('Долги') ? ' -' : ' ';
-                                return `${prefix}${fmt(val)} (${pct}%)`;
+                                return `${prefix}${fmtPlain(val)} (${pct}%)`;
                             }
                         }
                     }
