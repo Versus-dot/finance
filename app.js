@@ -48,6 +48,9 @@ function load(){
                 const hasFinu=S.accounts.some(a=>isFinuslugiBank(a.bankId));
                 S.settings.finuslugiEnabled=hasFinu;
             }
+            if(S.ui.showArchived===undefined||S.ui.showArchived===false){
+                S.ui.showArchived=true;
+            }
         }else{
             const o=localStorage.getItem('financeApp_v24')||localStorage.getItem('financeApp_v23');
             if(o){const p=JSON.parse(o);S={...defaultState(),...p};S.settings.badgeStyle='stripe';}
