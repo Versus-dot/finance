@@ -318,3 +318,9 @@ body:has(#page-home.active) #fabBtn, body:has(#page-stats.active) #fabBtn {displ
     .acc-icon-wrap { width: 36px; height: 36px; }
     .acc-balance { font-size: 16px; }
 }
+.kopecks {
+    font-size: 0.8em;
+    opacity: 0.7;
+    font-weight: 500;
+    margin-left: 1px;
+}
