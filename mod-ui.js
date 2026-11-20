@@ -7,6 +7,7 @@
     let lastBackPress = 0;
     let isMenuOpen = false;
     let isHandlingPopState = false;
+    let prevCollapsedState = null;
     window._currentBankFilter = 'all';
 
     const origOpenModal = window.openModal;
