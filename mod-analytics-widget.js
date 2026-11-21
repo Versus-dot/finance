@@ -418,7 +418,16 @@
             html += `<div style="max-height: 50vh; overflow-y: auto;">`;
             sorted.forEach(t => {
                 const cat = getCat(t.categoryId);
-                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${cat ? esc(cat.name) : 'Без категории'}</div><div style="font-size:12px; color:var(--muted);">${t.date} ${t.note ? '· '+esc(t.note) : ''}</div></div><div style="font-weight:700;">${fmt(t.amount)}</div></div>`;
+                let amountStr = fmt(t.amount);
+                let color = 'inherit';
+                if (type === 'income' || type === 'passive') {
+                    amountStr = '+' + amountStr;
+                    color = 'var(--green)';
+                } else if (type === 'expense') {
+                    amountStr = '-' + amountStr;
+                    color = 'var(--red)';
+                }
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${cat ? esc(cat.name) : 'Без категории'}</div><div style="font-size:12px; color:var(--muted);">${t.date} ${t.note ? '· '+esc(t.note) : ''}</div></div><div style="font-weight:700; color:${color};">${amountStr}</div></div>`;
             });
             html += `</div>`;
         }
@@ -431,14 +440,14 @@
             html += `<div class="group-header" style="color: var(--green);">📈 Накопления</div>`;
             savings.sort((a,b) => b.date.localeCompare(a.date)).forEach(t => {
                 const acc = getAcc(t.toAccountId);
-                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${acc ? esc(acc.name) : 'Счет'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div><div style="font-weight:700; color:var(--green);">${fmt(t.amount)}</div></div>`;
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${acc ? esc(acc.name) : 'Счет'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div><div style="font-weight:700; color:var(--green);">+${fmt(t.amount)}</div></div>`;
             });
         }
         if (invest.length > 0) {
             html += `<div class="group-header" style="color: var(--accent);">📈 Инвестиции</div>`;
             invest.sort((a,b) => b.date.localeCompare(a.date)).forEach(t => {
                 const acc = getAcc(t.toAccountId);
-                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${acc ? esc(acc.name) : 'Счет'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div><div style="font-weight:700; color:var(--accent);">${fmt(t.amount)}</div></div>`;
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${acc ? esc(acc.name) : 'Счет'}</div><div style="font-size:12px; color:var(--muted);">${t.date}</div></div><div style="font-weight:700; color:var(--accent);">+${fmt(t.amount)}</div></div>`;
             });
         }
         if (savings.length === 0 && invest.length === 0) html += `<div class="empty">Нет данных</div>`;

@@ -442,21 +442,47 @@
                 const cat = getCat(t.categoryId);
                 const acc = getAcc(t.accountId);
                 const toAcc = getAcc(t.toAccountId);
+                
                 let title = cat ? cat.name : (t.type === 'transfer' ? 'Перевод' : 'Операция');
                 let meta = t.date + (acc ? ' · ' + acc.name : '') + (toAcc ? ' → ' + toAcc.name : '');
                 let amountStr = fmt(t.amount);
+                let color = 'inherit';
                 
-                if (type === 'invest' && t.type === 'transfer') {
-                    const targetAccIds = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived).map(a => a.id);
-                    if (targetAccIds.includes(t.toAccountId)) {
-                        title = 'Пополнение инвестиций';
-                        amountStr = '+' + amountStr;
+                if (t.type === 'income') {
+                    amountStr = '+' + amountStr;
+                    color = 'var(--green)';
+                } else if (t.type === 'expense') {
+                    amountStr = '-' + amountStr;
+                    color = 'var(--red)';
+                } else if (t.type === 'transfer') {
+                    if (type === 'invest') {
+                        const targetAccIds = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived).map(a => a.id);
+                        if (targetAccIds.includes(t.toAccountId)) {
+                            title = 'Пополнение инвестиций';
+                            amountStr = '+' + amountStr;
+                            color = 'var(--green)';
+                        } else {
+                            title = 'Вывод из инвестиций';
+                            amountStr = '-' + amountStr;
+                            color = 'var(--red)';
+                        }
+                    } else if (type === 'saved') {
+                        const isToSaved = classifyTransfer(t.accountId, t.toAccountId) === 'savings';
+                        if (isToSaved) {
+                            title = 'Пополнение накоплений';
+                            amountStr = '+' + amountStr;
+                            color = 'var(--green)';
+                        } else {
+                            title = 'Снятие накоплений';
+                            amountStr = '-' + amountStr;
+                            color = 'var(--red)';
+                        }
                     } else {
-                        title = 'Вывод из инвестиций';
-                        amountStr = '-' + amountStr;
+                        color = 'var(--muted)';
                     }
                 }
-                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(title)}</div><div style="font-size:12px; color:var(--muted);">${meta}</div></div><div style="font-weight:700;">${amountStr}</div></div>`;
+                
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(title)}</div><div style="font-size:12px; color:var(--muted);">${meta}</div></div><div style="font-weight:700; color:${color};">${amountStr}</div></div>`;
             });
             html += `</div>`;
         }
