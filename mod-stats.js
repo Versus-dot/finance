@@ -169,7 +169,7 @@
     }
 
     function calcStatsData(start, end) {
-        let inc = 0, exp = 0, tax = 0, sav = 0, inv = 0, passive = 0;
+        let inc = 0, exp = 0, tax = 0, sav = 0, inv = 0, passive = 0, activeInc = 0;
         S.transactions.filter(t => {
             const d = new Date(t.date).getTime();
             return d >= start.getTime() && d <= end.getTime() && !t.ignoreInStats;
@@ -177,7 +177,8 @@
             if (t.type === 'income') { 
                 inc += t.amount; 
                 const c = getCat(t.categoryId);
-                if (c && c.passive) passive += t.amount; 
+                if (c && c.passive) passive += t.amount;
+                else activeInc += t.amount;
             }
             if (t.type === 'expense') {
                 exp += t.amount;
@@ -190,7 +191,8 @@
                 if (k === 'investment') inv += t.amount;
             }
         });
-        return { inc, exp, tax, sav, inv, passive, rate: inc > 0 ? Math.min(100, ((sav + inv) / inc * 100)) : 0 };
+        const totalSaved = sav + inv;
+        return { inc, exp, tax, sav, inv, passive, activeInc, totalSaved, rate: activeInc > 0 ? Math.min(100, ((sav + inv) / activeInc * 100)) : 0 };
     }
 
     function getTrendHtml(current, previous, isGoodWhenUp) {
@@ -264,6 +266,80 @@
         }
     }
 
+    function getHistoricalValue(row, targetMonthStr) {
+        const currentMonthStr = today().slice(0, 7);
+        const c = window.getCustomCapital ? window.getCustomCapital() : null;
+        if (!c) return 0;
+
+        if (targetMonthStr === currentMonthStr) {
+            if (row === 'capital') return c.net;
+            if (row === 'cushion') return c.cushion;
+            if (row === 'pds') return c.pds;
+            if (row === 'stocks') return c.investments;
+            if (row === 'savings') return c.savings;
+            if (row === 'debt') return c.debt;
+            return 0;
+        }
+
+        const targetEnd = targetMonthStr + '-31';
+
+        // Долги считаем прямым пересчетом от кредитных лимитов
+        if (row === 'debt') {
+            let histDebt = 0;
+            S.accounts.filter(a => a.type === 'credit' && !a.archived).forEach(a => {
+                let bal = a.initialBalance || 0;
+                S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                    if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
+                    if (t.type === 'expense' && t.accountId === a.id) bal -= t.amount;
+                    if (t.type === 'transfer') {
+                        if (t.accountId === a.id) bal -= t.amount;
+                        if (t.toAccountId === a.id) bal += t.amount;
+                    }
+                });
+                histDebt += Math.max(0, (a.creditLimit || 0) - bal);
+            });
+            return histDebt;
+        }
+
+        // Для остальных используем обратный пересчет (от текущего баланса)
+        let currentVal = 0;
+        if (row === 'capital') currentVal = c.net;
+        else if (row === 'cushion') currentVal = c.cushion;
+        else if (row === 'pds') currentVal = c.pds;
+        else if (row === 'stocks') currentVal = c.investments;
+        else if (row === 'savings') currentVal = c.savings;
+
+        let delta = 0;
+        S.transactions.filter(t => t.date > targetEnd && !t.ignoreInStats).forEach(t => {
+            if (row === 'capital') {
+                if (t.type === 'income') delta += t.amount;
+                if (t.type === 'expense') delta -= t.amount;
+            }
+            if (t.type === 'transfer') {
+                const fromAcc = getAcc(t.accountId);
+                const toAcc = getAcc(t.toAccountId);
+                
+                if (row === 'pds') {
+                    if (fromAcc && !fromAcc.inCushion && fromAcc.type === 'pds') delta -= t.amount;
+                    if (toAcc && !toAcc.inCushion && toAcc.type === 'pds') delta += t.amount;
+                }
+                if (row === 'stocks') {
+                    if (fromAcc && !fromAcc.inCushion && ['brokerage', 'iis', 'invest_kopilka'].includes(fromAcc.type)) delta -= t.amount;
+                    if (toAcc && !toAcc.inCushion && ['brokerage', 'iis', 'invest_kopilka'].includes(toAcc.type)) delta += t.amount;
+                }
+                if (row === 'savings') {
+                    if (fromAcc && !fromAcc.inCushion && ['deposit', 'savings', 'finu_wallet', 'debit', 'cash'].includes(fromAcc.type)) delta -= t.amount;
+                    if (toAcc && !toAcc.inCushion && ['deposit', 'savings', 'finu_wallet', 'debit', 'cash'].includes(toAcc.type)) delta += t.amount;
+                }
+                if (row === 'cushion') {
+                    if (fromAcc && fromAcc.inCushion) delta -= t.amount;
+                    if (toAcc && toAcc.inCushion) delta += t.amount;
+                }
+            }
+        });
+        return currentVal - delta;
+    }
+
     function calcTableRow(row, monthsArray) {
         let total = 0;
         const isDateMatch = (d) => monthsArray.some(m => d.startsWith(m));
@@ -306,43 +382,26 @@
             });
             total = inc - exp;
         } else if (row === 'rate') {
-            let inc = 0, sav = 0, inv = 0;
+            let inc = 0, sav = 0, inv = 0, passive = 0;
             S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
-                if (t.type === 'income') inc += t.amount;
+                if (t.type === 'income') {
+                    inc += t.amount;
+                    const c = getCat(t.categoryId);
+                    if (c && c.passive) passive += t.amount;
+                }
                 if (t.type === 'transfer') {
                     const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
                     if (k === 'savings') sav += t.amount;
                     if (k === 'investment') inv += t.amount;
                 }
             });
-            total = inc > 0 ? Math.min(100, ((sav + inv) / inc * 100)) : 0;
+            const activeInc = inc - passive;
+            total = activeInc > 0 ? Math.min(100, ((sav + inv) / activeInc * 100)) : 0;
+        } else if (row === 'total_saved') {
+            total = calcTableRow('saved', monthsArray) + calcTableRow('invest_total', monthsArray);
         } else if (['capital', 'cushion', 'pds', 'stocks', 'savings', 'debt'].includes(row)) {
-            const currentMonthStr = today().slice(0, 7);
-            
-            if (monthsArray.includes(currentMonthStr)) {
-                const c = window.getCustomCapital ? window.getCustomCapital() : null;
-                if (c) {
-                    if (row === 'capital') total = c.net;
-                    if (row === 'cushion') total = c.cushion;
-                    if (row === 'pds') total = c.pds;
-                    if (row === 'stocks') total = c.investments;
-                    if (row === 'savings') total = c.savings;
-                    if (row === 'debt') total = c.debt;
-                }
-            } else {
-                const snaps = S.snapshots.filter(s => isDateMatch(s.date));
-                if (snaps.length > 0) {
-                    const latest = snaps[snaps.length - 1];
-                    if (row === 'capital') total = latest.total;
-                    else if (latest.breakdown) {
-                        if (row === 'cushion') total = latest.breakdown.cushion || 0;
-                        if (row === 'pds') total = latest.breakdown.pds || 0;
-                        if (row === 'stocks') total = latest.breakdown.stocks || 0;
-                        if (row === 'savings') total = latest.breakdown.savings || 0;
-                        if (row === 'debt') total = latest.breakdown.debt || 0;
-                    }
-                }
-            }
+            const targetMonth = monthsArray[monthsArray.length - 1];
+            total = getHistoricalValue(row, targetMonth);
         }
         return total;
     }
@@ -513,7 +572,8 @@
             { key: 'passive', label: 'Пассивный', indent: 1, color: COLORS.passive },
             { key: 'expense', label: 'Расходы', indent: 0, color: COLORS.expense, bold: true },
             { key: 'taxes', label: 'Налоги', indent: 1, color: COLORS.taxes },
-            { key: 'saved', label: 'Отложено', indent: 0, color: COLORS.saved },
+            { key: 'saved', label: 'Отложено в накопления', indent: 0, color: COLORS.saved },
+            { key: 'total_saved', label: 'Общее отложенное', indent: 0, color: COLORS.saved, bold: true },
             ...dynamicRows,
             { key: 'fcf', label: 'Свободный поток', indent: 0, color: COLORS.fcf, bold: true },
             { key: 'rate', label: 'Норма сбережений', indent: 0, color: COLORS.rate, suffix: '%' },
