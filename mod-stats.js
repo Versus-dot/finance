@@ -421,12 +421,16 @@
             return c && (c.id === 'c_taxes' || c.name.toLowerCase().includes('налог'));
         });
         else if (type === 'saved') list = list.filter(t => t.type === 'transfer' && (t.savingsKind || classifyTransfer(t.accountId, t.toAccountId)) === 'savings');
+        else if (type === 'invest') {
+            const targetAccIds = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived).map(a => a.id);
+            list = list.filter(t => t.type === 'transfer' && (targetAccIds.includes(t.toAccountId) || targetAccIds.includes(t.accountId)));
+        }
 
         list.sort((a,b) => b.amount - a.amount);
         const limit = 100;
         const displayList = list.slice(0, limit);
 
-        let html = `<div class="modal-header"><h2>${type === 'income' ? 'Доходы' : type === 'expense' ? 'Расходы' : type === 'taxes' ? 'Налоги' : 'В накопления'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
+        let html = `<div class="modal-header"><h2>${type === 'income' ? 'Доходы' : type === 'expense' ? 'Расходы' : type === 'taxes' ? 'Налоги' : type === 'saved' ? 'В накопления' : type === 'invest' ? 'Инвестиции' : 'Операции'}</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>`;
         if (list.length > limit) {
             html += `<div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Показаны топ-${limit} операций по сумме. Всего: ${list.length}.</div>`;
         }
@@ -440,7 +444,19 @@
                 const toAcc = getAcc(t.toAccountId);
                 let title = cat ? cat.name : (t.type === 'transfer' ? 'Перевод' : 'Операция');
                 let meta = t.date + (acc ? ' · ' + acc.name : '') + (toAcc ? ' → ' + toAcc.name : '');
-                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(title)}</div><div style="font-size:12px; color:var(--muted);">${meta}</div></div><div style="font-weight:700;">${fmt(t.amount)}</div></div>`;
+                let amountStr = fmt(t.amount);
+                
+                if (type === 'invest' && t.type === 'transfer') {
+                    const targetAccIds = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived).map(a => a.id);
+                    if (targetAccIds.includes(t.toAccountId)) {
+                        title = 'Пополнение инвестиций';
+                        amountStr = '+' + amountStr;
+                    } else {
+                        title = 'Вывод из инвестиций';
+                        amountStr = '-' + amountStr;
+                    }
+                }
+                html += `<div class="modal-list-item"><div><div style="font-weight:600;">${esc(title)}</div><div style="font-size:12px; color:var(--muted);">${meta}</div></div><div style="font-weight:700;">${amountStr}</div></div>`;
             });
             html += `</div>`;
         }
@@ -679,7 +695,7 @@
                         <div class="analytic-item" onclick="window.openStatsList('saved')">
                             <div class="label">В накопления</div><div class="val pos">${fmt(m.sav)}</div>${getTrendHtml(m.sav, p.sav, true)}
                         </div>
-                        <div class="analytic-item">
+                        <div class="analytic-item" onclick="window.openStatsList('invest')">
                             <div class="label">Инвестировано</div><div class="val pos">${fmt(calcTableRow('invest_total', [today().slice(0,7)]))}</div>
                             <div style="font-size:10px; color:var(--muted);">За текущий месяц</div>
                         </div>
