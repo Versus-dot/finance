@@ -3,8 +3,8 @@ const KEY='financeApp_v25';
 const ACC_TYPES={debit:'Дебетовая карта',credit:'Кредитная карта',brokerage:'Брокерский',iis:'ИИС',pds:'ПДС',deposit:'Вклад',savings:'Накопительный',crypto_wallet:'Криптокошелек',crypto_exchange:'Криптобиржа',cash:'Наличные',invest_kopilka:'Инвесткопилка',finu_wallet:'Кошелёк Финуслуги'};
 const TERMS={indefinite:'Бессрочный','14d':'14 дней','3m':'3 мес','6m':'6 мес','12m':'1 год','24m':'2 года'};
 const TARGET_TYPES=['deposit','savings','brokerage','iis','pds','crypto_wallet','crypto_exchange','invest_kopilka'];
-const SAVINGS_TYPES=['deposit','savings'];
-const INVEST_TYPES=['brokerage','iis','pds','crypto_wallet','crypto_exchange','invest_kopilka'];
+const SAVINGS_TYPES=['deposit','savings','pds'];
+const INVEST_TYPES=['brokerage','iis','crypto_wallet','crypto_exchange','invest_kopilka'];
 const BANK_COLORS=['#2ecc71','#f5b945','#ff5c5c','#4d7fff','#a78bfa','#ff9f43','#00d2d3','#8395a7'];
 const KNOWN_BANKS={'сбер':'#2ecc71','sber':'#2ecc71','т-банк':'#f5b945','тинькофф':'#f5b945','tinkoff':'#f5b945','tbank':'#f5b945','альфа':'#ff5c5c','alfa':'#ff5c5c','втб':'#4d7fff','vtb':'#4d7fff','райф':'#f5b945','raif':'#f5b945','озон':'#a78bfa','ozon':'#a78bfa','яндекс':'#ff5c5c','yandex':'#ff5c5c','финуслуги':'#00d2d3','finu':'#00d2d3','мкб':'#4d7fff','дом.рф':'#2ecc71','бкс':'#4d7fff','уралсиб':'#ff5c5c','газпромбанк':'#4d7fff','россельхозбанк':'#2ecc71','открытие':'#00d2d3','росбанк':'#a78bfa','совкомбанк':'#f5b945','почта банк':'#ff5c5c','мтс банк':'#ff5c5c'};
 
