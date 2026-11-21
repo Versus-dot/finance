@@ -193,7 +193,7 @@
     }
 
     function calcDataForRange(start, end) {
-        let inc = 0, exp = 0, saved = 0, passive = 0;
+        let inc = 0, exp = 0, sav = 0, inv = 0, passive = 0, activeInc = 0;
         S.transactions.filter(t => {
             const d = new Date(t.date).getTime();
             return d >= start.getTime() && d <= end.getTime() && !t.ignoreInStats;
@@ -202,14 +202,26 @@
                 inc += t.amount; 
                 const c = getCat(t.categoryId);
                 if (c && c.passive) passive += t.amount; 
+                else activeInc += t.amount;
             }
             if (t.type === 'expense') exp += t.amount;
             if (t.type === 'transfer') {
                 const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
-                if (k === 'savings' || k === 'investment') saved += t.amount;
+                if (k === 'investment') inv += t.amount;
+                if (k === 'savings') sav += t.amount;
             }
         });
-        return { inc, exp, saved, passive, rate: inc > 0 ? (saved/inc*100) : 0 };
+        const totalSaved = sav + inv;
+        return { 
+            inc, 
+            exp, 
+            sav, 
+            inv, 
+            passive, 
+            activeInc, 
+            totalSaved, 
+            rate: activeInc > 0 ? (totalSaved / activeInc * 100) : 0 
+        };
     }
 
     function getTrendHtml(current, previous, isGoodWhenUp) {
@@ -287,10 +299,12 @@
             <div style="font-size: 14px; line-height: 1.6;">
                 <p>Норма сбережений показывает, какую долю от доходов вы смогли отложить.</p>
                 <div style="background: var(--card2); padding: 12px; border-radius: 12px; margin: 16px 0; border: 1px solid var(--border);">
-                    <div>Доходы: <b>${fmt(m.inc)}</b></div>
-                    <div>Отложено: <b>${fmt(m.saved)}</b></div>
+                    <div>Активный доход: <b>${fmt(m.activeInc)}</b></div>
+                    <div>Инвестировано: <b>${fmt(m.inv)}</b></div>
+                    <div>Отложено в накопления: <b>${fmt(m.sav)}</b></div>
+                    <div>Общее отложенное: <b>${fmt(m.totalSaved)}</b></div>
                     <hr style="border-color: var(--border); margin: 12px 0;">
-                    <div>Формула: (${fmt(m.saved)} / ${fmt(m.inc)}) × 100%</div>
+                    <div>Формула: (${fmt(m.totalSaved)} / ${fmt(m.activeInc)}) × 100%</div>
                     <div style="font-size: 20px; font-weight: 800; color: var(--green); margin-top: 8px;">${formatPercent(m.rate)}</div>
                 </div>
             </div>
@@ -545,7 +559,12 @@
                             <div class="label">Расходы</div><div class="val neg">${hideV(m.exp)}</div>${getTrendHtml(m.exp, p.exp, false)}
                         </div>
                         <div class="analytic-item" onclick="window.openAnalyticsSaved()">
-                            <div class="label">Отложено</div><div class="val pos">${hideV(m.saved)}</div>${getTrendHtml(m.saved, p.saved, true)}
+                            <div class="label">Общее отложенное</div>
+                            <div class="val pos">${hideV(m.totalSaved)}</div>
+                            <div style="font-size:10px; color:var(--muted); margin-bottom:2px;">
+                                Инвест: ${hideV(m.inv)} | Накопл: ${hideV(m.sav)}
+                            </div>
+                            ${getTrendHtml(m.totalSaved, p.totalSaved, true)}
                         </div>
                         <div class="analytic-item" onclick="window.openAnalyticsInfo()">
                             <div class="label">Норма сбережений</div><div class="val">${(isHideAn || S.ui.globalHideBalances) ? '❄️❄️❄️' : formatPercent(m.rate)}</div>${getTrendHtml(m.rate, p.rate, true)}
