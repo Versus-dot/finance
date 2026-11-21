@@ -5,7 +5,7 @@
     console.log("✅ Модуль круговой диаграммы (mod-chart.js) загружен (v132)");
 
     let myChart = null;
-    window._chartDrillDown = null;
+    window._chartDrillDownPath = [];
 
     function hexToHsl(H) {
         let r = 0, g = 0, b = 0;
@@ -159,15 +159,23 @@
     };
 
     window.resetChartDrillDown = function() {
-        window._chartDrillDown = null;
+        window._chartDrillDownPath = [];
         window.renderDonutChart();
+    };
+    window.chartGoBack = function() {
+        if (window._chartDrillDownPath && window._chartDrillDownPath.length > 0) {
+            window._chartDrillDownPath.pop();
+            window.renderDonutChart();
+        }
     };
 
     window.renderDonutChart = function() {
         const container = document.getElementById('donutChartContainer');
         if (!container) return;
 
-        const isDrillDown = window._chartDrillDown !== null;
+        const path = window._chartDrillDownPath || [];
+        const isDrillDown = path.length > 0;
+
         let chartData = [];
         let totalSum = 0;
         let centerVal = 0;
@@ -175,37 +183,37 @@
         let headerTitle = 'Структура капитала';
 
         if (isDrillDown) {
-            const cat = window._chartDrillDown;
-            headerTitle = `Структура: ${cat.label}`;
-            centerVal = cat.value;
-            centerLabel = cat.label;
-            
-            const sortedAccs = [...cat.accounts].sort((a, b) => b._chartContribution - a._chartContribution);
-            const shades = generateShades(cat.color, sortedAccs.length);
-            
-            sortedAccs.forEach((acc, idx) => {
-                chartData.push({
+            const currentNode = path[path.length - 1];
+            headerTitle = `Структура: ${currentNode.label}`;
+            centerVal = currentNode.value;
+            centerLabel = currentNode.label;
+
+            if (currentNode.children && currentNode.children.length > 0) {
+                chartData = currentNode.children;
+            } else {
+                const sortedAccs = [...currentNode.accounts].sort((a, b) => b._chartContribution - a._chartContribution);
+                const shades = generateShades(currentNode.color, sortedAccs.length);
+                chartData = sortedAccs.map((acc, idx) => ({
                     label: acc.name,
                     value: acc._chartContribution,
                     color: shades[idx],
                     bankName: (S.banks.find(b => b.id === acc.bankId) || {}).name || 'Банк'
-                });
-            });
-            totalSum = chartData.reduce((sum, item) => sum + item.value, 0);
+                }));
+            }
         } else {
-            chartData = getChartData();
-            totalSum = chartData.reduce((sum, item) => sum + item.value, 0);
+            chartData = getChartHierarchy();
             const c = window.getCustomCapital ? window.getCustomCapital() : { net: 0 };
             centerVal = c.net;
         }
 
+        totalSum = chartData.reduce((sum, item) => sum + item.value, 0);
         if (totalSum <= 0) {
             container.innerHTML = '';
             return;
         }
 
         const backBtn = isDrillDown 
-            ? `<button class="btn-secondary btn-small" style="margin-right:8px; padding:4px 8px; font-size:12px;" onclick="window.resetChartDrillDown()">⬅️ Назад</button>` 
+            ? `<button class="btn-secondary btn-small" style="margin-right:8px; padding:4px 8px; font-size:12px;" onclick="window.chartGoBack()">⬅️ Назад</button>` 
             : '';
 
         container.innerHTML = `
@@ -255,16 +263,16 @@
                 onClick: (event, elements) => {
                     if (elements.length > 0) {
                         const index = elements[0].index;
-                        if (!isDrillDown) {
-                            const category = chartData[index];
-                            if (category.accounts && category.accounts.length > 0) {
-                                window._chartDrillDown = category;
-                                window.renderDonutChart();
-                            } else {
-                                openCategoryDetails(category);
-                            }
-                        } else {
-                            openCategoryDetails(window._chartDrillDown);
+                        const clickedItem = chartData[index];
+                        
+                        if (clickedItem.children && clickedItem.children.length > 0) {
+                            window._chartDrillDownPath.push(clickedItem);
+                            window.renderDonutChart();
+                        } else if (clickedItem.accounts && clickedItem.accounts.length > 0 && !isDrillDown) {
+                            window._chartDrillDownPath.push(clickedItem);
+                            window.renderDonutChart();
+                        } else if (isDrillDown) {
+                            openCategoryDetails(path[path.length - 1]);
                         }
                     }
                 }
@@ -275,12 +283,17 @@
         myChart.config._centerText = { val: centerVal, label: centerLabel };
     }
 
-    function getChartData() {
+    function getChartHierarchy() {
         const sectors = {
             cushion: { label: '🛡️ Подушка', value: 0, color: '#10B981', accounts: [] },
             pds: { label: '🏦 ПДС', value: 0, color: '#8B5CF6', accounts: [] },
-            stocks: { label: '📈 Фондовый рынок', value: 0, color: '#4d7fff', accounts: [] },
-            savings: { label: '💰 Накопления', value: 0, color: '#F59E0B', accounts: [] },
+            brokerage: { label: '📊 Брокерские', value: 0, color: '#2563EB', accounts: [] },
+            iis: { label: '📈 ИИС', value: 0, color: '#3B82F6', accounts: [] },
+            kopilka: { label: '🐷 Инвесткопилка', value: 0, color: '#60A5FA', accounts: [] },
+            deposit: { label: '🏛️ Вклады', value: 0, color: '#F59E0B', accounts: [] },
+            savings_acc: { label: '💰 Накопительные', value: 0, color: '#D97706', accounts: [] },
+            finu: { label: '🏦 Финуслуги', value: 0, color: '#B45309', accounts: [] },
+            debits: { label: '💳 Карты и нал.', value: 0, color: '#6366F1', accounts: [] },
             crypto: { label: '🪙 Крипта', value: 0, color: '#FF9F43', accounts: [] },
             debts: { label: '🔴 Долги', value: 0, color: '#EF4444', accounts: [] }
         };
@@ -300,8 +313,8 @@
             let overpay = Math.max(0, val - limit);
             
             if (overpay > 0) {
-                sectors.savings.value += overpay;
-                sectors.savings.accounts.push({ id: a.id + '_overpay', name: 'Переплата по карте ' + a.name, bankId: a.bankId, _chartContribution: overpay });
+                sectors.savings_acc.value += overpay;
+                sectors.savings_acc.accounts.push({ id: a.id + '_overpay', name: 'Переплата по карте ' + a.name, bankId: a.bankId, _chartContribution: overpay });
             }
             
             let hedgeTotal = 0;
@@ -313,8 +326,8 @@
             const surplus = Math.max(0, hedgeTotal - debt);
 
             if (surplus > 0) {
-                sectors.savings.value += surplus;
-                sectors.savings.accounts.push({ id: a.id + '_surplus', name: 'Свободный остаток хеджа', bankId: a.bankId, _chartContribution: surplus });
+                sectors.savings_acc.value += surplus;
+                sectors.savings_acc.accounts.push({ id: a.id + '_surplus', name: 'Свободный остаток хеджа', bankId: a.bankId, _chartContribution: surplus });
             }
             
             const unhedgedDebt = Math.max(0, debt - covered);
@@ -333,17 +346,39 @@
             let target = null;
             if (a.inCushion) target = sectors.cushion;
             else if (a.type === 'pds') target = sectors.pds;
-            else if (['brokerage', 'iis', 'invest_kopilka'].includes(a.type)) target = sectors.stocks;
+            else if (a.type === 'brokerage') target = sectors.brokerage;
+            else if (a.type === 'iis') target = sectors.iis;
+            else if (a.type === 'invest_kopilka') target = sectors.kopilka;
+            else if (a.type === 'deposit') target = sectors.deposit;
+            else if (a.type === 'savings') target = sectors.savings_acc;
+            else if (a.type === 'finu_wallet') target = sectors.finu;
+            else if (['debit', 'cash'].includes(a.type)) target = sectors.debits;
             else if (['crypto_wallet', 'crypto_exchange'].includes(a.type)) target = sectors.crypto;
-            else if (['deposit', 'savings', 'finu_wallet', 'debit', 'cash'].includes(a.type)) target = sectors.savings;
             
             if (target) {
                 target.value += val;
                 target.accounts.push({ ...a, _chartContribution: val });
             }
         });
-        
-        return Object.values(sectors).filter(s => s.value > 0);
+
+        const investGroup = {
+            label: '📈 Инвестиции', value: 0, color: '#4d7fff',
+            children: [sectors.brokerage, sectors.iis, sectors.kopilka, sectors.crypto].filter(s => s.value > 0)
+        };
+        const savingsGroup = {
+            label: '💰 Накопления', value: 0, color: '#10B981',
+            children: [sectors.cushion, sectors.pds, sectors.deposit, sectors.savings_acc, sectors.finu, sectors.debits].filter(s => s.value > 0)
+        };
+        const debtsGroup = {
+            label: '🔴 Долги', value: 0, color: '#EF4444',
+            children: [], accounts: sectors.debts.accounts
+        };
+
+        investGroup.value = investGroup.children.reduce((s, c) => s + c.value, 0);
+        savingsGroup.value = savingsGroup.children.reduce((s, c) => s + c.value, 0);
+        debtsGroup.value = sectors.debts.value;
+
+        return [investGroup, savingsGroup, debtsGroup].filter(g => g.value > 0);
     }
 
     function openCategoryDetails(category) {
