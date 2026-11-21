@@ -484,7 +484,7 @@
             if (lentSums[cpId] > 0) {
                 const cp = S.counterparties.find(c => c.id === cpId);
                 totalOwed += lentSums[cpId];
-                owedListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'lent')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="pos">${(S.ui.hideDebtsNumbers || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(lentSums[cpId])}</span></div>`;
+                owedListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'lent')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="pos" style="font-size: 13px; font-weight: 400;">${(S.ui.hideDebtsNumbers || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(lentSums[cpId])}</span></div>`;
             }
         });
 
@@ -493,7 +493,7 @@
             if (borrowedSums[cpId] > 0) {
                 const cp = S.counterparties.find(c => c.id === cpId);
                 totalOwe += borrowedSums[cpId];
-                oweListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'borrowed')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="neg">${(S.ui.hideDebtsNumbers || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(borrowedSums[cpId])}</span></div>`;
+                oweListHtml += `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="window.openDebtorHistory('${cpId}', 'borrowed')"><span>${cp?esc(cp.name):'Неизвестный'}</span><span class="neg" style="font-size: 13px; font-weight: 400;">${(S.ui.hideDebtsNumbers || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(borrowedSums[cpId])}</span></div>`;
             }
         });
 
@@ -608,14 +608,14 @@
                     <div style="margin-bottom: 12px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <div style="font-size:13px; font-weight:700; color:var(--green);">🟢 Мне должны</div>
-                            <div style="font-size:13px; font-weight:700; color:var(--green);">${(isHideDebt || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(totalOwed)}</div>
+                            <div style="font-size:16px; font-weight:700; color:var(--green);">${(isHideDebt || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(totalOwed)}</div>
                         </div>
                         ${owedListHtml || '<div style="font-size:12px; color:var(--muted);">Нет</div>'}
                     </div>
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <div style="font-size:13px; font-weight:700; color:var(--red);">🔴 Я должен</div>
-                            <div style="font-size:13px; font-weight:700; color:var(--red);">${(isHideDebt || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(totalOwe)}</div>
+                            <div style="font-size:16px; font-weight:700; color:var(--red);">${(isHideDebt || S.ui.globalHideBalances) ? '❄️❄️❄️' : fmt(totalOwe)}</div>
                         </div>
                         ${oweListHtml || '<div style="font-size:12px; color:var(--muted);">Нет</div>'}
                     </div>
