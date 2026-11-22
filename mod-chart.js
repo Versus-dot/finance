@@ -268,7 +268,7 @@
                         if (clickedItem.children && clickedItem.children.length > 0) {
                             window._chartDrillDownPath.push(clickedItem);
                             window.renderDonutChart();
-                        } else if (clickedItem.accounts && clickedItem.accounts.length > 0 && !isDrillDown) {
+                        } else if (clickedItem.accounts && clickedItem.accounts.length > 0) {
                             window._chartDrillDownPath.push(clickedItem);
                             window.renderDonutChart();
                         } else if (isDrillDown) {
