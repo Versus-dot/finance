@@ -49,6 +49,11 @@ function load(){
                 const hasFinu=S.accounts.some(a=>isFinuslugiBank(a.bankId));
                 S.settings.finuslugiEnabled=hasFinu;
             }
+            if(!S.ui._archiveMigrated){
+                S.ui.showArchived=false;
+                S.ui._archiveMigrated=true;
+                save(false);
+            }
             console.log('[ARCHIVE] showArchived=', S.ui.showArchived);
         }else{
             const o=localStorage.getItem('financeApp_v24')||localStorage.getItem('financeApp_v23');
