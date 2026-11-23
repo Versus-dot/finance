@@ -17,11 +17,6 @@
             <div style="display:flex; gap:8px; margin-bottom:16px; align-items:flex-start;">
                 <div style="flex:1;">
                     <input id="newCatNameInput" type="text" placeholder="Название новой категории">
-                    <div id="newCatPassiveWrapper" style="display:none; margin-top:8px;">
-                        <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;">
-                            <input type="checkbox" id="newCatPassive" style="width:auto; margin:0;"> Пассивный доход
-                        </label>
-                    </div>
                 </div>
                 <button class="btn-primary" style="height:48px; padding:0 20px;" onclick="window.addCategoryInlineNew()">+</button>
             </div>
@@ -34,7 +29,6 @@
         window._catEditorType = type;
         document.getElementById('tabInc').classList.toggle('active', type === 'income');
         document.getElementById('tabExp').classList.toggle('active', type === 'expense');
-        document.getElementById('newCatPassiveWrapper').style.display = (type === 'income') ? 'block' : 'none';
         window.renderCatListNew(type);
     };
 
@@ -57,11 +51,10 @@
     window.addCategoryInlineNew = function() {
         const name = document.getElementById('newCatNameInput').value.trim();
         if (!name) return;
-        const isPassive = (window._catEditorType === 'income') && document.getElementById('newCatPassive').checked;
+        const isPassive = false;
         S.categories.push({id: uid(), type: window._catEditorType, name: name, passive: isPassive});
         save();
         document.getElementById('newCatNameInput').value = '';
-        document.getElementById('newCatPassive').checked = false;
         window.renderCatListNew(window._catEditorType);
     };
 

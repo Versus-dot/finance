@@ -325,3 +325,24 @@ body:has(#page-home.active) #fabBtn, body:has(#page-stats.active) #fabBtn {displ
     font-weight: 500;
     margin-left: 1px;
 }
+
+/* Отступ для всех блоков с вертикальным скроллом, чтобы кнопки не прилипали */
+[style*="overflow-y:auto"], [style*="overflow-y: auto"] {
+    padding-right: 12px !important;
+    box-sizing: border-box;
+}
+
+/* Делаем сам ползунок тоньше и аккуратнее (для Webkit-браузеров: Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
