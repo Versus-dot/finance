@@ -250,7 +250,7 @@ function selectAcc(targetInputId,targetBadgeId,accId){$(targetInputId).value=acc
 function deleteTx(id){const tx=S.transactions.find(t=>t.id===id);if(!tx)return;const backup=JSON.parse(JSON.stringify(S.transactions));S.transactions=S.transactions.filter(t=>t.id!==id);save();renderAll();closeModal();toast('Операция удалена',()=>{S.transactions=backup;save();renderAll();},'Отменить');}
 function openReconcileModal(accId){const acc=getAcc(accId);const currentBal=accValue(acc);const isCredit=acc.type==='credit';openModal(`<div class="modal-header"><h2>Корректировка баланса</h2><button class="btn-icon" onclick="openAccountModal('${accId}')">✕</button></div><form id="reconcileForm"><div class="form-group"><label>Фактический баланс на сегодня</label><input id="recNewBal" type="number" step="0.01" value="${currentBal}" required></div><div class="form-group"><label>Как учесть разницу?</label><select id="recType"><option value="init">Просто исправить (не влиять на доходы/расходы)</option><option value="tx">Создать операцию (повлияет на статистику)</option></select></div><button type="submit" class="btn-primary btn-block">Применить</button></form>`);$('reconcileForm').onsubmit=(e)=>{e.preventDefault();const newBal=parseFloat($('recNewBal').value)||0;const diff=newBal-currentBal;const method=$('recType').value;if(diff===0){toast('Баланс совпадает');return;}if(method==='tx'){let txType=diff>0?'income':'expense';if(isCredit)txType=diff>0?'expense':'income';const txAmount=Math.abs(diff);const catId=txType==='income'?'c_other_inc':'c_other_exp';const note=`Корректировка баланса (${diff>0?'+':''}${diff})`;S.transactions.push({id:uid(),type:txType,amount:txAmount,date:today(),categoryId:catId,accountId:accId,note:note});}else{acc.initialBalance=(acc.initialBalance||0)+diff;}save();renderAll();openAccountModal(accId);toast('Баланс обновлен');};}
 
-function openAccountModal(id,bankId){
+function openAccountModal(id,bankId){window._currentDraftId = id;window._currentDraftBankId = bankId;
     const acc=id?getAcc(id):null;
     const isEdit=!!acc;
     const bid=bankId||acc?.bankId||S.banks.find(b=>!b.parentId)?.id;
@@ -532,4 +532,4 @@ window.addEventListener('beforeunload',()=>{save(false);});
 
 // Отложенная проверка облака при старте (без confirm)
 setTimeout(checkCloudSync,3000);
-// ===== КОНЕЦ ФАЙЛА =====
+//                                    

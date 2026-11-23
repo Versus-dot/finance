@@ -23,7 +23,8 @@ const ASSETS = [
   './mod-credit-cards.js',
   './mod-notifications.js',
   './mod-backups.js',
-  './mod-analytics-widget.js'
+  './mod-analytics-widget.js',
+  './mod-drafts.js'
 ];
 
 self.addEventListener('install', e => {
