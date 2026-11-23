@@ -1,10 +1,11 @@
 // ==========================================
-// МОДУЛЬ ЧЕРНОВИКОВ (mod-drafts.js) v1
+// МОДУЛЬ ЧЕРНОВИКОВ (mod-drafts.js) v2
 // ==========================================
 (function() {
-    console.log("✅ Модуль черновиков (mod-drafts.js) загружен");
+    console.log("✅ Модуль черновиков (mod-drafts.js) v2 загружен");
     const DRAFT_KEY = 'financeApp_draft';
-    
+    let saveTimeout = null;
+
     function saveDraft() {
         const backdrop = document.getElementById('modalBackdrop');
         if (!backdrop || !backdrop.classList.contains('active')) return;
@@ -36,19 +37,27 @@
         }));
     }
 
+    function scheduleSave() {
+        if (saveTimeout) clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(saveDraft, 300); // Сохраняем через 300мс после последнего ввода
+    }
+
     function clearDraft() {
         localStorage.removeItem(DRAFT_KEY);
     }
 
-    // Сохранение при уходе в фон
+    // Сохраняем при каждом изменении в полях модального окна
+    document.addEventListener('input', (e) => {
+        if (e.target.closest('#modalContent')) scheduleSave();
+    });
+    document.addEventListener('change', (e) => {
+        if (e.target.closest('#modalContent')) scheduleSave();
+    });
+
+    // Дополнительная страховка при уходе в фон
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') saveDraft();
     });
-
-    // Страховка на случай перезагрузки страницы
-    setInterval(() => {
-        if (document.visibilityState === 'visible') saveDraft();
-    }, 2000);
 
     // Очистка при закрытии окна
     const originalCloseModal = window.closeModal;
@@ -57,25 +66,35 @@
         if (originalCloseModal) originalCloseModal();
     };
 
-    // Восстановление при загрузке
-    window.addEventListener('load', () => {
-        setTimeout(() => {
-            const draftStr = localStorage.getItem(DRAFT_KEY);
-            if (!draftStr) return;
+    // Очистка при успешном сохранении формы
+    document.addEventListener('submit', (e) => {
+        if (e.target.id === 'txForm' || e.target.id === 'accForm' || e.target.id === 'bankForm') {
+            clearDraft();
+        }
+    }, true);
 
+    // Восстановление при загрузке (с ожиданием инициализации app.js)
+    let restoreAttempts = 0;
+    const restoreInterval = setInterval(() => {
+        restoreAttempts++;
+        if (restoreAttempts > 20) { clearInterval(restoreInterval); return; } // Ждем максимум 4 секунды
+
+        const draftStr = localStorage.getItem(DRAFT_KEY);
+        if (!draftStr) { clearInterval(restoreInterval); return; }
+
+        if (typeof window.openTxModal === 'function') {
+            clearInterval(restoreInterval);
             try {
                 const draft = JSON.parse(draftStr);
-                // Черновик живет 2 часа
                 if (Date.now() - draft.timestamp > 2 * 60 * 60 * 1000) {
                     clearDraft();
                     return;
                 }
 
-                if (draft.type === 'tx' && window.openTxModal) window.openTxModal(draft.id);
-                else if (draft.type === 'acc' && window.openAccountModal) window.openAccountModal(draft.id, draft.bankId);
-                else if (draft.type === 'bank' && window.openBankModal) window.openBankModal(draft.id);
+                if (draft.type === 'tx') window.openTxModal(draft.id);
+                else if (draft.type === 'acc') window.openAccountModal(draft.id, draft.bankId);
+                else if (draft.type === 'bank') window.openBankModal(draft.id);
 
-                // Подстановка значений после отрисовки окна
                 setTimeout(() => {
                     const content = document.getElementById('modalContent');
                     if (!content) return;
@@ -87,7 +106,6 @@
                             else {
                                 el.value = draft.data[id];
                                 el.dispatchEvent(new Event('change', { bubbles: true }));
-                                // Обновление кастомных селектов счетов
                                 if (id === 'txAccount' || id === 'txToAccount') {
                                     if (typeof updateAccDisplay === 'function') {
                                         updateAccDisplay(el.value, id + 'Name', id + 'Badge');
@@ -96,16 +114,9 @@
                             }
                         }
                     });
-                    console.log("Черновик восстановлен");
-                }, 150);
+                    console.log("Черновик успешно восстановлен");
+                }, 200);
             } catch(e) { console.error('Ошибка восстановления черновика', e); }
-        }, 500);
-    });
-
-    // Очистка при успешном сохранении формы
-    document.addEventListener('submit', (e) => {
-        if (e.target.id === 'txForm' || e.target.id === 'accForm' || e.target.id === 'bankForm') {
-            clearDraft();
         }
-    }, true);
+    }, 200);
 })();
