@@ -1,7 +1,7 @@
 (function() {
-    console.log("✅ mod-drafts.js v5 загружен (MutationObserver)");
+    console.log("✅ mod-drafts.js v6 загружен");
     const DRAFT_KEY = 'financeApp_draft';
-    const MAX_AGE = 2 * 60 * 60 * 1000; // 2 часа
+    const MAX_AGE = 2 * 60 * 60 * 1000;
     let saveTimeout = null;
     let currentModalRestored = false;
 
@@ -15,22 +15,28 @@
     function saveDraft() {
         const backdrop = document.getElementById('modalBackdrop');
         if (!backdrop || !backdrop.classList.contains('active')) return;
+        
         const type = getModalType();
         if (!type) return;
-        const content = document.getElementById('modalContent');
-        if (!content) return;
 
+        // Ищем инпуты во всем бэкдропе, на случай если #modalContent нет
+        const inputs = backdrop.querySelectorAll('input, select, textarea');
         const data = {};
-        content.querySelectorAll('input, select, textarea').forEach(el => {
+        
+        inputs.forEach(el => {
             if (el.id) {
                 data[el.id] = el.type === 'checkbox' ? el.checked : el.value;
             }
         });
-        if (Object.keys(data).length === 0) return;
+
+        if (Object.keys(data).length === 0) {
+            console.log("⚠️ saveDraft: не найдено ни одного input с id");
+            return;
+        }
 
         localStorage.setItem(DRAFT_KEY, JSON.stringify({
-            type,
-            data,
+            type: type,
+            data: data,
             timestamp: Date.now()
         }));
         console.log("💾 Черновик сохранен:", type, "-", Object.keys(data).length, "полей");
@@ -38,7 +44,7 @@
 
     function scheduleSave() {
         if (saveTimeout) clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(saveDraft, 400);
+        saveTimeout = setTimeout(saveDraft, 300);
     }
 
     function getDraft() {
@@ -48,7 +54,6 @@
             const d = JSON.parse(s);
             if (Date.now() - d.timestamp > MAX_AGE) {
                 localStorage.removeItem(DRAFT_KEY);
-                console.log("⌛ Черновик старше 2 часов — удален");
                 return null;
             }
             return d;
@@ -63,7 +68,6 @@
     function applyDraft(draft) {
         const data = draft.data;
 
-        // Сначала тип транзакции — от него зависит видимость скрытых групп полей
         if (draft.type === 'tx' && data['txType']) {
             const typeEl = document.getElementById('txType');
             if (typeEl && typeEl.value !== data['txType']) {
@@ -98,7 +102,7 @@
                 wrapper.style.display = (data['txCounterparty'] === '__new') ? 'block' : 'none';
             }
             console.log("✅ Черновик восстановлен:", draft.type);
-        }, 250);
+        }, 300);
     }
 
     function tryRestore() {
@@ -120,29 +124,35 @@
         applyDraft(draft);
     }
 
-    // --- Сохранение на ввод ---
+    // Ловим ввод на уровне всего документа
     document.addEventListener('input', (e) => {
-        if (e.target.closest('#modalContent')) scheduleSave();
+        if (e.target.closest('#modalBackdrop')) {
+            scheduleSave();
+        }
     });
     document.addEventListener('change', (e) => {
-        if (e.target.closest('#modalContent')) scheduleSave();
+        if (e.target.closest('#modalBackdrop')) {
+            scheduleSave();
+        }
     });
 
-    // --- Страховка при сворачивании/уходе со страницы ---
+    // Страховка при сворачивании
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') saveDraft();
+        if (document.visibilityState === 'hidden') {
+            saveDraft();
+        }
     });
     window.addEventListener('pagehide', saveDraft);
     window.addEventListener('beforeunload', saveDraft);
 
-    // --- Очистка по крестику "✕" ---
+    // Очистка по крестику
     document.addEventListener('click', (e) => {
-        if (e.target.closest('.modal-header .btn-icon')) {
+        if (e.target.closest('.modal-header .btn-icon') || e.target.closest('.modal-header .close-btn')) {
             clearDraft();
         }
     }, true);
 
-    // --- Очистка после успешного submit (только если окно закрылось) ---
+    // Очистка после submit
     document.addEventListener('submit', (e) => {
         if (['txForm', 'accForm', 'bankForm'].includes(e.target.id)) {
             setTimeout(() => {
@@ -154,13 +164,12 @@
         }
     }, true);
 
-    // --- MutationObserver: ловим момент открытия модалки ---
+    // MutationObserver
     const observer = new MutationObserver(() => {
         const backdrop = document.getElementById('modalBackdrop');
         if (backdrop && backdrop.classList.contains('active')) {
-            setTimeout(tryRestore, 300);
+            setTimeout(tryRestore, 500);
         } else {
-            // Модалка закрылась — готовы восстанавливать при следующем открытии
             currentModalRestored = false;
         }
     });
