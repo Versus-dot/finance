@@ -1,5 +1,5 @@
 (function() {
-    console.log("✅ mod-drafts.js v6 загружен");
+    console.log("✅ mod-drafts.js v7 загружен (режим отладки)");
     const DRAFT_KEY = 'financeApp_draft';
     const MAX_AGE = 2 * 60 * 60 * 1000;
     let saveTimeout = null;
@@ -14,12 +14,21 @@
 
     function saveDraft() {
         const backdrop = document.getElementById('modalBackdrop');
-        if (!backdrop || !backdrop.classList.contains('active')) return;
-        
-        const type = getModalType();
-        if (!type) return;
+        if (!backdrop) return;
 
-        // Ищем инпуты во всем бэкдропе, на случай если #modalContent нет
+        const type = getModalType();
+        console.log("💾 saveDraft: тип формы =", type, "| классы бэкдропа =", backdrop.className);
+
+        if (!type) {
+            console.log("⚠️ saveDraft: НЕ НАЙДЕНА форма (txForm/accForm/bankForm) в DOM!");
+            return;
+        }
+
+        if (!backdrop.classList.contains('active')) {
+            console.log("⚠️ saveDraft: бэкдроп НЕ имеет класса 'active', отмена сохранения");
+            return;
+        }
+
         const inputs = backdrop.querySelectorAll('input, select, textarea');
         const data = {};
         
@@ -39,21 +48,25 @@
             data: data,
             timestamp: Date.now()
         }));
-        console.log("💾 Черновик сохранен:", type, "-", Object.keys(data).length, "полей");
+        console.log("💾 ЧЕРНОВИК СОХРАНЕН:", type, "-", Object.keys(data).length, "полей");
     }
 
     function scheduleSave() {
         if (saveTimeout) clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(saveDraft, 300);
+        saveTimeout = setTimeout(saveDraft, 500);
     }
 
     function getDraft() {
         const s = localStorage.getItem(DRAFT_KEY);
-        if (!s) return null;
+        if (!s) {
+            console.log("ℹ️ getDraft: в localStorage пусто");
+            return null;
+        }
         try {
             const d = JSON.parse(s);
             if (Date.now() - d.timestamp > MAX_AGE) {
                 localStorage.removeItem(DRAFT_KEY);
+                console.log("⌛ getDraft: черновик старше 2 часов, удален");
                 return null;
             }
             return d;
@@ -66,6 +79,7 @@
     }
 
     function applyDraft(draft) {
+        console.log("✅ applyDraft: начинаю восстановление", draft.type);
         const data = draft.data;
 
         if (draft.type === 'tx' && data['txType']) {
@@ -101,21 +115,28 @@
             if (wrapper && data['txCounterparty'] !== undefined) {
                 wrapper.style.display = (data['txCounterparty'] === '__new') ? 'block' : 'none';
             }
-            console.log("✅ Черновик восстановлен:", draft.type);
+            console.log("✅ ЧЕРНОВИК ВОССТАНОВЛЕН:", draft.type);
         }, 300);
     }
 
     function tryRestore() {
         const backdrop = document.getElementById('modalBackdrop');
-        if (!backdrop || !backdrop.classList.contains('active')) return;
-        if (currentModalRestored) return;
+        if (!backdrop || !backdrop.classList.contains('active')) {
+            console.log("ℹ️ tryRestore: бэкдроп не active");
+            return;
+        }
+        if (currentModalRestored) {
+            console.log("ℹ️ tryRestore: уже восстанавливали для этого окна");
+            return;
+        }
 
         const type = getModalType();
+        console.log("ℹ️ tryRestore: проверяем черновик для типа", type);
         if (!type) return;
 
         const draft = getDraft();
         if (!draft || draft.type !== type) {
-            console.log("ℹ️ Нет подходящего черновика для типа:", type);
+            console.log("ℹ️ tryRestore: нет подходящего черновика. (В localStorage лежит:", draft ? draft.type : "ничего", ")");
             currentModalRestored = true;
             return;
         }
@@ -124,35 +145,33 @@
         applyDraft(draft);
     }
 
-    // Ловим ввод на уровне всего документа
+    // Слушаем ввод
     document.addEventListener('input', (e) => {
         if (e.target.closest('#modalBackdrop')) {
+            console.log("⌨️ Событие input поймано внутри модалки");
             scheduleSave();
         }
     });
     document.addEventListener('change', (e) => {
         if (e.target.closest('#modalBackdrop')) {
+            console.log("🔄 Событие change поймано внутри модалки");
             scheduleSave();
         }
     });
 
-    // Страховка при сворачивании
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') {
+            console.log("📴 Страница сворачивается...");
             saveDraft();
         }
     });
-    window.addEventListener('pagehide', saveDraft);
-    window.addEventListener('beforeunload', saveDraft);
 
-    // Очистка по крестику
     document.addEventListener('click', (e) => {
         if (e.target.closest('.modal-header .btn-icon') || e.target.closest('.modal-header .close-btn')) {
             clearDraft();
         }
     }, true);
 
-    // Очистка после submit
     document.addEventListener('submit', (e) => {
         if (['txForm', 'accForm', 'bankForm'].includes(e.target.id)) {
             setTimeout(() => {
@@ -164,9 +183,10 @@
         }
     }, true);
 
-    // MutationObserver
+    // Наблюдатель
     const observer = new MutationObserver(() => {
         const backdrop = document.getElementById('modalBackdrop');
+        console.log("👀 MutationObserver: что-то изменилось. Классы:", backdrop ? backdrop.className : 'null');
         if (backdrop && backdrop.classList.contains('active')) {
             setTimeout(tryRestore, 500);
         } else {
@@ -180,7 +200,7 @@
             setTimeout(startObserver, 100);
             return;
         }
-        observer.observe(backdrop, { attributes: true, attributeFilter: ['class'] });
+        observer.observe(backdrop, { attributes: true, attributeFilter: ['class', 'style'] });
         console.log("👀 MutationObserver запущен на #modalBackdrop");
     }
     startObserver();
