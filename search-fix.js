@@ -63,9 +63,6 @@ window.renderTransactions = function() {
 
     // 2. Фильтруем данные
     let list = [...S.transactions].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
-    if (typeof S !== 'undefined' && S.settings && S.settings.hideCorrections) {
-        list = list.filter(t => !t.isCorrection && !(t.note && t.note.includes('Корректировка')));
-    }
     if (txFilter !== 'all') list = list.filter(t => t.type === txFilter);
 
     if (window.txAccFilter && window.txAccFilter !== 'all') {

@@ -352,31 +352,11 @@
                  if (!hr.nextElementSibling || hr.nextElementSibling.style.display === 'none') hr.style.display = 'none';
             });
 
-            // Тумблер "Скрывать операции Корректировка"
-            if (typeof S !== 'undefined' && S.settings && !document.getElementById('setHideCorrections')) {
-                const toggleDiv = document.createElement('div');
-                toggleDiv.className = 'form-group';
-                toggleDiv.style = 'display:flex;align-items:center;justify-content:space-between;background:var(--card2);padding:12px 16px;border-radius:14px;border:1px solid var(--border);margin-top:10px;';
-                toggleDiv.innerHTML = `
-                    <div><div style="font-size:14px;font-weight:600;">Скрывать операции «Корректировка»</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Не показывать в общей ленте</div></div>
-                    <label class="toggle-switch"><input type="checkbox" id="setHideCorrections" ${S.settings.hideCorrections ? 'checked' : ''}><span class="toggle-slider"></span></label>
-                `;
-                const saveBtn = Array.from(modalContent.querySelectorAll('button')).find(b => b.textContent === 'Сохранить');
-                if (saveBtn) saveBtn.parentNode.insertBefore(toggleDiv, saveBtn);
-            }
-
         }, 100);
     };
     
     const prevSaveSettings = window.saveSettings;
-    window.saveSettings = function() { 
-        if (typeof S !== 'undefined') {
-            const toggle = document.getElementById('setHideCorrections');
-            if (toggle) S.settings.hideCorrections = toggle.checked;
-        }
-        if (prevSaveSettings) prevSaveSettings(); 
-        applyBadgeStyle(); 
-    };
+    window.saveSettings = function() { if (prevSaveSettings) prevSaveSettings(); applyBadgeStyle(); };
 
     const prevRenderAccountRow = window.renderAccountRow;
     window.renderAccountRow = function(a, bank) {

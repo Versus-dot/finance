@@ -13,7 +13,7 @@ function getSVG(type){
     return svgs[type]||svgs.debit;
 }
 
-function defaultState(){return{settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'stripe',pinCode:'',yandexToken:'',lastCloudBackup:null,finuslugiEnabled:false,hideCorrections:true},ui:{collapsedBanks:[],showArchived:false,lastSnapshot:null,bankEditMode:false},categories:[{id:'c_sal',type:'income',name:'Зарплата',passive:false},{id:'c_adv',type:'income',name:'Аванс',passive:false},{id:'c_freelance',type:'income',name:'Фриланс',passive:false},{id:'c_gift',type:'income',name:'Подарки',passive:false},{id:'c_cashback',type:'income',name:'Кешбэк',passive:true},{id:'c_coupon',type:'income',name:'Купоны',passive:true},{id:'c_dividend',type:'income',name:'Дивиденды',passive:true},{id:'c_interest',type:'income',name:'Проценты по вкладам',passive:true},{id:'c_taxrefund',type:'income',name:'Возврат налога',passive:true},{id:'c_other_inc',type:'income',name:'Прочий доход',passive:false},{id:'c_food',type:'expense',name:'Еда',passive:false},{id:'c_transport',type:'expense',name:'Транспорт',passive:false},{id:'c_housing',type:'expense',name:'Жильё',passive:false},{id:'c_utilities',type:'expense',name:'Коммунальные',passive:false},{id:'c_health',type:'expense',name:'Здоровье',passive:false},{id:'c_fun',type:'expense',name:'Развлечения',passive:false},{id:'c_clothes',type:'expense',name:'Одежда',passive:false},{id:'c_phone',type:'expense',name:'Связь',passive:false},{id:'c_subs',type:'expense',name:'Подписки',passive:false},{id:'c_joint',type:'expense',name:'Совместные расходы',passive:false},{id:'c_services',type:'expense',name:'Оказание услуг',passive:false},{id:'c_taxes',type:'expense',name:'Налоги',passive:false},{id:'c_duty',type:'expense',name:'Госпошлина',passive:false},{id:'c_other_exp',type:'expense',name:'Прочее',passive:false}],banks:[{id:'b_main',name:'Основной банк',color:'#2ecc71',parentId:null,order:0},{id:'b_finu',name:'Финуслуги',color:'#00d2d3',parentId:null,order:1,isPlatform:true}],accounts:[],transactions:[],budgets:[],debts:[],counterparties:[],snapshots:[]};}
+function defaultState(){return{settings:{theme:'dark',accent:'#4d7fff',fontSize:'15px',appTitle:'💰 Мои финансы',usdtRate:{mode:'auto',value:90,lastFetched:null,updatedAt:null},cushionTarget:300000,snapshotFreq:'monthly',badgeStyle:'stripe',pinCode:'',yandexToken:'',lastCloudBackup:null,finuslugiEnabled:false},ui:{collapsedBanks:[],showArchived:false,lastSnapshot:null,bankEditMode:false},categories:[{id:'c_sal',type:'income',name:'Зарплата',passive:false},{id:'c_adv',type:'income',name:'Аванс',passive:false},{id:'c_freelance',type:'income',name:'Фриланс',passive:false},{id:'c_gift',type:'income',name:'Подарки',passive:false},{id:'c_cashback',type:'income',name:'Кешбэк',passive:true},{id:'c_coupon',type:'income',name:'Купоны',passive:true},{id:'c_dividend',type:'income',name:'Дивиденды',passive:true},{id:'c_interest',type:'income',name:'Проценты по вкладам',passive:true},{id:'c_taxrefund',type:'income',name:'Возврат налога',passive:true},{id:'c_other_inc',type:'income',name:'Прочий доход',passive:false},{id:'c_food',type:'expense',name:'Еда',passive:false},{id:'c_transport',type:'expense',name:'Транспорт',passive:false},{id:'c_housing',type:'expense',name:'Жильё',passive:false},{id:'c_utilities',type:'expense',name:'Коммунальные',passive:false},{id:'c_health',type:'expense',name:'Здоровье',passive:false},{id:'c_fun',type:'expense',name:'Развлечения',passive:false},{id:'c_clothes',type:'expense',name:'Одежда',passive:false},{id:'c_phone',type:'expense',name:'Связь',passive:false},{id:'c_subs',type:'expense',name:'Подписки',passive:false},{id:'c_joint',type:'expense',name:'Совместные расходы',passive:false},{id:'c_services',type:'expense',name:'Оказание услуг',passive:false},{id:'c_taxes',type:'expense',name:'Налоги',passive:false},{id:'c_duty',type:'expense',name:'Госпошлина',passive:false},{id:'c_other_exp',type:'expense',name:'Прочее',passive:false}],banks:[{id:'b_main',name:'Основной банк',color:'#2ecc71',parentId:null,order:0},{id:'b_finu',name:'Финуслуги',color:'#00d2d3',parentId:null,order:1,isPlatform:true}],accounts:[],transactions:[],budgets:[],debts:[],counterparties:[],snapshots:[]};}
 let S=defaultState();
 let dashFilterBank='all';
 let activeTab='home';
@@ -249,7 +249,36 @@ function closePicker(){$('modalBackdrop2').classList.remove('active');}
 $('modalBackdrop2').onclick=e=>{if(e.target===$('modalBackdrop2'))closePicker();};
 function selectAcc(targetInputId,targetBadgeId,accId){$(targetInputId).value=accId;const a=getAcc(accId);const b=getBank(a.bankId);$(targetInputId+'Name').textContent=a.name;$(targetBadgeId).innerHTML=getBankIndicatorHtml(b);closePicker();}
 function deleteTx(id){const tx=S.transactions.find(t=>t.id===id);if(!tx)return;const backup=JSON.parse(JSON.stringify(S.transactions));S.transactions=S.transactions.filter(t=>t.id!==id);save();renderAll();closeModal();toast('Операция удалена',()=>{S.transactions=backup;save();renderAll();},'Отменить');}
-function openReconcileModal(accId){const acc=getAcc(accId);const currentBal=accValue(acc);const isCredit=acc.type==='credit';openModal(`<div class="modal-header"><h2>Корректировка баланса</h2><button class="btn-icon" onclick="openAccountModal('${accId}')">✕</button></div><form id="reconcileForm"><div class="form-group"><label>Фактический баланс на сегодня</label><input id="recNewBal" type="number" step="0.01" value="${currentBal}" required></div><div class="form-group"><label>Как учесть разницу?</label><select id="recType"><option value="init">Просто исправить (не влиять на доходы/расходы)</option><option value="tx">Создать операцию (повлияет на статистику)</option></select></div><button type="submit" class="btn-primary btn-block">Применить</button></form>`);$('reconcileForm').onsubmit=(e)=>{e.preventDefault();const newBal=parseFloat($('recNewBal').value)||0;const diff=newBal-currentBal;const method=$('recType').value;if(diff===0){toast('Баланс совпадает');return;}if(method==='tx'){let txType=diff>0?'income':'expense';if(isCredit)txType=diff>0?'expense':'income';const txAmount=Math.abs(diff);const catId=txType==='income'?'c_other_inc':'c_other_exp';const note=`Корректировка баланса (${diff>0?'+':''}${diff})`;S.transactions.push({id:uid(),type:txType,amount:txAmount,date:today(),categoryId:catId,accountId:accId,note:note});}else{acc.initialBalance=(acc.initialBalance||0)+diff;}save();renderAll();openAccountModal(accId);toast('Баланс обновлен');};}
+function openReconcileModal(accId){
+    const acc=getAcc(accId);
+    if(!acc)return;
+    const currentBal=accValue(acc);
+    const isCredit=acc.type==='credit';
+    openModal(`<div class="modal-header"><h2>Корректировка баланса</h2><button class="btn-icon" onclick="openAccountModal('${accId}')">✕</button></div><form id="reconcileForm"><div class="form-group"><label>Фактический баланс на сегодня</label><input id="recNewBal" type="number" step="0.01" value="${currentBal}" required></div><div class="form-group"><label style="display:flex;align-items:center;cursor:pointer;"><input type="checkbox" id="recCreateTx" style="width:auto;margin-right:8px;"> Создать операцию (учесть в статистике)</label><div style="font-size:11px;color:var(--muted);margin-top:4px;">Если галочка снята, баланс просто исправится без создания записи в ленте.</div></div><button type="submit" class="btn-primary btn-block">Применить</button></form>`);
+    $('reconcileForm').onsubmit=(e)=>{
+        e.preventDefault();
+        const newBal=parseFloat($('recNewBal').value)||0;
+        const diff=newBal-currentBal;
+        if(diff===0){toast('Баланс совпадает');return;}
+        const createTx=$('recCreateTx').checked;
+        if(!createTx){
+            acc.initialBalance=(acc.initialBalance||0)+diff;
+        }else{
+            let txType=diff>0?'income':'expense';
+            if(isCredit)txType=diff>0?'expense':'income';
+            const txAmount=Math.abs(diff);
+            let catId='c_other_inc';
+            if(txType==='expense')catId='c_other_exp';
+            const investTypes=['brokerage','iis','deposit','savings','invest_kopilka','pds','finu_wallet'];
+            if(investTypes.includes(acc.type)){
+                catId=(acc.type==='deposit'||acc.type==='savings')?'c_interest':'c_dividend';
+            }
+            const note=`Корректировка баланса (${diff>0?'+':''}${diff})`;
+            S.transactions.push({id:uid(),type:txType,amount:txAmount,date:today(),categoryId:catId,accountId:accId,note:note,ignoreInStats:false});
+        }
+        save();renderAll();openAccountModal(accId);toast('Баланс обновлен');
+    };
+}
 
 function openAccountModal(id,bankId){window._currentDraftId = id;window._currentDraftBankId = bankId;
     const acc=id?getAcc(id):null;
