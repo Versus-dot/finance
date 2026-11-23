@@ -78,6 +78,7 @@
     window.deleteCategoryNew = function(id) {
         const c = getCat(id);
         if (S.transactions.some(t => t.categoryId === id)) { alert('Нельзя удалить: к категории привязаны операции.'); return; }
+        if (!confirm('Вы уверены, что хотите удалить категорию? Это действие нельзя отменить.')) return;
         S.categories = S.categories.filter(x => x.id !== id);
         save();
         window.renderCatListNew(c.type);
