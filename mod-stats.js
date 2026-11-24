@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v27
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v28
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -279,6 +279,8 @@
     }
 
     function getHistoricalValue(row, targetMonthStr) {
+        const targetEnd = targetMonthStr + '-31';
+
         // Обработка конкретных счетов (pds, stocks, savings, debt)
         if (row.startsWith('pds_acc_') || row.startsWith('stocks_acc_') || row.startsWith('savings_acc_') || row.startsWith('debt_acc_')) {
             const accId = row.split('_acc_')[1];
@@ -344,8 +346,6 @@
             if (row === 'debt') return c.debt;
             return 0;
         }
-
-        const targetEnd = targetMonthStr + '-31';
 
         // Долги считаем прямым пересчетом от кредитных лимитов
         if (row === 'debt') {
