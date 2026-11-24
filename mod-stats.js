@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v23
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v24
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -388,7 +388,24 @@
         if (rowAccounts.length === 0) return 0;
 
         let total = 0;
+        let hasAnyAccounts = false;
+
         rowAccounts.forEach(acc => {
+            // Определяем дату появления счета
+            let startDate = acc.openedAt;
+            if (!startDate) {
+                const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
+                if (txs.length > 0) {
+                    startDate = txs.map(t => t.date).sort()[0];
+                } else {
+                    startDate = today();
+                }
+            }
+
+            // Если на конец месяца счет еще не существовал — пропускаем его
+            if (targetEnd < startDate) return;
+
+            hasAnyAccounts = true;
             let bal = acc.initialBalance || 0;
             S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                 if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
@@ -397,14 +414,18 @@
                     if (t.accountId === acc.id) bal -= t.amount;
                     if (t.toAccountId === acc.id) bal += t.amount;
                 }
+                if (t.type === 'debt') {
+                    if (t.accountId === acc.id) {
+                        if (t.debtType === 'lent' || t.debtType === 'repaid') bal -= t.amount;
+                        if (t.debtType === 'borrowed' || t.debtType === 'returned') bal += t.amount;
+                    }
+                }
             });
-            if (row === 'cushion') {
-                total += bal;
-            } else {
-                total += bal;
-            }
+            total += bal;
         });
-        return total;
+
+        // Если ни один счет еще не существовал в этот месяц, возвращаем null
+        return hasAnyAccounts ? total : null;
     }
 
     function calcTableRow(row, monthsArray) {
