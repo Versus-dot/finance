@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v21
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v22
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -937,6 +937,13 @@
             else if (key === 'rate') { label = 'Норма сбережений'; type = 'line'; isPct = true; color = COLORS.rate; }
             else if (key === 'capital') { label = 'Капитал'; type = 'line'; color = COLORS.capital; }
             else if (key === 'cushion') { label = 'Подушка'; color = COLORS.cushion; }
+            else if (key.startsWith('cushion_acc_')) {
+                const accId = key.replace('cushion_acc_', '');
+                const acc = getAcc(accId);
+                label = acc ? acc.name : 'Счет';
+                color = COLORS.cushion;
+                type = 'line';
+            }
             else if (key === 'pds') { label = 'ПДС'; color = COLORS.pds; }
             else if (key === 'stocks') { label = 'Фондовый рынок'; color = COLORS.stocks; }
             else if (key === 'savings') { label = 'Накопления'; color = COLORS.savings; }
