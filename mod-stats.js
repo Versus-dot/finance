@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v24
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v25
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -17,7 +17,7 @@
             reportWidget: false,
             snapshots: false,
             investSpoiler: true,
-            spoilers: { cushion: true }
+            spoilers: { cushion: true, pds: true, stocks: true, savings: true, debt: true, invest: true }
         };
     }
 
@@ -279,6 +279,45 @@
     }
 
     function getHistoricalValue(row, targetMonthStr) {
+        // Обработка конкретных счетов (pds, stocks, savings, debt)
+        if (row.startsWith('pds_acc_') || row.startsWith('stocks_acc_') || row.startsWith('savings_acc_') || row.startsWith('debt_acc_')) {
+            const accId = row.split('_acc_')[1];
+            const acc = getAcc(accId);
+            if (!acc || acc.archived) return null;
+
+            let startDate = acc.openedAt;
+            if (!startDate) {
+                const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
+                startDate = txs.length > 0 ? txs.map(t => t.date).sort()[0] : today();
+            }
+            const targetEnd = targetMonthStr + '-31';
+            if (targetEnd < startDate) return null;
+
+            if (targetMonthStr === today().slice(0, 7)) {
+                if (row.startsWith('debt_acc_')) return Math.max(0, (acc.creditLimit || 0) - accValue(acc));
+                return accValue(acc);
+            }
+
+            let bal = acc.initialBalance || 0;
+            S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
+                if (t.type === 'expense' && t.accountId === acc.id) bal -= t.amount;
+                if (t.type === 'transfer') {
+                    if (t.accountId === acc.id) bal -= t.amount;
+                    if (t.toAccountId === acc.id) bal += t.amount;
+                }
+                if (t.type === 'debt') {
+                    if (t.accountId === acc.id) {
+                        if (t.debtType === 'lent' || t.debtType === 'repaid') bal -= t.amount;
+                        if (t.debtType === 'borrowed' || t.debtType === 'returned') bal += t.amount;
+                    }
+                }
+            });
+
+            if (row.startsWith('debt_acc_')) return Math.max(0, (acc.creditLimit || 0) - bal);
+            return bal;
+        }
+
         // Обработка конкретных счетов подушки
         if (row.startsWith('cushion_acc_')) {
             const accId = row.replace('cushion_acc_', '');
@@ -686,6 +725,58 @@
         });
         dynamicCushionRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
 
+        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ПДС
+        const dynamicPdsRows = [];
+        S.accounts.filter(a => a.type === 'pds' && !a.archived).forEach(a => {
+            const bank = getBank(a.bankId);
+            dynamicPdsRows.push({
+                key: 'pds_acc_' + a.id,
+                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
+                indent: 1,
+                color: COLORS.pds
+            });
+        });
+        dynamicPdsRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+
+        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ФОНДОВЫЙ РЫНОК
+        const dynamicStocksRows = [];
+        S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived).forEach(a => {
+            const bank = getBank(a.bankId);
+            dynamicStocksRows.push({
+                key: 'stocks_acc_' + a.id,
+                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
+                indent: 1,
+                color: COLORS.stocks
+            });
+        });
+        dynamicStocksRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+
+        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ НАКОПЛЕНИЯ
+        const dynamicSavingsRows = [];
+        S.accounts.filter(a => ['deposit', 'savings', 'finu_wallet', 'debit', 'cash'].includes(a.type) && !a.archived).forEach(a => {
+            const bank = getBank(a.bankId);
+            dynamicSavingsRows.push({
+                key: 'savings_acc_' + a.id,
+                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
+                indent: 1,
+                color: COLORS.savings
+            });
+        });
+        dynamicSavingsRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+
+        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ДОЛГИ
+        const dynamicDebtRows = [];
+        S.accounts.filter(a => a.type === 'credit' && !a.archived).forEach(a => {
+            const bank = getBank(a.bankId);
+            dynamicDebtRows.push({
+                key: 'debt_acc_' + a.id,
+                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
+                indent: 1,
+                color: COLORS.debt
+            });
+        });
+        dynamicDebtRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+
         // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ИНВЕСТИЦИЙ
         const dynamicInvestmentRows = [];
         
@@ -730,9 +821,13 @@
             { key: 'cushion', label: 'Подушка', indent: 1, color: COLORS.cushion },
             ...(window._statsUI.spoilers.cushion ? [] : dynamicCushionRows),
             { key: 'pds', label: 'ПДС', indent: 1, color: COLORS.pds },
+            ...(window._statsUI.spoilers.pds ? [] : dynamicPdsRows),
             { key: 'stocks', label: 'Фондовый рынок', indent: 1, color: COLORS.stocks },
+            ...(window._statsUI.spoilers.stocks ? [] : dynamicStocksRows),
             { key: 'savings', label: 'Накопления', indent: 1, color: COLORS.savings },
-            { key: 'debt', label: 'Долги', indent: 1, color: COLORS.debt }
+            ...(window._statsUI.spoilers.savings ? [] : dynamicSavingsRows),
+            { key: 'debt', label: 'Долги', indent: 1, color: COLORS.debt },
+            ...(window._statsUI.spoilers.debt ? [] : dynamicDebtRows)
         ];
 
         // ФИКС: Убран table-layout: fixed, добавлены min-width для колонок
@@ -759,14 +854,14 @@
             const bg = isSelected ? 'var(--bg2)' : (i % 2 === 0 ? 'var(--card)' : 'var(--card2)');
             const activeBar = isSelected ? `<div style="position:absolute; left:0; top:0; bottom:0; width:4px; background:${row.color};"></div>` : '';
             
-            // Стрелка-спойлер для 'invest_total'
+            const spoilerGroups = ['cushion', 'pds', 'stocks', 'savings', 'debt'];
+            let groupArrow = '';
+            if (spoilerGroups.includes(row.key)) {
+                const isOpen = !window._statsUI.spoilers[row.key];
+                groupArrow = `<span onclick="event.stopPropagation(); window.toggleStatsSpoiler('${row.key}');" style="cursor:pointer; padding:4px 8px; display:inline-block; font-size:10px; color:var(--muted);">${isOpen ? '▼' : '▶'}</span>`;
+            }
             const investArrow = row.key === 'invest_total'
-                ? `<span style="display:inline-block; width:14px; text-align:center; margin-right:2px; cursor:pointer; user-select:none;" onclick="event.stopPropagation(); window.toggleInvestSpoiler();">${window._statsUI.investSpoiler ? '▶' : '▼'}</span>`
-                : '';
-            
-            // Стрелка-спойлер для 'cushion'
-            const cushionArrow = row.key === 'cushion'
-                ? `<span onclick="event.stopPropagation(); window.toggleStatsSpoiler('cushion');" style="cursor:pointer; padding:4px 8px; display:inline-block; font-size:10px; color:var(--muted);">${!window._statsUI.spoilers.cushion ? '▼' : '▶'}</span>`
+                ? `<span style="display:inline-block; width:14px; text-align:center; margin-right:2px; cursor:pointer; user-select:none;" onclick="event.stopPropagation(); window.toggleStatsSpoiler('invest');">${window._statsUI.spoilers.invest ? '▶' : '▼'}</span>`
                 : '';
             
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
@@ -774,7 +869,7 @@
                     style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); width: 110px; min-width: 110px; max-width: 110px; ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
                     ${activeBar}
                     <div style="white-space: normal; word-break: break-word; line-height: 1.2; padding-left: ${row.indent * 10}px;">
-                        ${investArrow}${cushionArrow}${row.label}
+                        ${investArrow}${groupArrow}${row.label}
                     </div>
                 </td>`;
             
@@ -980,6 +1075,13 @@
                 const acc = getAcc(accId);
                 label = acc ? acc.name : 'Счет';
                 color = cushionShades[accId.charCodeAt(accId.length - 1) % cushionShades.length];
+                type = 'bar';
+            }
+            else if (key.startsWith('pds_acc_') || key.startsWith('stocks_acc_') || key.startsWith('savings_acc_') || key.startsWith('debt_acc_')) {
+                const accId = key.split('_acc_')[1];
+                const acc = getAcc(accId);
+                label = acc ? acc.name : 'Счет';
+                color = COLORS[key.split('_acc_')[0]];
                 type = 'bar';
             }
             else if (key === 'pds') { label = 'ПДС'; color = COLORS.pds; }
