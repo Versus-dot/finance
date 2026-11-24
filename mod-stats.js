@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v22
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v23
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -283,10 +283,26 @@
         if (row.startsWith('cushion_acc_')) {
             const accId = row.replace('cushion_acc_', '');
             const acc = getAcc(accId);
-            if (!acc || acc.archived) return 0;
-            if (targetMonthStr === today().slice(0, 7)) return accValue(acc);
-            
+            if (!acc || acc.archived) return null;
+
+            // Определяем дату появления счета
+            let startDate = acc.openedAt;
+            if (!startDate) {
+                const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
+                if (txs.length > 0) {
+                    startDate = txs.map(t => t.date).sort()[0];
+                } else {
+                    startDate = today();
+                }
+            }
+
             const targetEnd = targetMonthStr + '-31';
+
+            // Если целевой месяц раньше даты создания счета — возвращаем null
+            if (targetEnd < startDate) return null;
+
+            if (targetMonthStr === today().slice(0, 7)) return accValue(acc);
+
             let bal = acc.initialBalance || 0;
             S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                 if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
@@ -914,6 +930,7 @@
         const datasets = [];
         let hasRub = false;
         let hasPct = false;
+        const cushionShades = ['#059669', '#10B981', '#34D399', '#6EE7B7', '#A7F3D0'];
 
         window._statsSelectedRows.forEach((key, idx) => {
             let label = '';
@@ -941,8 +958,8 @@
                 const accId = key.replace('cushion_acc_', '');
                 const acc = getAcc(accId);
                 label = acc ? acc.name : 'Счет';
-                color = COLORS.cushion;
-                type = 'line';
+                color = cushionShades[accId.charCodeAt(accId.length - 1) % cushionShades.length];
+                type = 'bar';
             }
             else if (key === 'pds') { label = 'ПДС'; color = COLORS.pds; }
             else if (key === 'stocks') { label = 'Фондовый рынок'; color = COLORS.stocks; }
