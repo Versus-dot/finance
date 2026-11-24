@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v28
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v29
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -490,7 +490,7 @@
             total = activeInc > 0 ? Math.min(100, ((sav + inv) / activeInc * 100)) : 0;
         } else if (row === 'total_saved') {
             total = calcTableRow('saved', monthsArray) + calcTableRow('invest_total', monthsArray);
-        } else if (row.startsWith('cushion_acc_')) {
+        } else if (row.startsWith('cushion_acc_') || row.startsWith('stocks_acc_') || row.startsWith('pds_acc_') || row.startsWith('savings_acc_') || row.startsWith('debt_acc_')) {
             const targetMonth = monthsArray[monthsArray.length - 1];
             total = getHistoricalValue(row, targetMonth);
         } else if (['capital', 'cushion', 'pds', 'stocks', 'savings', 'debt'].includes(row)) {
