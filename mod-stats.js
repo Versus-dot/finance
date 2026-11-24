@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v19
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v21
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -16,7 +16,8 @@
             topBlock: false,
             reportWidget: false,
             snapshots: false,
-            investSpoiler: true
+            investSpoiler: true,
+            spoilers: { cushion: true }
         };
     }
 
@@ -126,6 +127,11 @@
 
     window.resetReportChart = function() {
         window._statsSelectedRows = [];
+        window.renderStats();
+    };
+
+    window.toggleStatsSpoiler = function(key) {
+        window._statsUI.spoilers[key] = !window._statsUI.spoilers[key];
         window.renderStats();
     };
 
@@ -273,6 +279,26 @@
     }
 
     function getHistoricalValue(row, targetMonthStr) {
+        // Обработка конкретных счетов подушки
+        if (row.startsWith('cushion_acc_')) {
+            const accId = row.replace('cushion_acc_', '');
+            const acc = getAcc(accId);
+            if (!acc || acc.archived) return 0;
+            if (targetMonthStr === today().slice(0, 7)) return accValue(acc);
+            
+            const targetEnd = targetMonthStr + '-31';
+            let bal = acc.initialBalance || 0;
+            S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
+                if (t.type === 'expense' && t.accountId === acc.id) bal -= t.amount;
+                if (t.type === 'transfer') {
+                    if (t.accountId === acc.id) bal -= t.amount;
+                    if (t.toAccountId === acc.id) bal += t.amount;
+                }
+            });
+            return bal;
+        }
+
         const currentMonthStr = today().slice(0, 7);
         const c = window.getCustomCapital ? window.getCustomCapital() : null;
         if (!c) return 0;
@@ -424,6 +450,9 @@
             total = activeInc > 0 ? Math.min(100, ((sav + inv) / activeInc * 100)) : 0;
         } else if (row === 'total_saved') {
             total = calcTableRow('saved', monthsArray) + calcTableRow('invest_total', monthsArray);
+        } else if (row.startsWith('cushion_acc_')) {
+            const targetMonth = monthsArray[monthsArray.length - 1];
+            total = getHistoricalValue(row, targetMonth);
         } else if (['capital', 'cushion', 'pds', 'stocks', 'savings', 'debt'].includes(row)) {
             const targetMonth = monthsArray[monthsArray.length - 1];
             total = getHistoricalValue(row, targetMonth);
@@ -607,6 +636,19 @@
 
         const periods = generateTablePeriods();
         
+        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ПОДУШКИ
+        const dynamicCushionRows = [];
+        S.accounts.filter(a => a.inCushion && !a.archived).forEach(a => {
+            const bank = getBank(a.bankId);
+            dynamicCushionRows.push({
+                key: 'cushion_acc_' + a.id,
+                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
+                indent: 1,
+                color: COLORS.cushion
+            });
+        });
+        dynamicCushionRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+
         // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ИНВЕСТИЦИЙ
         const dynamicInvestmentRows = [];
         
@@ -649,6 +691,7 @@
             { type: 'header', label: 'БАЛАНСЫ НА КОНЕЦ ПЕРИОДА' },
             { key: 'capital', label: 'Капитал', indent: 0, color: COLORS.capital, bold: true, isHeader: true },
             { key: 'cushion', label: 'Подушка', indent: 1, color: COLORS.cushion },
+            ...(window._statsUI.spoilers.cushion ? [] : dynamicCushionRows),
             { key: 'pds', label: 'ПДС', indent: 1, color: COLORS.pds },
             { key: 'stocks', label: 'Фондовый рынок', indent: 1, color: COLORS.stocks },
             { key: 'savings', label: 'Накопления', indent: 1, color: COLORS.savings },
@@ -680,8 +723,13 @@
             const activeBar = isSelected ? `<div style="position:absolute; left:0; top:0; bottom:0; width:4px; background:${row.color};"></div>` : '';
             
             // Стрелка-спойлер для 'invest_total'
-            const spoilerArrow = row.key === 'invest_total'
+            const investArrow = row.key === 'invest_total'
                 ? `<span style="display:inline-block; width:14px; text-align:center; margin-right:2px; cursor:pointer; user-select:none;" onclick="event.stopPropagation(); window.toggleInvestSpoiler();">${window._statsUI.investSpoiler ? '▶' : '▼'}</span>`
+                : '';
+            
+            // Стрелка-спойлер для 'cushion'
+            const cushionArrow = row.key === 'cushion'
+                ? `<span onclick="event.stopPropagation(); window.toggleStatsSpoiler('cushion');" style="cursor:pointer; padding:4px 8px; display:inline-block; font-size:10px; color:var(--muted);">${!window._statsUI.spoilers.cushion ? '▼' : '▶'}</span>`
                 : '';
             
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
@@ -689,7 +737,7 @@
                     style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); width: 110px; min-width: 110px; max-width: 110px; ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
                     ${activeBar}
                     <div style="white-space: normal; word-break: break-word; line-height: 1.2; padding-left: ${row.indent * 10}px;">
-                        ${spoilerArrow}${row.label}
+                        ${investArrow}${cushionArrow}${row.label}
                     </div>
                 </td>`;
             
