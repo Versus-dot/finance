@@ -309,6 +309,26 @@
         else if (row === 'stocks') currentVal = c.investments;
         else if (row === 'savings') currentVal = c.savings;
 
+        // Проверяем "дату рождения" — есть ли хотя бы одна транзакция до целевого месяца
+        const relevantAccounts = [];
+        if (row === 'pds') {
+            S.accounts.filter(a => !a.archived && a.type === 'pds').forEach(a => relevantAccounts.push(a));
+        } else if (row === 'stocks') {
+            S.accounts.filter(a => !a.archived && ['brokerage','iis','invest_kopilka'].includes(a.type)).forEach(a => relevantAccounts.push(a));
+        } else if (row === 'savings') {
+            S.accounts.filter(a => !a.archived && ['deposit','savings','finu_wallet','debit','cash'].includes(a.type)).forEach(a => relevantAccounts.push(a));
+        } else if (row === 'cushion') {
+            S.accounts.filter(a => !a.archived && a.inCushion).forEach(a => relevantAccounts.push(a));
+        }
+
+        const hasTxBeforeTarget = relevantAccounts.some(acc =>
+            S.transactions.some(t => t.date <= targetEnd && !t.ignoreInStats && (t.accountId === acc.id || t.toAccountId === acc.id))
+        );
+
+        if (!hasTxBeforeTarget && relevantAccounts.length > 0) {
+            return null;
+        }
+
         let delta = 0;
         S.transactions.filter(t => t.date > targetEnd && !t.ignoreInStats).forEach(t => {
             if (row === 'capital') {
@@ -657,8 +677,8 @@
             periods.forEach(p => {
                 const monthsArr = p.months ? p.months : [p.dateStr];
                 let val = calcTableRow(row.key, monthsArr);
-                let display = val === 0 ? '-' : (row.suffix ? formatPercent(val) : fmt(val));
-                if (row.key === 'capital' && val === 0) display = '-';
+                let display = (val === 0 || val === null || val === undefined) ? '-' : (row.suffix ? formatPercent(val) : fmt(val));
+                if (row.key === 'capital' && (val === 0 || val === null || val === undefined)) display = '-';
                 tableHtml += `<td style="padding:10px; min-width: 90px; white-space: nowrap;">${display}</td>`;
             });
 
@@ -690,8 +710,8 @@
                 }
             }
 
-            let displayTotal = totalVal === 0 ? '-' : (row.suffix ? formatPercent(totalVal) : fmt(totalVal));
-            if (row.key === 'capital' && totalVal === 0) displayTotal = '-';
+            let displayTotal = (totalVal === 0 || totalVal === null || totalVal === undefined) ? '-' : (row.suffix ? formatPercent(totalVal) : fmt(totalVal));
+            if (row.key === 'capital' && (totalVal === 0 || totalVal === null || totalVal === undefined)) displayTotal = '-';
 
             tableHtml += `<td style="position:sticky; right:0; background:${bg}; z-index:2; padding:10px; font-weight:700; border-left:1px solid var(--border); min-width: 110px; text-align:right; white-space: nowrap;">${displayTotal}</td>`;
             tableHtml += `</tr>`;

@@ -272,6 +272,8 @@ function openReconcileModal(accId){
             const investTypes=['brokerage','iis','deposit','savings','invest_kopilka','pds','finu_wallet'];
             if(investTypes.includes(acc.type)){
                 catId=(acc.type==='deposit'||acc.type==='savings')?'c_interest':'c_dividend';
+                const invCat=S.categories.find(c=>c.name.toLowerCase().includes('инвестдоход'));
+                if(invCat)catId=invCat.id;
             }
             const note=`Корректировка баланса (${diff>0?'+':''}${diff})`;
             S.transactions.push({id:uid(),type:txType,amount:txAmount,date:today(),categoryId:catId,accountId:accId,note:note,ignoreInStats:false});
