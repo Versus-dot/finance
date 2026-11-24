@@ -346,3 +346,14 @@ body:has(#page-home.active) #fabBtn, body:has(#page-stats.active) #fabBtn {displ
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.4);
 }
+
+/* Фикс для липкой колонки в таблице статистики */
+#stats-table-container td:first-child, 
+#stats-table-container th:first-child {
+    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.3);
+    border-right: 1px solid var(--border);
+}
+[data-theme="light"] #stats-table-container td:first-child,
+[data-theme="light"] #stats-table-container th:first-child {
+    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+}

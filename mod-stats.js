@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v18
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v19
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -15,7 +15,8 @@
         window._statsUI = {
             topBlock: false,
             reportWidget: false,
-            snapshots: false
+            snapshots: false,
+            investSpoiler: true
         };
     }
 
@@ -125,6 +126,11 @@
 
     window.resetReportChart = function() {
         window._statsSelectedRows = [];
+        window.renderStats();
+    };
+
+    window.toggleInvestSpoiler = function() {
+        window._statsUI.investSpoiler = !window._statsUI.investSpoiler;
         window.renderStats();
     };
 
@@ -602,8 +608,7 @@
         const periods = generateTablePeriods();
         
         // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ИНВЕСТИЦИЙ
-        let dynamicRows = [];
-        dynamicRows.push({ key: 'invest_total', label: 'Инвестировано (Всего)', indent: 0, color: COLORS.invest, bold: true });
+        const dynamicInvestmentRows = [];
         
         const investAccounts = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived);
         const bankGroups = {};
@@ -618,16 +623,18 @@
             const accs = bankGroups[bankId];
             
             if (accs.length > 1) {
-                dynamicRows.push({ key: 'inv_bank_' + bankId, label: '↳ ' + esc(bank.name), indent: 1, color: COLORS.invest });
+                dynamicInvestmentRows.push({ key: 'inv_bank_' + bankId, label: '↳ ' + esc(bank.name), indent: 1, color: COLORS.invest });
                 accs.forEach(acc => {
-                    dynamicRows.push({ key: 'inv_acc_' + acc.id, label: '↳↳ ' + esc(acc.name), indent: 2, color: COLORS.invest });
+                    dynamicInvestmentRows.push({ key: 'inv_acc_' + acc.id, label: '↳↳ ' + esc(acc.name), indent: 2, color: COLORS.invest });
                 });
             } else if (accs.length === 1) {
-                dynamicRows.push({ key: 'inv_acc_' + accs[0].id, label: '↳ ' + esc(bank.name), indent: 1, color: COLORS.invest });
+                dynamicInvestmentRows.push({ key: 'inv_acc_' + accs[0].id, label: '↳ ' + esc(bank.name), indent: 1, color: COLORS.invest });
             }
         });
 
+        // Собираем финальный массив строк
         const rows = [
+            { type: 'header', label: '📈 ПОТОК ЗА ПЕРИОД' },
             { key: 'income', label: 'Доходы', indent: 0, color: COLORS.income, bold: true },
             { key: 'active', label: 'Активный', indent: 1, color: COLORS.active },
             { key: 'passive', label: 'Пассивный', indent: 1, color: COLORS.passive },
@@ -635,9 +642,11 @@
             { key: 'taxes', label: 'Налоги', indent: 1, color: COLORS.taxes },
             { key: 'saved', label: 'Отложено в накопления', indent: 0, color: COLORS.saved },
             { key: 'total_saved', label: 'Общее отложенное', indent: 0, color: COLORS.saved, bold: true },
-            ...dynamicRows,
+            { key: 'invest_total', label: 'Инвестировано (Всего)', indent: 0, color: COLORS.invest, bold: true },
+            ...(window._statsUI.investSpoiler ? [] : dynamicInvestmentRows),
             { key: 'fcf', label: 'Свободный поток', indent: 0, color: COLORS.fcf, bold: true },
             { key: 'rate', label: 'Норма сбережений', indent: 0, color: COLORS.rate, suffix: '%' },
+            { type: 'header', label: '🏦 БАЛАНСЫ НА КОНЕЦ ПЕРИОДА' },
             { key: 'capital', label: 'Капитал', indent: 0, color: COLORS.capital, bold: true, isHeader: true },
             { key: 'cushion', label: 'Подушка', indent: 1, color: COLORS.cushion },
             { key: 'pds', label: 'ПДС', indent: 1, color: COLORS.pds },
@@ -660,16 +669,27 @@
         tableHtml += `</tr></thead><tbody>`;
 
         rows.forEach((row, i) => {
+            // === СТРОКА-ЗАГОЛОВОК ===
+            if (row.type === 'header') {
+                tableHtml += `<tr style="background:var(--bg2);"><td colspan="${periods.length + 2}" style="padding: 8px 10px; font-size: 11px; font-weight: 800; color: var(--muted); text-align: left; letter-spacing: 1px; border-bottom: 1px solid var(--border); position: sticky; left: 0; z-index: 4;">${row.label}</td></tr>`;
+                return;
+            }
+
             const isSelected = window._statsSelectedRows.includes(row.key);
             const bg = isSelected ? 'var(--bg2)' : (i % 2 === 0 ? 'var(--card)' : 'var(--card2)');
             const activeBar = isSelected ? `<div style="position:absolute; left:0; top:0; bottom:0; width:4px; background:${row.color};"></div>` : '';
+            
+            // Стрелка-спойлер для 'invest_total'
+            const spoilerArrow = row.key === 'invest_total'
+                ? `<span style="display:inline-block; width:14px; text-align:center; margin-right:2px; cursor:pointer; user-select:none;" onclick="event.stopPropagation(); window.toggleInvestSpoiler();">${window._statsUI.investSpoiler ? '▶' : '▼'}</span>`
+                : '';
             
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
                 <td onclick="window.toggleTableRow('${row.key}')" 
                     style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); width: 110px; min-width: 110px; max-width: 110px; ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
                     ${activeBar}
                     <div style="overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; touch-action: pan-x; padding-left: ${row.indent * 10}px;">
-                        ${row.label}
+                        ${spoilerArrow}${row.label}
                     </div>
                 </td>`;
             
