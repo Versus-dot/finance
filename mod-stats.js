@@ -301,63 +301,62 @@
             return histDebt;
         }
 
-        // Для остальных используем обратный пересчет (от текущего баланса)
-        let currentVal = 0;
-        if (row === 'capital') currentVal = c.net;
-        else if (row === 'cushion') currentVal = c.cushion;
-        else if (row === 'pds') currentVal = c.pds;
-        else if (row === 'stocks') currentVal = c.investments;
-        else if (row === 'savings') currentVal = c.savings;
+        // ПРЯМОЙ ПЕРЕСЧЕТ: сумма всех транзакций до конца целевого месяца
+        if (row === 'capital') {
+            let total = 0;
+            S.accounts.filter(a => !a.archived).forEach(a => {
+                let bal = a.initialBalance || 0;
+                S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                    if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
+                    if (t.type === 'expense' && t.accountId === a.id) bal -= t.amount;
+                    if (t.type === 'transfer') {
+                        if (t.accountId === a.id) bal -= t.amount;
+                        if (t.toAccountId === a.id) bal += t.amount;
+                    }
+                    if (t.type === 'debt') {
+                        if (t.accountId === a.id) {
+                            if (t.debtType === 'lent' || t.debtType === 'repaid') bal -= t.amount;
+                            if (t.debtType === 'borrowed' || t.debtType === 'returned') bal += t.amount;
+                        }
+                    }
+                });
+                total += bal;
+            });
+            return total;
+        }
 
-        // Проверяем "дату рождения" — есть ли хотя бы одна транзакция до целевого месяца
-        const relevantAccounts = [];
+        // Для групп (pds, stocks, savings, cushion) — прямой пересчет по каждому счету
+        const rowAccounts = [];
         if (row === 'pds') {
-            S.accounts.filter(a => !a.archived && a.type === 'pds').forEach(a => relevantAccounts.push(a));
+            S.accounts.filter(a => !a.archived && a.type === 'pds').forEach(a => rowAccounts.push(a));
         } else if (row === 'stocks') {
-            S.accounts.filter(a => !a.archived && ['brokerage','iis','invest_kopilka'].includes(a.type)).forEach(a => relevantAccounts.push(a));
+            S.accounts.filter(a => !a.archived && ['brokerage','iis','invest_kopilka'].includes(a.type)).forEach(a => rowAccounts.push(a));
         } else if (row === 'savings') {
-            S.accounts.filter(a => !a.archived && ['deposit','savings','finu_wallet','debit','cash'].includes(a.type)).forEach(a => relevantAccounts.push(a));
+            S.accounts.filter(a => !a.archived && ['deposit','savings','finu_wallet','debit','cash'].includes(a.type)).forEach(a => rowAccounts.push(a));
         } else if (row === 'cushion') {
-            S.accounts.filter(a => !a.archived && a.inCushion).forEach(a => relevantAccounts.push(a));
+            S.accounts.filter(a => !a.archived && a.inCushion).forEach(a => rowAccounts.push(a));
         }
 
-        const hasTxBeforeTarget = relevantAccounts.some(acc =>
-            S.transactions.some(t => t.date <= targetEnd && !t.ignoreInStats && (t.accountId === acc.id || t.toAccountId === acc.id))
-        );
+        if (rowAccounts.length === 0) return 0;
 
-        if (!hasTxBeforeTarget && relevantAccounts.length > 0) {
-            return null;
-        }
-
-        let delta = 0;
-        S.transactions.filter(t => t.date > targetEnd && !t.ignoreInStats).forEach(t => {
-            if (row === 'capital') {
-                if (t.type === 'income') delta += t.amount;
-                if (t.type === 'expense') delta -= t.amount;
-            }
-            if (t.type === 'transfer') {
-                const fromAcc = getAcc(t.accountId);
-                const toAcc = getAcc(t.toAccountId);
-                
-                if (row === 'pds') {
-                    if (fromAcc && !fromAcc.inCushion && fromAcc.type === 'pds') delta -= t.amount;
-                    if (toAcc && !toAcc.inCushion && toAcc.type === 'pds') delta += t.amount;
+        let total = 0;
+        rowAccounts.forEach(acc => {
+            let bal = acc.initialBalance || 0;
+            S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
+                if (t.type === 'expense' && t.accountId === acc.id) bal -= t.amount;
+                if (t.type === 'transfer') {
+                    if (t.accountId === acc.id) bal -= t.amount;
+                    if (t.toAccountId === acc.id) bal += t.amount;
                 }
-                if (row === 'stocks') {
-                    if (fromAcc && !fromAcc.inCushion && ['brokerage', 'iis', 'invest_kopilka'].includes(fromAcc.type)) delta -= t.amount;
-                    if (toAcc && !toAcc.inCushion && ['brokerage', 'iis', 'invest_kopilka'].includes(toAcc.type)) delta += t.amount;
-                }
-                if (row === 'savings') {
-                    if (fromAcc && !fromAcc.inCushion && ['deposit', 'savings', 'finu_wallet', 'debit', 'cash'].includes(fromAcc.type)) delta -= t.amount;
-                    if (toAcc && !toAcc.inCushion && ['deposit', 'savings', 'finu_wallet', 'debit', 'cash'].includes(toAcc.type)) delta += t.amount;
-                }
-                if (row === 'cushion') {
-                    if (fromAcc && fromAcc.inCushion) delta -= t.amount;
-                    if (toAcc && toAcc.inCushion) delta += t.amount;
-                }
+            });
+            if (row === 'cushion') {
+                total += bal;
+            } else {
+                total += bal;
             }
         });
-        return currentVal - delta;
+        return total;
     }
 
     function calcTableRow(row, monthsArray) {
@@ -677,7 +676,7 @@
             periods.forEach(p => {
                 const monthsArr = p.months ? p.months : [p.dateStr];
                 let val = calcTableRow(row.key, monthsArr);
-                let display = (val === 0 || val === null || val === undefined) ? '-' : (row.suffix ? formatPercent(val) : fmt(val));
+                let display = (val === 0 || val === null || val === undefined) ? '-' : (row.suffix ? formatPercent(val) : fmtPlain(val));
                 if (row.key === 'capital' && (val === 0 || val === null || val === undefined)) display = '-';
                 tableHtml += `<td style="padding:10px; min-width: 90px; white-space: nowrap;">${display}</td>`;
             });
@@ -710,7 +709,7 @@
                 }
             }
 
-            let displayTotal = (totalVal === 0 || totalVal === null || totalVal === undefined) ? '-' : (row.suffix ? formatPercent(totalVal) : fmt(totalVal));
+            let displayTotal = (totalVal === 0 || totalVal === null || totalVal === undefined) ? '-' : (row.suffix ? formatPercent(totalVal) : fmtPlain(totalVal));
             if (row.key === 'capital' && (totalVal === 0 || totalVal === null || totalVal === undefined)) displayTotal = '-';
 
             tableHtml += `<td style="position:sticky; right:0; background:${bg}; z-index:2; padding:10px; font-weight:700; border-left:1px solid var(--border); min-width: 110px; text-align:right; white-space: nowrap;">${displayTotal}</td>`;
@@ -910,7 +909,7 @@
                             label: function(ctx) {
                                 const val = ctx.parsed.y;
                                 if (ctx.dataset.yAxisID === 'y1') return ctx.dataset.label + ': ' + formatPercent(val);
-                                return ctx.dataset.label + ': ' + fmt(val);
+                                return ctx.dataset.label + ': ' + fmtPlain(val);
                             }
                         }
                     }
