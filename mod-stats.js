@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v25
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v27
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -285,14 +285,6 @@
             const acc = getAcc(accId);
             if (!acc || acc.archived) return null;
 
-            let startDate = acc.openedAt;
-            if (!startDate) {
-                const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
-                startDate = txs.length > 0 ? txs.map(t => t.date).sort()[0] : today();
-            }
-            const targetEnd = targetMonthStr + '-31';
-            if (targetEnd < startDate) return null;
-
             if (targetMonthStr === today().slice(0, 7)) {
                 if (row.startsWith('debt_acc_')) return Math.max(0, (acc.creditLimit || 0) - accValue(acc));
                 return accValue(acc);
@@ -315,6 +307,7 @@
             });
 
             if (row.startsWith('debt_acc_')) return Math.max(0, (acc.creditLimit || 0) - bal);
+            if (row.startsWith('savings_acc_')) return Math.max(0, bal);
             return bal;
         }
 
@@ -323,22 +316,6 @@
             const accId = row.replace('cushion_acc_', '');
             const acc = getAcc(accId);
             if (!acc || acc.archived) return null;
-
-            // Определяем дату появления счета
-            let startDate = acc.openedAt;
-            if (!startDate) {
-                const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
-                if (txs.length > 0) {
-                    startDate = txs.map(t => t.date).sort()[0];
-                } else {
-                    startDate = today();
-                }
-            }
-
-            const targetEnd = targetMonthStr + '-31';
-
-            // Если целевой месяц раньше даты создания счета — возвращаем null
-            if (targetEnd < startDate) return null;
 
             if (targetMonthStr === today().slice(0, 7)) return accValue(acc);
 
@@ -427,24 +404,8 @@
         if (rowAccounts.length === 0) return 0;
 
         let total = 0;
-        let hasAnyAccounts = false;
 
         rowAccounts.forEach(acc => {
-            // Определяем дату появления счета
-            let startDate = acc.openedAt;
-            if (!startDate) {
-                const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
-                if (txs.length > 0) {
-                    startDate = txs.map(t => t.date).sort()[0];
-                } else {
-                    startDate = today();
-                }
-            }
-
-            // Если на конец месяца счет еще не существовал — пропускаем его
-            if (targetEnd < startDate) return;
-
-            hasAnyAccounts = true;
             let bal = acc.initialBalance || 0;
             S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                 if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
@@ -460,11 +421,14 @@
                     }
                 }
             });
-            total += bal;
+            if (row === 'savings') {
+                total += Math.max(0, bal);
+            } else {
+                total += bal;
+            }
         });
 
-        // Если ни один счет еще не существовал в этот месяц, возвращаем null
-        return hasAnyAccounts ? total : null;
+        return total;
     }
 
     function calcTableRow(row, monthsArray) {
@@ -712,69 +676,72 @@
 
         const periods = generateTablePeriods();
         
-        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ПОДУШКИ
+        // ДИНАМИЧЕСКИЕ СТРОКИ — строгая иерархия (первый совпавший критерий побеждает)
         const dynamicCushionRows = [];
-        S.accounts.filter(a => a.inCushion && !a.archived).forEach(a => {
-            const bank = getBank(a.bankId);
-            dynamicCushionRows.push({
-                key: 'cushion_acc_' + a.id,
-                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
-                indent: 1,
-                color: COLORS.cushion
-            });
-        });
-        dynamicCushionRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
-
-        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ПДС
         const dynamicPdsRows = [];
-        S.accounts.filter(a => a.type === 'pds' && !a.archived).forEach(a => {
-            const bank = getBank(a.bankId);
-            dynamicPdsRows.push({
-                key: 'pds_acc_' + a.id,
-                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
-                indent: 1,
-                color: COLORS.pds
-            });
-        });
-        dynamicPdsRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
-
-        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ФОНДОВЫЙ РЫНОК
         const dynamicStocksRows = [];
-        S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived).forEach(a => {
-            const bank = getBank(a.bankId);
-            dynamicStocksRows.push({
-                key: 'stocks_acc_' + a.id,
-                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
-                indent: 1,
-                color: COLORS.stocks
-            });
-        });
-        dynamicStocksRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
-
-        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ НАКОПЛЕНИЯ
         const dynamicSavingsRows = [];
-        S.accounts.filter(a => ['deposit', 'savings', 'finu_wallet', 'debit', 'cash'].includes(a.type) && !a.archived).forEach(a => {
-            const bank = getBank(a.bankId);
-            dynamicSavingsRows.push({
-                key: 'savings_acc_' + a.id,
-                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
-                indent: 1,
-                color: COLORS.savings
-            });
-        });
-        dynamicSavingsRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
-
-        // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ДОЛГИ
         const dynamicDebtRows = [];
-        S.accounts.filter(a => a.type === 'credit' && !a.archived).forEach(a => {
-            const bank = getBank(a.bankId);
-            dynamicDebtRows.push({
-                key: 'debt_acc_' + a.id,
-                label: '↳ ' + (bank ? bank.name + ' - ' : '') + a.name,
-                indent: 1,
-                color: COLORS.debt
-            });
+
+        S.accounts.forEach(acc => {
+            if (acc.archived) return;
+
+            if (acc.inCushion) {
+                const bank = getBank(acc.bankId);
+                dynamicCushionRows.push({
+                    key: 'cushion_acc_' + acc.id,
+                    label: '↳ ' + (bank ? bank.name + ' - ' : '') + acc.name,
+                    indent: 1,
+                    color: COLORS.cushion
+                });
+                return;
+            }
+            if (acc.type === 'pds') {
+                const bank = getBank(acc.bankId);
+                dynamicPdsRows.push({
+                    key: 'pds_acc_' + acc.id,
+                    label: '↳ ' + (bank ? bank.name + ' - ' : '') + acc.name,
+                    indent: 1,
+                    color: COLORS.pds
+                });
+                return;
+            }
+            if (['brokerage', 'iis', 'invest_kopilka'].includes(acc.type)) {
+                const bank = getBank(acc.bankId);
+                dynamicStocksRows.push({
+                    key: 'stocks_acc_' + acc.id,
+                    label: '↳ ' + (bank ? bank.name + ' - ' : '') + acc.name,
+                    indent: 1,
+                    color: COLORS.stocks
+                });
+                return;
+            }
+            if (['deposit', 'savings', 'finu_wallet', 'debit', 'cash'].includes(acc.type)) {
+                const bank = getBank(acc.bankId);
+                dynamicSavingsRows.push({
+                    key: 'savings_acc_' + acc.id,
+                    label: '↳ ' + (bank ? bank.name + ' - ' : '') + acc.name,
+                    indent: 1,
+                    color: COLORS.savings
+                });
+                return;
+            }
+            if (acc.type === 'credit') {
+                const bank = getBank(acc.bankId);
+                dynamicDebtRows.push({
+                    key: 'debt_acc_' + acc.id,
+                    label: '↳ ' + (bank ? bank.name + ' - ' : '') + acc.name,
+                    indent: 1,
+                    color: COLORS.debt
+                });
+                return;
+            }
         });
+
+        dynamicCushionRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+        dynamicPdsRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+        dynamicStocksRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+        dynamicSavingsRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
         dynamicDebtRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
 
         // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ИНВЕСТИЦИЙ
