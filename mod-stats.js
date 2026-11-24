@@ -634,7 +634,7 @@
 
         // Собираем финальный массив строк
         const rows = [
-            { type: 'header', label: '📈 ПОТОК ЗА ПЕРИОД' },
+            { type: 'header', label: 'ПОТОК ЗА ПЕРИОД' },
             { key: 'income', label: 'Доходы', indent: 0, color: COLORS.income, bold: true },
             { key: 'active', label: 'Активный', indent: 1, color: COLORS.active },
             { key: 'passive', label: 'Пассивный', indent: 1, color: COLORS.passive },
@@ -646,7 +646,7 @@
             ...(window._statsUI.investSpoiler ? [] : dynamicInvestmentRows),
             { key: 'fcf', label: 'Свободный поток', indent: 0, color: COLORS.fcf, bold: true },
             { key: 'rate', label: 'Норма сбережений', indent: 0, color: COLORS.rate, suffix: '%' },
-            { type: 'header', label: '🏦 БАЛАНСЫ НА КОНЕЦ ПЕРИОДА' },
+            { type: 'header', label: 'БАЛАНСЫ НА КОНЕЦ ПЕРИОДА' },
             { key: 'capital', label: 'Капитал', indent: 0, color: COLORS.capital, bold: true, isHeader: true },
             { key: 'cushion', label: 'Подушка', indent: 1, color: COLORS.cushion },
             { key: 'pds', label: 'ПДС', indent: 1, color: COLORS.pds },
@@ -688,7 +688,7 @@
                 <td onclick="window.toggleTableRow('${row.key}')" 
                     style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); width: 110px; min-width: 110px; max-width: 110px; ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
                     ${activeBar}
-                    <div style="overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; touch-action: pan-x; padding-left: ${row.indent * 10}px;">
+                    <div style="white-space: normal; word-break: break-word; line-height: 1.2; padding-left: ${row.indent * 10}px;">
                         ${spoilerArrow}${row.label}
                     </div>
                 </td>`;
