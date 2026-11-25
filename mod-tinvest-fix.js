@@ -1,5 +1,5 @@
 // ==========================================
-// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v16
+// ФИКС Т-ИНВЕСТА И СТАТИСТИКИ (mod-tinvest-fix.js) v17
 // ==========================================
 (function() {
     console.log("✅ Модуль фиксов Т-Инвеста (mod-tinvest-fix.js) v16 загружен");
@@ -242,4 +242,52 @@
             toast('❌ Ошибка синхронизации. Проверьте токен.'); 
         }
     };
+
+    // 1. Удаление всех операций Т-Инвест
+    window.deleteAllTInvestOperations = function() {
+        if (!confirm('⚠️ Вы уверены, что хотите удалить ВСЕ операции, полученные из Т-Инвест? Ваши ручные операции останутся.')) return;
+        
+        const initialCount = S.transactions.length;
+        S.transactions = S.transactions.filter(t => !t.tinvestOpId);
+        const deletedCount = initialCount - S.transactions.length;
+        
+        if (deletedCount > 0) {
+            if (typeof recalculateBalances === 'function') recalculateBalances();
+            save();
+            renderAll();
+            toast(`Удалено операций Т-Инвест: ${deletedCount}`);
+        } else {
+            toast('Операции Т-Инвест не найдены');
+        }
+    };
+
+    // 2. Очистка дублей Т-Инвест
+    window.cleanupTInvestDuplicates = function() {
+        if (!confirm('Очистить дубликаты операций Т-Инвест? (Будут оставлены только первые вхождения)')) return;
+        
+        const seen = new Set();
+        const initialCount = S.transactions.length;
+        
+        S.transactions = S.transactions.filter(t => {
+            if (t.tinvestOpId) {
+                if (seen.has(t.tinvestOpId)) {
+                    return false;
+                }
+                seen.add(t.tinvestOpId);
+            }
+            return true;
+        });
+        
+        const deletedCount = initialCount - S.transactions.length;
+        
+        if (deletedCount > 0) {
+            if (typeof recalculateBalances === 'function') recalculateBalances();
+            save();
+            renderAll();
+            toast(`Удалено дубликатов: ${deletedCount}`);
+        } else {
+            toast('Дубликаты не найдены');
+        }
+    };
+
 })();
