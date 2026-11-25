@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v31
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v32
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -311,7 +311,7 @@
                 return accValue(acc);
             }
 
-            let bal = acc.initialBalance || 0;
+            let bal = acc.tinvestId ? 0 : (acc.initialBalance || 0);
             S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                 if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
                 if (t.type === 'expense' && t.accountId === acc.id) bal -= t.amount;
@@ -442,7 +442,7 @@
             if (acc.portfolioHistory && acc.portfolioHistory[targetEnd] !== undefined) {
                 bal = acc.portfolioHistory[targetEnd];
             } else {
-                bal = acc.initialBalance || 0;
+                bal = acc.tinvestId ? 0 : (acc.initialBalance || 0);
                 S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                     if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
                     if (t.type === 'expense' && t.accountId === acc.id) bal -= t.amount;

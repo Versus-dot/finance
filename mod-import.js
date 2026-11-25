@@ -1,5 +1,5 @@
 (function() {
-    console.log("✅ Модуль импорта Excel (mod-import.js) v2 загружен");
+    console.log("✅ Модуль импорта Excel (mod-import.js) v3 загружен");
 
     const origOpenAccountModal = window.openAccountModal;
     
@@ -78,12 +78,13 @@
                         if (s.startsWith(name)) {
                             // Ищем год после месяца
                             const rest = s.slice(name.length).trim();
-                            let year = 0;
-                            const yearMatch = rest.match(/(\d{1,2})/);
-                            if (yearMatch) {
-                                year = parseInt(yearMatch[1]) >= 50 ? 2000 + parseInt(yearMatch[1]) : 2000 + parseInt(yearMatch[1]);
-                            } else {
-                                year = new Date().getFullYear();
+                            let year = new Date().getFullYear();
+                            const yearMatch4 = rest.match(/(\d{4})/);
+                            const yearMatch2 = rest.match(/(\d{2})/);
+                            if (yearMatch4) {
+                                year = parseInt(yearMatch4[1]);
+                            } else if (yearMatch2) {
+                                year = 2000 + parseInt(yearMatch2[1]);
                             }
                             return { month: num, year: year };
                         }
