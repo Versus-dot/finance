@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v29
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v30
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -281,11 +281,25 @@
     function getHistoricalValue(row, targetMonthStr) {
         const targetEnd = targetMonthStr + '-31';
 
-        // Обработка конкретных счетов (pds, stocks, savings, debt)
-        if (row.startsWith('pds_acc_') || row.startsWith('stocks_acc_') || row.startsWith('savings_acc_') || row.startsWith('debt_acc_')) {
+        // Обработка конкретных счетов (cushion, pds, stocks, savings, debt)
+        if (row.includes('_acc_')) {
             const accId = row.split('_acc_')[1];
             const acc = getAcc(accId);
             if (!acc || acc.archived) return null;
+
+            let startDate = acc.openedAt;
+            if (!startDate) {
+                const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
+                if (txs.length > 0) {
+                    startDate = txs.map(t => t.date).sort()[0];
+                } else if (acc.initialBalance > 0) {
+                    startDate = '2000-01-01';
+                } else {
+                    startDate = today();
+                }
+            }
+
+            if (targetEnd < startDate) return null;
 
             if (targetMonthStr === today().slice(0, 7)) {
                 if (row.startsWith('debt_acc_')) return Math.max(0, (acc.creditLimit || 0) - accValue(acc));
@@ -310,26 +324,6 @@
 
             if (row.startsWith('debt_acc_')) return Math.max(0, (acc.creditLimit || 0) - bal);
             if (row.startsWith('savings_acc_')) return Math.max(0, bal);
-            return bal;
-        }
-
-        // Обработка конкретных счетов подушки
-        if (row.startsWith('cushion_acc_')) {
-            const accId = row.replace('cushion_acc_', '');
-            const acc = getAcc(accId);
-            if (!acc || acc.archived) return null;
-
-            if (targetMonthStr === today().slice(0, 7)) return accValue(acc);
-
-            let bal = acc.initialBalance || 0;
-            S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
-                if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
-                if (t.type === 'expense' && t.accountId === acc.id) bal -= t.amount;
-                if (t.type === 'transfer') {
-                    if (t.accountId === acc.id) bal -= t.amount;
-                    if (t.toAccountId === acc.id) bal += t.amount;
-                }
-            });
             return bal;
         }
 
@@ -368,7 +362,22 @@
         // ПРЯМОЙ ПЕРЕСЧЕТ: сумма всех транзакций до конца целевого месяца
         if (row === 'capital') {
             let total = 0;
+            let hasAny = false;
             S.accounts.filter(a => !a.archived).forEach(a => {
+                let startDate = a.openedAt;
+                if (!startDate) {
+                    const txs = S.transactions.filter(t => t.accountId === a.id || t.toAccountId === a.id);
+                    if (txs.length > 0) {
+                        startDate = txs.map(t => t.date).sort()[0];
+                    } else if (a.initialBalance > 0) {
+                        startDate = '2000-01-01';
+                    } else {
+                        startDate = today();
+                    }
+                }
+                if (targetEnd < startDate) return;
+
+                hasAny = true;
                 let bal = a.initialBalance || 0;
                 S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                     if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
@@ -386,7 +395,7 @@
                 });
                 total += bal;
             });
-            return total;
+            return hasAny ? total : null;
         }
 
         // Для групп (pds, stocks, savings, cushion) — прямой пересчет по каждому счету
@@ -404,8 +413,24 @@
         if (rowAccounts.length === 0) return 0;
 
         let total = 0;
+        let hasAnyAccounts = false;
 
         rowAccounts.forEach(acc => {
+            let startDate = acc.openedAt;
+            if (!startDate) {
+                const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
+                if (txs.length > 0) {
+                    startDate = txs.map(t => t.date).sort()[0];
+                } else if (acc.initialBalance > 0) {
+                    startDate = '2000-01-01';
+                } else {
+                    startDate = today();
+                }
+            }
+
+            if (targetEnd < startDate) return;
+
+            hasAnyAccounts = true;
             let bal = acc.initialBalance || 0;
             S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                 if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
@@ -421,6 +446,7 @@
                     }
                 }
             });
+
             if (row === 'savings') {
                 total += Math.max(0, bal);
             } else {
@@ -428,7 +454,7 @@
             }
         });
 
-        return total;
+        return hasAnyAccounts ? total : null;
     }
 
     function calcTableRow(row, monthsArray) {
