@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v30
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v31
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -287,6 +287,11 @@
             const acc = getAcc(accId);
             if (!acc || acc.archived) return null;
 
+            // Проверяем portfolioHistory из Excel
+            if (acc.portfolioHistory && acc.portfolioHistory[targetEnd] !== undefined) {
+                return acc.portfolioHistory[targetEnd];
+            }
+
             let startDate = acc.openedAt;
             if (!startDate) {
                 const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
@@ -431,21 +436,28 @@
             if (targetEnd < startDate) return;
 
             hasAnyAccounts = true;
-            let bal = acc.initialBalance || 0;
-            S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
-                if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
-                if (t.type === 'expense' && t.accountId === acc.id) bal -= t.amount;
-                if (t.type === 'transfer') {
-                    if (t.accountId === acc.id) bal -= t.amount;
-                    if (t.toAccountId === acc.id) bal += t.amount;
-                }
-                if (t.type === 'debt') {
-                    if (t.accountId === acc.id) {
-                        if (t.debtType === 'lent' || t.debtType === 'repaid') bal -= t.amount;
-                        if (t.debtType === 'borrowed' || t.debtType === 'returned') bal += t.amount;
+
+            // Проверяем portfolioHistory из Excel
+            let bal = 0;
+            if (acc.portfolioHistory && acc.portfolioHistory[targetEnd] !== undefined) {
+                bal = acc.portfolioHistory[targetEnd];
+            } else {
+                bal = acc.initialBalance || 0;
+                S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                    if (t.type === 'income' && t.accountId === acc.id) bal += t.amount;
+                    if (t.type === 'expense' && t.accountId === acc.id) bal -= t.amount;
+                    if (t.type === 'transfer') {
+                        if (t.accountId === acc.id) bal -= t.amount;
+                        if (t.toAccountId === acc.id) bal += t.amount;
                     }
-                }
-            });
+                    if (t.type === 'debt') {
+                        if (t.accountId === acc.id) {
+                            if (t.debtType === 'lent' || t.debtType === 'repaid') bal -= t.amount;
+                            if (t.debtType === 'borrowed' || t.debtType === 'returned') bal += t.amount;
+                        }
+                    }
+                });
+            }
 
             if (row === 'savings') {
                 total += Math.max(0, bal);

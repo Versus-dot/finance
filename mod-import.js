@@ -1,5 +1,5 @@
 (function() {
-    console.log("✅ Модуль импорта Excel (mod-import.js) v1 загружен");
+    console.log("✅ Модуль импорта Excel (mod-import.js) v2 загружен");
 
     const origOpenAccountModal = window.openAccountModal;
     
@@ -55,13 +55,131 @@
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const json = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
                 
-                // Заглушка: просто показываем, что файл прочитан
-                console.log("Прочитан Excel:", json);
-                toast('✅ Файл прочитан! (Следующий шаг - парсинг)');
-                closeModal(); 
+                if (!json || json.length < 5) {
+                    toast('❌ Файл пустой или некорректный');
+                    closeModal();
+                    return;
+                }
+
+                // Карта месяцев
+                const MONTH_MAP = {
+                    'янв': 1, 'январь': 1, 'фев': 2, 'февраль': 2, 'мар': 3, 'март': 3, 'мар.': 3,
+                    'апр': 4, 'апрель': 4, 'апр.': 4, 'май': 5, 'июн': 6, 'июнь': 6,
+                    'июл': 7, 'июль': 7, 'авг': 8, 'август': 8, 'сен': 9, 'сентябрь': 9,
+                    'окт': 10, 'октябрь': 10, 'ноя': 11, 'ноябрь': 11, 'дек': 12, 'декабрь': 12
+                };
+
+                // Парсим "май 24" → {month, year}
+                function parseMonthCell(cell) {
+                    if (!cell) return null;
+                    const s = String(cell).trim().toLowerCase().replace('.', '');
+                    // Ищем месяц
+                    for (const [name, num] of Object.entries(MONTH_MAP)) {
+                        if (s.startsWith(name)) {
+                            // Ищем год после месяца
+                            const rest = s.slice(name.length).trim();
+                            let year = 0;
+                            const yearMatch = rest.match(/(\d{1,2})/);
+                            if (yearMatch) {
+                                year = parseInt(yearMatch[1]) >= 50 ? 2000 + parseInt(yearMatch[1]) : 2000 + parseInt(yearMatch[1]);
+                            } else {
+                                year = new Date().getFullYear();
+                            }
+                            return { month: num, year: year };
+                        }
+                    }
+                    return null;
+                }
+
+                // Находим строку с датами (ищем строку, где есть ячейки с названиями месяцев)
+                let dateRowIdx = -1;
+                let dateCells = [];
+                for (let i = 0; i < json.length; i++) {
+                    const row = json[i];
+                    if (!row || row.length < 2) continue;
+                    // Проверяем, есть ли в строке ячейки с названиями месяцев
+                    const monthCells = row.filter(c => parseMonthCell(c)).map(c => parseMonthCell(c));
+                    if (monthCells.length >= 2) {
+                        dateRowIdx = i;
+                        dateCells = row;
+                        break;
+                    }
+                }
+
+                if (dateRowIdx === -1) {
+                    toast('❌ Не найдена строка с датами');
+                    closeModal();
+                    return;
+                }
+
+                // Находим строку "Стоимость портфеля"
+                let portfolioRowIdx = -1;
+                for (let i = dateRowIdx + 1; i < json.length; i++) {
+                    const row = json[i];
+                    if (!row || !row[0]) continue;
+                    const label = String(row[0]).toLowerCase().replace('.', '').replace(/\s+/g, '');
+                    if (label.includes('стоимостьпортфеля') || label.includes('totalportfolio') || label.includes('портфеля')) {
+                        portfolioRowIdx = i;
+                        break;
+                    }
+                }
+
+                if (portfolioRowIdx === -1) {
+                    toast('❌ Не найдена строка "Стоимость портфеля"');
+                    closeModal();
+                    return;
+                }
+
+                // Парсим пары дата → стоимость
+                const portfolioHistory = {};
+                for (let ci = 1; ci < dateCells.length; ci++) {
+                    const dateCell = dateCells[ci];
+                    const monthData = parseMonthCell(dateCell);
+                    if (!monthData) continue;
+
+                    const valCell = json[portfolioRowIdx][ci];
+                    if (valCell === undefined || valCell === null) continue;
+
+                    const val = parseFloat(String(valCell).replace(/\s/g, '').replace(',', '.'));
+                    if (isNaN(val)) continue;
+
+                    // Формируем ключ YYYY-MM-31
+                    const monthStr = String(monthData.month).padStart(2, '0');
+                    const key = `${monthData.year}-${monthStr}-31`;
+                    portfolioHistory[key] = Math.round(val * 100) / 100;
+                }
+
+                // Сохраняем в объект счета
+                const acc = getAcc(accId);
+                if (!acc) {
+                    toast('❌ Счёт не найден');
+                    closeModal();
+                    return;
+                }
+
+                if (!acc.portfolioHistory) acc.portfolioHistory = {};
+                const count = Object.keys(portfolioHistory).length;
+                Object.assign(acc.portfolioHistory, portfolioHistory);
+
+                // Удаляем нулевые значения
+                Object.keys(acc.portfolioHistory).forEach(k => {
+                    if (acc.portfolioHistory[k] === 0) delete acc.portfolioHistory[k];
+                });
+
+                if (count === 0) {
+                    toast('⚠️ Не найдено значений стоимости');
+                    closeModal();
+                    return;
+                }
+
+                save();
+                closeModal();
+                toast(`✅ Загружено: ${count} снимков портфеля`);
+                if (typeof renderAll === 'function') renderAll();
+
             } catch (err) {
                 console.error(err);
-                toast('❌ Ошибка чтения файла');
+                toast('❌ Ошибка чтения файла: ' + err.message);
             }
         };
         reader.readAsArrayBuffer(file);
