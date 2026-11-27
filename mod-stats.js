@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v33
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v34
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -346,10 +346,29 @@
             return 0;
         }
 
-        // Долги считаем прямым пересчетом от кредитных лимитов
+        // Долги считаем прямым пересчетом от кредитных лимитов с учетом хеджей
         if (row === 'debt') {
             let histDebt = 0;
-            S.accounts.filter(a => a.type === 'credit' && !a.archived).forEach(a => {
+            const creditAccs = S.accounts.filter(a => a.type === 'credit' && !a.archived && !a.isTransit);
+            const hedgeAccs = S.accounts.filter(a => a.hedgeFor && !a.archived && !a.isTransit);
+
+            // Считаем баланс всех хеджей на конец месяца
+            const hedgeValues = {};
+            hedgeAccs.forEach(h => {
+                let bal = h.initialBalance || 0;
+                S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                    if (t.type === 'income' && t.accountId === h.id) bal += t.amount;
+                    if (t.type === 'expense' && t.accountId === h.id) bal -= t.amount;
+                    if (t.type === 'transfer') {
+                        if (t.accountId === h.id) bal -= t.amount;
+                        if (t.toAccountId === h.id) bal += t.amount;
+                    }
+                });
+                if (!hedgeValues[h.hedgeFor]) hedgeValues[h.hedgeFor] = 0;
+                hedgeValues[h.hedgeFor] += bal;
+            });
+
+            creditAccs.forEach(a => {
                 let bal = a.initialBalance || 0;
                 S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                     if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
@@ -359,7 +378,13 @@
                         if (t.toAccountId === a.id) bal += t.amount;
                     }
                 });
-                histDebt += Math.max(0, (a.creditLimit || 0) - bal);
+
+                const limit = a.creditLimit || 0;
+                const cardDebt = Math.max(0, limit - bal);
+                const hedgeTotal = hedgeValues[a.id] || 0;
+                const covered = Math.min(cardDebt, hedgeTotal);
+
+                histDebt += Math.max(0, cardDebt - covered);
             });
             return histDebt;
         }
@@ -465,6 +490,63 @@
                 total += bal;
             }
         });
+
+        // Для savings добавляем оверпэй кредиток и излишек хеджа
+        if (row === 'savings') {
+            // Оверпэй по кредитным картам
+            S.accounts.filter(a => a.type === 'credit' && !a.archived && !a.isTransit).forEach(a => {
+                let bal = a.initialBalance || 0;
+                S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                    if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
+                    if (t.type === 'expense' && t.accountId === a.id) bal -= t.amount;
+                    if (t.type === 'transfer') {
+                        if (t.accountId === a.id) bal -= t.amount;
+                        if (t.toAccountId === a.id) bal += t.amount;
+                    }
+                });
+                const limit = a.creditLimit || 0;
+                const overpay = Math.max(0, bal - limit);
+                if (overpay > 0) total += overpay;
+            });
+
+            // Излишек хеджа
+            if (S.settings.hedgingEnabled) {
+                const hedgeAccs = S.accounts.filter(a => a.hedgeFor && !a.archived && !a.isTransit);
+                const creditAccs = S.accounts.filter(a => a.type === 'credit' && !a.archived && !a.isTransit);
+
+                const hedgeValues = {};
+                hedgeAccs.forEach(h => {
+                    let bal = h.initialBalance || 0;
+                    S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                        if (t.type === 'income' && t.accountId === h.id) bal += t.amount;
+                        if (t.type === 'expense' && t.accountId === h.id) bal -= t.amount;
+                        if (t.type === 'transfer') {
+                            if (t.accountId === h.id) bal -= t.amount;
+                            if (t.toAccountId === h.id) bal += t.amount;
+                        }
+                    });
+                    if (!hedgeValues[h.hedgeFor]) hedgeValues[h.hedgeFor] = 0;
+                    hedgeValues[h.hedgeFor] += bal;
+                });
+
+                creditAccs.forEach(a => {
+                    let bal = a.initialBalance || 0;
+                    S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                        if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
+                        if (t.type === 'expense' && t.accountId === a.id) bal -= t.amount;
+                        if (t.type === 'transfer') {
+                            if (t.accountId === a.id) bal -= t.amount;
+                            if (t.toAccountId === a.id) bal += t.amount;
+                        }
+                    });
+                    const limit = a.creditLimit || 0;
+                    const cardDebt = Math.max(0, limit - bal);
+                    const hedgeTotal = hedgeValues[a.id] || 0;
+                    const surplus = Math.max(0, hedgeTotal - cardDebt);
+                    if (surplus > 0) total += surplus;
+                });
+            }
+        }
 
         return hasAnyAccounts ? total : null;
     }
@@ -883,6 +965,19 @@
                 let val = calcTableRow(row.key, monthsArr);
                 let display = (val === 0 || val === null || val === undefined) ? '-' : (row.suffix ? formatPercent(val) : fmtPlain(val));
                 if (row.key === 'capital' && (val === 0 || val === null || val === undefined)) display = '-';
+
+                // Визуальная прозрачность для хеджированных сумм
+                if (row.key.startsWith('debt_acc_') || row.key.startsWith('savings_acc_')) {
+                    const accId = row.key.split('_acc_')[1];
+                    const acc = getAcc(accId);
+                    if (acc) {
+                        const isHedged = acc.hedgeFor || (acc.type === 'credit' && accValue(acc) > (acc.creditLimit || 0));
+                        if (isHedged && val !== 0 && val !== null && val !== undefined) {
+                            display = `<span style="opacity: 0.5;">${display}</span>`;
+                        }
+                    }
+                }
+
                 tableHtml += `<td style="padding:10px; min-width: 90px; white-space: nowrap;">${display}</td>`;
             });
 
@@ -916,6 +1011,18 @@
 
             let displayTotal = (totalVal === 0 || totalVal === null || totalVal === undefined) ? '-' : (row.suffix ? formatPercent(totalVal) : fmtPlain(totalVal));
             if (row.key === 'capital' && (totalVal === 0 || totalVal === null || totalVal === undefined)) displayTotal = '-';
+
+            // Визуальная прозрачность для хеджированных сумм (Итого)
+            if (row.key.startsWith('debt_acc_') || row.key.startsWith('savings_acc_')) {
+                const accId = row.key.split('_acc_')[1];
+                const acc = getAcc(accId);
+                if (acc) {
+                    const isHedged = acc.hedgeFor || (acc.type === 'credit' && accValue(acc) > (acc.creditLimit || 0));
+                    if (isHedged && totalVal !== 0 && totalVal !== null && totalVal !== undefined) {
+                        displayTotal = `<span style="opacity: 0.5;">${displayTotal}</span>`;
+                    }
+                }
+            }
 
             tableHtml += `<td style="position:sticky; right:0; background:${bg}; z-index:2; padding:10px; font-weight:700; border-left:1px solid var(--border); min-width: 110px; text-align:right; white-space: nowrap;">${displayTotal}</td>`;
             tableHtml += `</tr>`;
