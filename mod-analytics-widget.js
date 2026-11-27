@@ -105,6 +105,7 @@
         }
 
         S.accounts.filter(a => !a.archived).forEach(a => {
+            if (a.isTransit) return;
             const v = accValue(a);
             if (a.type === 'credit') {
                 const limit = a.creditLimit || 0;

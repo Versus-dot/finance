@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v32
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v33
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -285,7 +285,7 @@
         if (row.includes('_acc_')) {
             const accId = row.split('_acc_')[1];
             const acc = getAcc(accId);
-            if (!acc || acc.archived) return null;
+            if (!acc || acc.archived || acc.isTransit) return null;
 
             // Проверяем portfolioHistory из Excel
             if (acc.portfolioHistory && acc.portfolioHistory[targetEnd] !== undefined) {
@@ -368,7 +368,7 @@
         if (row === 'capital') {
             let total = 0;
             let hasAny = false;
-            S.accounts.filter(a => !a.archived).forEach(a => {
+            S.accounts.filter(a => !a.archived && !a.isTransit).forEach(a => {
                 let startDate = a.openedAt;
                 if (!startDate) {
                     const txs = S.transactions.filter(t => t.accountId === a.id || t.toAccountId === a.id);
@@ -406,13 +406,13 @@
         // Для групп (pds, stocks, savings, cushion) — прямой пересчет по каждому счету
         const rowAccounts = [];
         if (row === 'pds') {
-            S.accounts.filter(a => !a.archived && a.type === 'pds').forEach(a => rowAccounts.push(a));
+            S.accounts.filter(a => !a.archived && !a.isTransit && a.type === 'pds').forEach(a => rowAccounts.push(a));
         } else if (row === 'stocks') {
-            S.accounts.filter(a => !a.archived && ['brokerage','iis','invest_kopilka'].includes(a.type)).forEach(a => rowAccounts.push(a));
+            S.accounts.filter(a => !a.archived && !a.isTransit && ['brokerage','iis','invest_kopilka'].includes(a.type)).forEach(a => rowAccounts.push(a));
         } else if (row === 'savings') {
-            S.accounts.filter(a => !a.archived && ['deposit','savings','finu_wallet','debit','cash'].includes(a.type)).forEach(a => rowAccounts.push(a));
+            S.accounts.filter(a => !a.archived && !a.isTransit && ['deposit','savings','finu_wallet','debit','cash'].includes(a.type)).forEach(a => rowAccounts.push(a));
         } else if (row === 'cushion') {
-            S.accounts.filter(a => !a.archived && a.inCushion).forEach(a => rowAccounts.push(a));
+            S.accounts.filter(a => !a.archived && !a.isTransit && a.inCushion).forEach(a => rowAccounts.push(a));
         }
 
         if (rowAccounts.length === 0) return 0;
@@ -722,7 +722,7 @@
         const dynamicDebtRows = [];
 
         S.accounts.forEach(acc => {
-            if (acc.archived) return;
+            if (acc.archived || acc.isTransit) return;
 
             if (acc.inCushion) {
                 const bank = getBank(acc.bankId);
