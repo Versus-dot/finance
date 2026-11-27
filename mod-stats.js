@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v36
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v37
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -969,6 +969,20 @@
             if (row.type === 'header') {
                 tableHtml += `<tr style="background:var(--bg2);"><td colspan="${periods.length + 2}" style="padding: 8px 10px; font-size: 11px; font-weight: 800; color: var(--muted); text-align: left; letter-spacing: 1px; border-bottom: 1px solid var(--border); position: sticky; left: 0; z-index: 4;">${row.label}</td></tr>`;
                 return;
+            }
+
+            // === СКРЫТЬ пустые вложенные счета ===
+            const isSubAccount = row.key.includes('_acc_') || row.key.includes('_bank_') || row.key.startsWith('inv_acc_') || row.key.startsWith('inv_bank_');
+            if (isSubAccount) {
+                let hasData = false;
+                periods.forEach(p => {
+                    const monthsArr = p.months ? p.months : [p.dateStr];
+                    const val = calcTableRow(row.key, monthsArr);
+                    if (val !== null && val !== undefined && Math.abs(val) > 0.01) {
+                        hasData = true;
+                    }
+                });
+                if (!hasData) return;
             }
 
             const isSelected = window._statsSelectedRows.includes(row.key);
