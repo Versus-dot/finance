@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v34
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v35
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -307,7 +307,12 @@
             if (targetEnd < startDate) return null;
 
             if (targetMonthStr === today().slice(0, 7)) {
-                if (row.startsWith('debt_acc_')) return Math.max(0, (acc.creditLimit || 0) - accValue(acc));
+                if (row.startsWith('debt_acc_')) {
+                    const hedgeAccs = S.accounts.filter(h => h.hedgeFor === acc.id && !h.archived);
+                    let hedgeAmount = 0;
+                    hedgeAccs.forEach(h => { hedgeAmount += accValue(h); });
+                    return Math.max(0, (acc.creditLimit || 0) - accValue(acc) - hedgeAmount);
+                }
                 return accValue(acc);
             }
 
@@ -327,7 +332,23 @@
                 }
             });
 
-            if (row.startsWith('debt_acc_')) return Math.max(0, (acc.creditLimit || 0) - bal);
+            if (row.startsWith('debt_acc_')) {
+                const hedgeAccs = S.accounts.filter(h => h.hedgeFor === acc.id && !h.archived && !h.isTransit);
+                let hedgeAmount = 0;
+                hedgeAccs.forEach(h => {
+                    let hBal = h.initialBalance || 0;
+                    S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                        if (t.type === 'income' && t.accountId === h.id) hBal += t.amount;
+                        if (t.type === 'expense' && t.accountId === h.id) hBal -= t.amount;
+                        if (t.type === 'transfer') {
+                            if (t.accountId === h.id) hBal -= t.amount;
+                            if (t.toAccountId === h.id) hBal += t.amount;
+                        }
+                    });
+                    hedgeAmount += hBal;
+                });
+                return Math.max(0, (acc.creditLimit || 0) - bal - hedgeAmount);
+            }
             if (row.startsWith('savings_acc_')) return Math.max(0, bal);
             return bal;
         }
@@ -435,7 +456,7 @@
         } else if (row === 'stocks') {
             S.accounts.filter(a => !a.archived && !a.isTransit && ['brokerage','iis','invest_kopilka'].includes(a.type)).forEach(a => rowAccounts.push(a));
         } else if (row === 'savings') {
-            S.accounts.filter(a => !a.archived && !a.isTransit && ['deposit','savings','finu_wallet','debit','cash'].includes(a.type)).forEach(a => rowAccounts.push(a));
+            S.accounts.filter(a => !a.archived && !a.isTransit && !a.hedgeFor && ['deposit','savings','finu_wallet','debit','cash'].includes(a.type)).forEach(a => rowAccounts.push(a));
         } else if (row === 'cushion') {
             S.accounts.filter(a => !a.archived && !a.isTransit && a.inCushion).forEach(a => rowAccounts.push(a));
         }
@@ -966,15 +987,12 @@
                 let display = (val === 0 || val === null || val === undefined) ? '-' : (row.suffix ? formatPercent(val) : fmtPlain(val));
                 if (row.key === 'capital' && (val === 0 || val === null || val === undefined)) display = '-';
 
-                // Визуальная прозрачность для хеджированных сумм
-                if (row.key.startsWith('debt_acc_') || row.key.startsWith('savings_acc_')) {
+                // Визуальная прозрачность для хеджированных накоплений
+                if (row.key.startsWith('savings_acc_')) {
                     const accId = row.key.split('_acc_')[1];
                     const acc = getAcc(accId);
-                    if (acc) {
-                        const isHedged = acc.hedgeFor || (acc.type === 'credit' && accValue(acc) > (acc.creditLimit || 0));
-                        if (isHedged && val !== 0 && val !== null && val !== undefined) {
-                            display = `<span style="opacity: 0.5;">${display}</span>`;
-                        }
+                    if (acc && acc.hedgeFor && val !== 0 && val !== null && val !== undefined) {
+                        display = `<span style="opacity: 0.5;">${display}</span>`;
                     }
                 }
 
@@ -1012,15 +1030,12 @@
             let displayTotal = (totalVal === 0 || totalVal === null || totalVal === undefined) ? '-' : (row.suffix ? formatPercent(totalVal) : fmtPlain(totalVal));
             if (row.key === 'capital' && (totalVal === 0 || totalVal === null || totalVal === undefined)) displayTotal = '-';
 
-            // Визуальная прозрачность для хеджированных сумм (Итого)
-            if (row.key.startsWith('debt_acc_') || row.key.startsWith('savings_acc_')) {
+            // Визуальная прозрачность для хеджированных накоплений (Итого)
+            if (row.key.startsWith('savings_acc_')) {
                 const accId = row.key.split('_acc_')[1];
                 const acc = getAcc(accId);
-                if (acc) {
-                    const isHedged = acc.hedgeFor || (acc.type === 'credit' && accValue(acc) > (acc.creditLimit || 0));
-                    if (isHedged && totalVal !== 0 && totalVal !== null && totalVal !== undefined) {
-                        displayTotal = `<span style="opacity: 0.5;">${displayTotal}</span>`;
-                    }
+                if (acc && acc.hedgeFor && totalVal !== 0 && totalVal !== null && totalVal !== undefined) {
+                    displayTotal = `<span style="opacity: 0.5;">${displayTotal}</span>`;
                 }
             }
 
