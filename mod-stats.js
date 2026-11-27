@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v35
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v36
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -297,7 +297,7 @@
                 const txs = S.transactions.filter(t => t.accountId === acc.id || t.toAccountId === acc.id);
                 if (txs.length > 0) {
                     startDate = txs.map(t => t.date).sort()[0];
-                } else if (acc.initialBalance > 0) {
+                } else if (acc.initialBalance > 0 && acc.type !== 'credit') {
                     startDate = '2000-01-01';
                 } else {
                     startDate = today();
@@ -370,6 +370,7 @@
         // Долги считаем прямым пересчетом от кредитных лимитов с учетом хеджей
         if (row === 'debt') {
             let histDebt = 0;
+            let hasAnyDebt = false;
             const creditAccs = S.accounts.filter(a => a.type === 'credit' && !a.archived && !a.isTransit);
             const hedgeAccs = S.accounts.filter(a => a.hedgeFor && !a.archived && !a.isTransit);
 
@@ -390,6 +391,18 @@
             });
 
             creditAccs.forEach(a => {
+                let startDate = a.openedAt;
+                if (!startDate) {
+                    const txs = S.transactions.filter(t => t.accountId === a.id || t.toAccountId === a.id);
+                    if (txs.length > 0) {
+                        startDate = txs.map(t => t.date).sort()[0];
+                    } else {
+                        startDate = today();
+                    }
+                }
+                if (targetEnd < startDate) return;
+
+                hasAnyDebt = true;
                 let bal = a.initialBalance || 0;
                 S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                     if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
@@ -407,7 +420,7 @@
 
                 histDebt += Math.max(0, cardDebt - covered);
             });
-            return histDebt;
+            return hasAnyDebt ? histDebt : null;
         }
 
         // ПРЯМОЙ ПЕРЕСЧЕТ: сумма всех транзакций до конца целевого месяца
