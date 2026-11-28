@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v42
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v43
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -469,21 +469,38 @@
                 if (targetEnd < startDate) return;
 
                 hasAny = true;
-                let bal = a.initialBalance || 0;
-                S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
-                    if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
-                    if (t.type === 'expense' && t.accountId === a.id) bal -= t.amount;
-                    if (t.type === 'transfer') {
-                        if (t.accountId === a.id) bal -= t.amount;
-                        if (t.toAccountId === a.id) bal += t.amount;
-                    }
-                    if (t.type === 'debt') {
-                        if (t.accountId === a.id) {
-                            if (t.debtType === 'lent' || t.debtType === 'repaid') bal -= t.amount;
-                            if (t.debtType === 'borrowed' || t.debtType === 'returned') bal += t.amount;
+
+                // Сначала проверяем Excel-историю
+                let bal = 0;
+                let hasExcelData = false;
+                if (a.portfolioHistory && a.portfolioHistory[targetEnd] !== undefined) {
+                    bal = a.portfolioHistory[targetEnd];
+                    hasExcelData = true;
+                } else if (a.tinvestId) {
+                    // Для Т-Инвеста начинаем с нуля, игнорируя кривой initialBalance
+                    bal = 0;
+                } else {
+                    // Для обычных счетов берем initialBalance
+                    bal = a.initialBalance || 0;
+                }
+
+                // Прибавляем транзакции только если нет данных из Excel
+                if (!hasExcelData) {
+                    S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                        if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
+                        if (t.type === 'expense' && t.accountId === a.id) bal -= t.amount;
+                        if (t.type === 'transfer') {
+                            if (t.accountId === a.id) bal -= t.amount;
+                            if (t.toAccountId === a.id) bal += t.amount;
                         }
-                    }
-                });
+                        if (t.type === 'debt') {
+                            if (t.accountId === a.id) {
+                                if (t.debtType === 'lent' || t.debtType === 'repaid') bal -= t.amount;
+                                if (t.debtType === 'borrowed' || t.debtType === 'returned') bal += t.amount;
+                            }
+                        }
+                    });
+                }
                 total += bal;
             });
             return hasAny ? total : null;
