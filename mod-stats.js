@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v37
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v38
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -135,8 +135,21 @@
         window.renderStats();
     };
 
+    const ROW_HINTS = {
+        saved: 'Сумма переводов на накопительные счета и вклады за период.',
+        invest_total: 'Сумма переводов на брокерские счета и ИИС за период.',
+        total_saved: 'Сумма отложенного в накопления и инвестированного за период.',
+        rate: 'Отношение отложенных и инвестированных средств к активному доходу. Показывается только за текущий месяц.'
+    };
+
+    window.showStatsHint = function(key) {
+        const hint = ROW_HINTS[key] || '';
+        if (!hint) return;
+        openModal(`<div class="modal-header"><h2>Подсказка</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="font-size:14px; line-height:1.6;">${hint}</div>`);
+    };
+
     window.toggleInvestSpoiler = function() {
-        window._statsUI.investSpoiler = !window._statsUI.investSpoiler;
+        window._statsUI.spoilers.invest = !window._statsUI.spoilers.invest;
         window.renderStats();
     };
 
@@ -627,6 +640,8 @@
             });
             total = inc - exp;
         } else if (row === 'rate') {
+            // Норма сбережений — только для текущего месяца
+            if (monthsArray[0] !== today().slice(0, 7)) return null;
             let inc = 0, sav = 0, inv = 0, passive = 0;
             S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
                 if (t.type === 'income') {
@@ -901,7 +916,7 @@
         // ДИНАМИЧЕСКИЕ СТРОКИ ДЛЯ ИНВЕСТИЦИЙ
         const dynamicInvestmentRows = [];
         
-        const investAccounts = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived);
+        const investAccounts = S.accounts.filter(a => ['brokerage', 'iis', 'invest_kopilka'].includes(a.type) && !a.archived && !a.isTransit);
         const bankGroups = {};
         investAccounts.forEach(a => {
             if (!bankGroups[a.bankId]) bankGroups[a.bankId] = [];
@@ -916,12 +931,13 @@
             if (accs.length > 1) {
                 dynamicInvestmentRows.push({ key: 'inv_bank_' + bankId, label: '↳ ' + esc(bank.name), indent: 1, color: COLORS.invest });
                 accs.forEach(acc => {
-                    dynamicInvestmentRows.push({ key: 'inv_acc_' + acc.id, label: '↳↳ ' + esc(acc.name), indent: 2, color: COLORS.invest });
+                    dynamicInvestmentRows.push({ key: 'inv_acc_' + acc.id, label: '↳↳ ' + esc(bank.name) + ' - ' + esc(acc.name), indent: 2, color: COLORS.invest });
                 });
             } else if (accs.length === 1) {
-                dynamicInvestmentRows.push({ key: 'inv_acc_' + accs[0].id, label: '↳ ' + esc(bank.name), indent: 1, color: COLORS.invest });
+                dynamicInvestmentRows.push({ key: 'inv_acc_' + accs[0].id, label: '↳ ' + esc(bank.name) + ' - ' + esc(accs[0].name), indent: 1, color: COLORS.invest });
             }
         });
+        dynamicInvestmentRows.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
 
         // Собираем финальный массив строк
         const rows = [
@@ -931,12 +947,12 @@
             { key: 'passive', label: 'Пассивный', indent: 1, color: COLORS.passive },
             { key: 'expense', label: 'Расходы', indent: 0, color: COLORS.expense, bold: true },
             { key: 'taxes', label: 'Налоги', indent: 1, color: COLORS.taxes },
-            { key: 'saved', label: 'Отложено в накопления', indent: 0, color: COLORS.saved },
-            { key: 'total_saved', label: 'Общее отложенное', indent: 0, color: COLORS.saved, bold: true },
-            { key: 'invest_total', label: 'Инвестировано (Всего)', indent: 0, color: COLORS.invest, bold: true },
-            ...(window._statsUI.investSpoiler ? [] : dynamicInvestmentRows),
+            { key: 'saved', label: 'Отложено в накопления', indent: 0, color: COLORS.saved, hint: 'Сумма переводов на накопительные счета и вклады за период.' },
+            { key: 'total_saved', label: 'Общее отложенное + инвест.', indent: 0, color: COLORS.saved, bold: true },
+            { key: 'invest_total', label: 'Инвестировано (Всего)', indent: 0, color: COLORS.invest, bold: true, hint: 'Сумма переводов на брокерские счета и ИИС за период.' },
+            ...(window._statsUI.spoilers.invest ? [] : dynamicInvestmentRows),
             { key: 'fcf', label: 'Свободный поток', indent: 0, color: COLORS.fcf, bold: true },
-            { key: 'rate', label: 'Норма сбережений', indent: 0, color: COLORS.rate, suffix: '%' },
+            { key: 'rate', label: 'Норма сбережений', indent: 0, color: COLORS.rate, suffix: '%', hint: 'Отношение отложенных и инвестированных средств к активному доходу. Показывается только за текущий месяц.' },
             { type: 'header', label: 'БАЛАНСЫ НА КОНЕЦ ПЕРИОДА' },
             { key: 'capital', label: 'Капитал', indent: 0, color: COLORS.capital, bold: true, isHeader: true },
             { key: 'cushion', label: 'Подушка', indent: 1, color: COLORS.cushion },
@@ -999,12 +1015,17 @@
                 ? `<span style="display:inline-block; width:14px; text-align:center; margin-right:2px; cursor:pointer; user-select:none;" onclick="event.stopPropagation(); window.toggleStatsSpoiler('invest');">${window._statsUI.spoilers.invest ? '▶' : '▼'}</span>`
                 : '';
             
+            // Подсказка ⓘ
+            const hintIcon = row.hint
+                ? `<span onclick="event.stopPropagation(); window.showStatsHint('${row.key}')" style="cursor:pointer; opacity:0.5; margin-left:4px; font-size:12px;">ⓘ</span>`
+                : '';
+            
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
                 <td onclick="window.toggleTableRow('${row.key}')" 
                     style="position:sticky; left:0; background:${bg}; z-index:2; padding:10px; text-align:left; font-weight:${row.bold ? '700' : '400'}; color:${row.color || 'inherit'}; cursor:pointer; user-select:none; border-right:1px solid var(--border); width: 110px; min-width: 110px; max-width: 110px; ${isSelected ? 'box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);' : ''}">
                     ${activeBar}
                     <div style="white-space: normal; word-break: break-word; line-height: 1.2; padding-left: ${row.indent * 10}px;">
-                        ${investArrow}${groupArrow}${row.label}
+                        ${investArrow}${groupArrow}${row.label}${hintIcon}
                     </div>
                 </td>`;
             
@@ -1214,6 +1235,7 @@
             else if (key === 'expense') { label = 'Расходы'; color = COLORS.expense; }
             else if (key === 'taxes') { label = 'Налоги'; color = COLORS.taxes; }
             else if (key === 'saved') { label = 'Отложено'; color = COLORS.saved; }
+            else if (key === 'total_saved') { label = 'Общее отложенное + инвест.'; color = COLORS.saved; }
             else if (key === 'invest_total') { label = 'Инвестировано (Всего)'; color = COLORS.invest; }
             else if (key.startsWith('inv_bank_') || key.startsWith('inv_acc_')) { 
                 label = 'Инвестиции'; color = COLORS.invest;
