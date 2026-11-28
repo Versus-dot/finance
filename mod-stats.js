@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v39
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v40
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -135,7 +135,7 @@
         window.renderStats();
     };
 
-    const ROW_HINTS = {
+    window.ROW_HINTS = {
         income: 'Все поступления денег на счета за период (зарплата, аванс, проценты, дивиденды).',
         active: 'Доходы, которые требуют твоего труда (зарплата, фриланс, аванс).',
         passive: 'Доходы без активного участия (купоны, дивиденды, проценты по вкладам, кэшбэк).',
@@ -155,9 +155,11 @@
     };
 
     window.showStatsHint = function(key) {
-        const hint = ROW_HINTS[key] || '';
-        if (!hint) return;
-        openModal(`<div class="modal-header"><h2>Подсказка</h2><button class="btn-icon" onclick="closeModal()">✕</button></div><div style="font-size:14px; line-height:1.6;">${hint}</div>`);
+        const hintText = window.ROW_HINTS && window.ROW_HINTS[key] ? window.ROW_HINTS[key] : 'Описание отсутствует.';
+        openModal(`
+            <div class="modal-header"><h2>Подсказка</h2><button class="btn-icon" onclick="closeModal()">✕</button></div>
+            <div style="font-size:15px; line-height:1.6; color:var(--text);">${hintText}</div>
+        `);
     };
 
     window.toggleInvestSpoiler = function() {
@@ -1028,8 +1030,8 @@
                 : '';
             
             // Подсказка ⓘ
-            const hintIcon = ROW_HINTS[row.key]
-                ? `<span onclick="event.stopPropagation(); openModal('<div class=\"modal-header\"><h2>${esc(row.label)}</h2><button class=\"btn-icon\" onclick=\"closeModal()\">✕</button></div><div style=\"font-size:14px; line-height:1.6;\">${ROW_HINTS[row.key]}</div>');" style="cursor:pointer; opacity:0.5; margin-left:4px; font-size:12px;">ⓘ</span>`
+            const hintIcon = window.ROW_HINTS[row.key] 
+                ? `<span onclick="event.stopPropagation(); window.showStatsHint('${row.key}')" style="cursor:pointer; opacity:0.5; margin-left:6px; font-size:14px;">ⓘ</span>` 
                 : '';
             
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
