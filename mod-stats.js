@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v40
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v41
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -1063,7 +1063,7 @@
 
             // Calculate Total
             let totalVal = 0;
-            if (['income', 'active', 'passive', 'expense', 'taxes', 'saved', 'fcf'].includes(row.key) || row.key === 'invest_total' || row.key.startsWith('inv_bank_') || row.key.startsWith('inv_acc_')) {
+            if (['income', 'active', 'passive', 'expense', 'taxes', 'saved', 'fcf', 'total_saved'].includes(row.key) || row.key === 'invest_total' || row.key.startsWith('inv_bank_') || row.key.startsWith('inv_acc_')) {
                 totalVal = periods.reduce((sum, p) => {
                     const monthsArr = p.months ? p.months : [p.dateStr];
                     return sum + calcTableRow(row.key, monthsArr);
@@ -1084,7 +1084,7 @@
                         }
                     });
                 });
-                totalVal = totalActInc > 0 ? Math.min(100, ((totalSav + totalInv) / totalActInc * 100)) : 0;
+                totalVal = totalActInc > 0 ? ((totalSav + totalInv) / totalActInc * 100) : 0;
             } else {
                 const lastPeriod = periods[periods.length - 1];
                 if (lastPeriod) {
