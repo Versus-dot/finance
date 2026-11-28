@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v43
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v44
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -454,37 +454,39 @@
         if (row === 'capital') {
             let total = 0;
             let hasAny = false;
+
             S.accounts.filter(a => !a.archived && !a.isTransit).forEach(a => {
+                // 1. Проверяем дату появления счета
                 let startDate = a.openedAt;
                 if (!startDate) {
                     const txs = S.transactions.filter(t => t.accountId === a.id || t.toAccountId === a.id);
                     if (txs.length > 0) {
                         startDate = txs.map(t => t.date).sort()[0];
                     } else if (a.initialBalance > 0) {
-                        startDate = '2000-01-01';
+                        startDate = '2000-01-01'; // Если есть баланс, но нет операций — считаем старым
                     } else {
                         startDate = today();
                     }
                 }
-                if (targetEnd < startDate) return;
 
+                // Если на конец месяца счета еще не было — пропускаем
+                if (targetEnd < startDate) return;
                 hasAny = true;
 
-                // Сначала проверяем Excel-историю
+                // 2. Считаем баланс
                 let bal = 0;
                 let hasExcelData = false;
+
                 if (a.portfolioHistory && a.portfolioHistory[targetEnd] !== undefined) {
                     bal = a.portfolioHistory[targetEnd];
                     hasExcelData = true;
                 } else if (a.tinvestId) {
-                    // Для Т-Инвеста начинаем с нуля, игнорируя кривой initialBalance
-                    bal = 0;
+                    bal = 0; // Для API-счетов начинаем с нуля (игнорируем initialBalance)
                 } else {
-                    // Для обычных счетов берем initialBalance
                     bal = a.initialBalance || 0;
                 }
 
-                // Прибавляем транзакции только если нет данных из Excel
+                // 3. Добавляем транзакции (если нет данных из Excel)
                 if (!hasExcelData) {
                     S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
                         if (t.type === 'income' && t.accountId === a.id) bal += t.amount;
@@ -501,8 +503,37 @@
                         }
                     });
                 }
-                total += bal;
+
+                // 4. Вклад в капитал (для кредиток вычитаем долг с учетом хеджей)
+                if (a.type === 'credit') {
+                    const cardDebt = Math.max(0, (a.creditLimit || 0) - bal);
+                    const hedgeAccs = S.accounts.filter(h => h.hedgeFor === a.id && !h.archived && !h.isTransit);
+                    let hedgeAmount = 0;
+                    hedgeAccs.forEach(h => {
+                        if (h.portfolioHistory && h.portfolioHistory[targetEnd] !== undefined) {
+                            hedgeAmount += h.portfolioHistory[targetEnd];
+                        } else {
+                            let hBal = h.tinvestId ? 0 : (h.initialBalance || 0);
+                            if (!h.tinvestId) {
+                                 S.transactions.filter(t => t.date <= targetEnd && !t.ignoreInStats).forEach(t => {
+                                    if (t.type === 'income' && t.accountId === h.id) hBal += t.amount;
+                                    if (t.type === 'expense' && t.accountId === h.id) hBal -= t.amount;
+                                    if (t.type === 'transfer') {
+                                        if (t.accountId === h.id) hBal -= t.amount;
+                                        if (t.toAccountId === h.id) hBal += t.amount;
+                                    }
+                                });
+                            }
+                            hedgeAmount += hBal;
+                        }
+                    });
+                    const covered = Math.min(cardDebt, hedgeAmount);
+                    total -= Math.max(0, cardDebt - covered); // Вычитаем долг из капитала
+                } else {
+                    total += bal;
+                }
             });
+
             return hasAny ? total : null;
         }
 
