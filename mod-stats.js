@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v41
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v42
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -656,21 +656,9 @@
         } else if (row === 'rate') {
             // Норма сбережений — только для текущего месяца
             if (monthsArray[0] !== today().slice(0, 7)) return null;
-            let inc = 0, sav = 0, inv = 0, passive = 0;
-            S.transactions.filter(t => isDateMatch(t.date) && !t.ignoreInStats).forEach(t => {
-                if (t.type === 'income') {
-                    inc += t.amount;
-                    const c = getCat(t.categoryId);
-                    if (c && c.passive) passive += t.amount;
-                }
-                if (t.type === 'transfer') {
-                    const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
-                    if (k === 'savings') sav += t.amount;
-                    if (k === 'investment') inv += t.amount;
-                }
-            });
-            const activeInc = inc - passive;
-            total = activeInc > 0 ? Math.min(100, ((sav + inv) / activeInc * 100)) : 0;
+            const activeInc = calcTableRow('active', monthsArray);
+            const totalSaved = calcTableRow('total_saved', monthsArray);
+            total = activeInc > 0 ? Math.min(100, (totalSaved / activeInc * 100)) : 0;
         } else if (row === 'total_saved') {
             total = calcTableRow('saved', monthsArray) + calcTableRow('invest_total', monthsArray);
         } else if (row.startsWith('cushion_acc_') || row.startsWith('stocks_acc_') || row.startsWith('pds_acc_') || row.startsWith('savings_acc_') || row.startsWith('debt_acc_')) {
@@ -1069,22 +1057,13 @@
                     return sum + calcTableRow(row.key, monthsArr);
                 }, 0);
             } else if (row.key === 'rate') {
-                let totalActInc = 0, totalSav = 0, totalInv = 0;
+                let totalActInc = 0, totalSaved = 0;
                 periods.forEach(p => {
                     const monthsArr = p.months ? p.months : [p.dateStr];
-                    S.transactions.filter(t => monthsArr.some(m => t.date.startsWith(m)) && !t.ignoreInStats).forEach(t => {
-                        if (t.type === 'income') {
-                            const c = getCat(t.categoryId);
-                            if (!c || !c.passive) totalActInc += t.amount;
-                        }
-                        if (t.type === 'transfer') {
-                            const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
-                            if (k === 'savings') totalSav += t.amount;
-                            if (k === 'investment') totalInv += t.amount;
-                        }
-                    });
+                    totalActInc += calcTableRow('active', monthsArr);
+                    totalSaved += calcTableRow('total_saved', monthsArr);
                 });
-                totalVal = totalActInc > 0 ? ((totalSav + totalInv) / totalActInc * 100) : 0;
+                totalVal = totalActInc > 0 ? (totalSaved / totalActInc * 100) : 0;
             } else {
                 const lastPeriod = periods[periods.length - 1];
                 if (lastPeriod) {
