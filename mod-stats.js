@@ -1,5 +1,5 @@
 // ==========================================
-// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v38
+// МОДУЛЬ СТАТИСТИКИ (mod-stats.js) v39
 // ==========================================
 (function() {
     console.log("✅ Модуль Статистики (mod-stats.js) v18 загружен");
@@ -136,10 +136,22 @@
     };
 
     const ROW_HINTS = {
+        income: 'Все поступления денег на счета за период (зарплата, аванс, проценты, дивиденды).',
+        active: 'Доходы, которые требуют твоего труда (зарплата, фриланс, аванс).',
+        passive: 'Доходы без активного участия (купоны, дивиденды, проценты по вкладам, кэшбэк).',
+        expense: 'Все траты денег со счетов за период.',
+        taxes: 'Подмножество расходов, связанное с уплатой налогов (НДФЛ и т.д.).',
         saved: 'Сумма переводов на накопительные счета и вклады за период.',
-        invest_total: 'Сумма переводов на брокерские счета и ИИС за период.',
         total_saved: 'Сумма отложенного в накопления и инвестированного за период.',
-        rate: 'Отношение отложенных и инвестированных средств к активному доходу. Показывается только за текущий месяц.'
+        invest_total: 'Сумма переводов на брокерские счета и ИИС за период.',
+        fcf: 'Доходы минус Расходы. Столько денег осталось у тебя в этом месяце до распределения по накопительным и инвестиционным счетам.',
+        rate: 'Процент от активного дохода, который ты смог отложить и инвестировать. Формула: (Отложено + Инвестировано) / Активный доход * 100. Значение выше 100% означает, что ты инвестировал больше, чем заработал (использовал старые накопления).',
+        capital: 'Чистая стоимость всех твоих активов (накопления + инвестиции + подушка) минус все долги.',
+        cushion: 'Резервный фонд на случай непредвиденных ситуаций.',
+        pds: 'Программа долгосрочных сбережений.',
+        stocks: 'Стоимость портфеля на брокерских счетах и ИИС.',
+        savings: 'Текущий баланс на вкладах, накопительных счетах, дебетовых картах и наличных.',
+        debt: 'Непокрытая часть долга по кредитным картам (лимит минус баланс, минус хеджи).'
     };
 
     window.showStatsHint = function(key) {
@@ -1016,8 +1028,8 @@
                 : '';
             
             // Подсказка ⓘ
-            const hintIcon = row.hint
-                ? `<span onclick="event.stopPropagation(); window.showStatsHint('${row.key}')" style="cursor:pointer; opacity:0.5; margin-left:4px; font-size:12px;">ⓘ</span>`
+            const hintIcon = ROW_HINTS[row.key]
+                ? `<span onclick="event.stopPropagation(); openModal('<div class=\"modal-header\"><h2>${esc(row.label)}</h2><button class=\"btn-icon\" onclick=\"closeModal()\">✕</button></div><div style=\"font-size:14px; line-height:1.6;\">${ROW_HINTS[row.key]}</div>');" style="cursor:pointer; opacity:0.5; margin-left:4px; font-size:12px;">ⓘ</span>`
                 : '';
             
             tableHtml += `<tr style="background:${bg}; border-bottom:1px solid var(--border); transition: background 0.2s; position:relative;">
@@ -1055,18 +1067,22 @@
                     return sum + calcTableRow(row.key, monthsArr);
                 }, 0);
             } else if (row.key === 'rate') {
-                let totalInc = 0, totalSav = 0;
+                let totalActInc = 0, totalSav = 0, totalInv = 0;
                 periods.forEach(p => {
                     const monthsArr = p.months ? p.months : [p.dateStr];
                     S.transactions.filter(t => monthsArr.some(m => t.date.startsWith(m)) && !t.ignoreInStats).forEach(t => {
-                        if (t.type === 'income') totalInc += t.amount;
+                        if (t.type === 'income') {
+                            const c = getCat(t.categoryId);
+                            if (!c || !c.passive) totalActInc += t.amount;
+                        }
                         if (t.type === 'transfer') {
                             const k = t.savingsKind || classifyTransfer(t.accountId, t.toAccountId);
-                            if (k === 'savings' || k === 'investment') totalSav += t.amount;
+                            if (k === 'savings') totalSav += t.amount;
+                            if (k === 'investment') totalInv += t.amount;
                         }
                     });
                 });
-                totalVal = totalInc > 0 ? Math.min(100, (totalSav / totalInc * 100)) : 0;
+                totalVal = totalActInc > 0 ? Math.min(100, ((totalSav + totalInv) / totalActInc * 100)) : 0;
             } else {
                 const lastPeriod = periods[periods.length - 1];
                 if (lastPeriod) {
@@ -1243,7 +1259,7 @@
                 if (rowDef) label = rowDef.textContent.trim().replace('↳', '').trim();
             }
             else if (key === 'fcf') { label = 'Свободный поток'; color = COLORS.fcf; }
-            else if (key === 'rate') { label = 'Норма сбережений'; type = 'line'; isPct = true; color = COLORS.rate; }
+            else if (key === 'rate') { label = 'Норма сбережений'; type = 'bar'; isPct = true; color = COLORS.rate; }
             else if (key === 'capital') { label = 'Капитал'; type = 'line'; color = COLORS.capital; }
             else if (key === 'cushion') { label = 'Подушка'; color = COLORS.cushion; }
             else if (key.startsWith('cushion_acc_')) {
